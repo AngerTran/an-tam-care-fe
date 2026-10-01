@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens lấy từ Figma "An Tâm Care" (file QvWs8Ya8umXc7CxJxGmp8X, Page 2 + Components).
+ * Component chỉ dùng token, không dùng mã hex trực tiếp.
+ */
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  --color-navy: #122359;
+  --color-blue: #3e6398;
+  --color-orange: #f68d54;
+  --color-orange-soft: #fff8f3;
+  --color-orange-line: #fbd9c4;
+  --color-orange-ink: #8a4a22;
+
+  --color-ink: #1b2540;
+  --color-body: #2a3553;
+  --color-muted: #5b6b82;
+  --color-subtle: #8b95a9;
+  --color-faint: #a9b1c2;
+  --color-sidebar-text: #c9d4ec;
+  --color-sidebar-sub: #8fa0c8;
+
+  --color-line: #e3e7f1;
+  --color-line-soft: #eef0f6;
+  --color-input-line: #d6dbe6;
+  --color-canvas: #f6f7fb;
+  --color-page: #e9ecf4;
+  --color-bubble: #f1f3f8;
+
+  /* tones dùng cho Badge / trạng thái */
+  --color-green: #2e9e6a;
+  --color-green-soft: #d7f0e3;
+  --color-green-ink: #1f7a4d;
+  --color-amber-soft: #fde6d9;
+  --color-amber-ink: #c7541a;
+  --color-red-soft: #fadcdc;
+  --color-red-ink: #b23a3a;
+  --color-red-line: #e8b5b5;
+  --color-blue-soft: #e4e9f3;
+  --color-teal: #1a9e9a;
+  --color-teal-soft: #d3f0ef;
+  --color-teal-ink: #12706d;
+  --color-purple-soft: #e6dcf5;
+  --color-purple-ink: #6a3fb0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}

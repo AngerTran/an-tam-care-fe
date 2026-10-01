@@ -1,0 +1,11 @@
+node_modules/
+dist/
+_legacy-landing/
+.claude/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
