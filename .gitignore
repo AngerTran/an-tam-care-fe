@@ -9,3 +9,6 @@ _legacy-landing/
 !.env.example
 .DS_Store
 Thumbs.db
+
+.vercel
+.vercel/
