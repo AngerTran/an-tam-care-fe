@@ -114,6 +114,39 @@ Giá kỳ = Giá gốc (hạng × thời hạn) × (1 + phụ phí mức độ) 
 
 Một **đăng ký (subscription)** luôn gắn với một cụ, một gói (hạng + thời hạn), một mức độ chăm sóc, ngày bắt đầu và ngày kết thúc. **Nâng hạng** có hiệu lực ngay và chỉ trả phần chênh lệch cho số ngày còn lại. **Hạ hạng** có hiệu lực từ kỳ sau.
 
+### 4.5 Cơ sở vật chất
+
+Phạm vi đã chốt: **quản lý phòng, giường và sức chứa, kèm kiểm kê thiết bị**. Số lượng do **Manager nhập tay**. Hệ thống **tự cập nhật, so sánh và báo** khi thiếu hoặc hư hỏng. Không làm lịch bảo trì định kỳ.
+
+**Các khu của trung tâm**
+
+| Khu | Dùng để làm gì | Gắn với hạng gói |
+|---|---|---|
+| Sảnh đón trả, quầy tiếp nhận | Check-in/out, xác nhận người đón, tiếp khách tham quan | Mọi hạng |
+| Phòng y tế | Đo chỉ số, sơ cứu, nơi cụ mệt nằm theo dõi | Mọi hạng |
+| Phòng sinh hoạt chung | Hoạt động nhóm, văn nghệ, đọc sách | Mọi hạng |
+| Phòng vật lý trị liệu | Tập phục hồi | Tiêu chuẩn: 2 buổi/tuần; Cao cấp: hằng ngày |
+| Phòng ăn | Bữa sáng, trưa, xế | Bữa theo hạng |
+| Phòng nghỉ trưa | Nghỉ trưa | Cơ bản: phòng chung; Tiêu chuẩn: phòng 4–6 người; Cao cấp: phòng 2 người, giường cố định |
+| Khu có kiểm soát ra vào | Chống đi lạc | Bắt buộc cho mức `DEMENTIA` |
+| Phòng hoạt động 1-1 | Trò chuyện, trị liệu nhận thức | Cao cấp |
+| Sân vườn, lối đi bộ | Tắm nắng, đi bộ, dưỡng sinh | Mọi hạng |
+
+**Manager nhập tay**
+- **Phòng:** tên, loại khu, sức chứa, hạng được dùng, trạng thái (hoạt động / tạm đóng).
+- **Giường nghỉ trưa:** thuộc phòng nào, dành cho hạng nào.
+- **Thiết bị:** tên, nhóm (y tế / tập VLTL / sinh hoạt / an toàn), phòng đặt, **tổng số lượng**, **định mức tối thiểu** cần có. Ví dụ: máy đo huyết áp, máy SpO₂, máy đo đường huyết, bình oxy, xe lăn, xe đạp tập, thanh song song.
+
+**Hệ thống tự làm**
+- Tính **số lượng dùng được** = tổng − đang hỏng − đang sửa.
+- So sánh với nhu cầu, rồi **cảnh báo Manager** khi:
+  - giường nghỉ trưa của một hạng không đủ cho số cụ đăng ký đi ngày đó;
+  - thiết bị dùng được thấp hơn định mức tối thiểu;
+  - lịch hoạt động xếp vượt sức chứa phòng, hoặc xếp vào phòng đang tạm đóng.
+- **Chặn bán gói** khi hạng đó đã hết chỗ. Cụ hạng Cao cấp được ưu tiên giữ chỗ.
+- Tự gán **giường cố định** cho cụ Cao cấp. Các hạng khác được xếp giường theo từng ngày.
+- Đưa số liệu thiếu, hỏng, tỷ lệ sử dụng phòng và giường vào **báo cáo gửi Admin**.
+
 ## 5. Các luồng nghiệp vụ chính
 
 ### 5.1 Đăng ký và đánh giá đầu vào
@@ -166,6 +199,19 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 - **Qua đời:** Family báo kèm giấy chứng tử (hoặc giấy tờ tương đương). Manager duyệt. Subscription chuyển `TERMINATED`. **Hoàn phần chưa dùng của gói dài hạn** qua cổng thanh toán. Phí đặt cọc và dịch vụ lẻ đã dùng không hoàn.
 - **Gia đình tự ý dừng gói** khi chưa hết hạn: **không hoàn tiền** (BR-20).
 
+### 5.10 Báo hỏng và kiểm kê cơ sở vật chất
+
+**Báo hỏng**
+1. Staff thấy thiết bị hỏng hoặc phòng có sự cố thì báo trên app: chọn thiết bị hoặc phòng, nhập số lượng hỏng, mô tả, chụp ảnh.
+2. Hệ thống trừ ngay khỏi số lượng dùng được. Nếu xuống dưới định mức thì cảnh báo Manager.
+3. Manager chọn cách xử lý: **đang sửa**, **đã sửa xong** (cộng lại số dùng được), hoặc **thanh lý** (Manager giảm tổng số bằng tay).
+4. Phòng có sự cố thì Manager chuyển sang **tạm đóng**. Hệ thống báo các lịch hoạt động và giường bị ảnh hưởng để Manager chuyển sang phòng khác.
+
+**Kiểm kê định kỳ** (Manager tự chọn tuần hoặc tháng)
+1. Manager đếm thực tế rồi nhập số lượng vào phiếu kiểm kê.
+2. Hệ thống so với số trên hệ thống, hiện **chênh lệch** (thiếu hoặc dư) theo từng thiết bị.
+3. Manager ghi lý do chênh lệch, chốt phiếu. Số liệu được cập nhật và đưa vào báo cáo gửi Admin.
+
 ## 6. Business rules
 
 | Mã | Quy tắc |
@@ -190,6 +236,10 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | BR-40 | Staff chỉ nhắn tin được với Family của các cụ mình phụ trách. Toàn bộ tin nhắn được lưu. Manager **[ĐỀ XUẤT]** chỉ mở lịch sử tin nhắn khi có khiếu nại hoặc khi Family yêu cầu, và việc mở được ghi vào audit log |
 | BR-50 | AI chỉ gợi ý. Lịch ca và thực đơn phải được Manager duyệt mới có hiệu lực |
 | BR-51 | Dữ liệu gửi sang AI phải ẩn thông tin cá nhân (tên, CCCD, số điện thoại) |
+| BR-70 | Tổng số lượng phòng, giường, thiết bị chỉ do Manager nhập hoặc sửa. Hệ thống chỉ thay đổi **số dùng được** qua báo hỏng, sửa xong và kiểm kê |
+| BR-71 | Không bán gói và không xếp cụ vượt sức chứa của hạng đó. Cụ mức `DEMENTIA` chỉ được xếp vào khu có kiểm soát ra vào |
+| BR-72 | Thiết bị dùng được thấp hơn định mức tối thiểu thì cảnh báo Manager và ghi vào báo cáo |
+| BR-73 | Phòng tạm đóng thì không xếp lịch hay giường vào. Cụ Cao cấp bị ảnh hưởng được chuyển tạm sang phòng tương đương **[ĐỀ XUẤT]** |
 | BR-60 | Admin chỉ xem số liệu tổng hợp, không xem hồ sơ sức khỏe từng cụ **[HỎI]** |
 
 ## 7. Ma trận phân quyền
@@ -217,6 +267,7 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | Lịch hoạt động | — | ✔ | 👁 | 👁 | 👁 |
 | Nhắn tin | — | BR-40 | ◐ | ◐ | ◐ |
 | Chatbot | — | — | — | — | ✔ (cả khách vãng lai) |
+| Phòng, giường, thiết bị, kiểm kê | 👁 báo cáo | ✔ | báo hỏng | báo hỏng | 👁 trang giới thiệu |
 | Audit log | ✔ | — | — | — | — |
 
 ## 8. Thay đổi dữ liệu so với ERD cũ (21 bảng)
@@ -251,6 +302,11 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | `staff_availability` | Lịch rảnh |
 | `leave_requests` | Xin nghỉ, đổi ca |
 | `subscription_pauses` | Bảo lưu (giấy tờ, từ ngày, đến ngày, người duyệt) |
+| `rooms` | Phòng: loại khu, sức chứa, hạng được dùng, trạng thái |
+| `nap_beds`, `nap_bed_assignments` | Giường nghỉ trưa; gán cố định (Cao cấp) hoặc theo ngày |
+| `equipment` | Thiết bị: nhóm, phòng, tổng số lượng, định mức tối thiểu, số đang hỏng, số đang sửa |
+| `damage_reports` | Báo hỏng: thiết bị hoặc phòng, số lượng, ảnh, người báo, trạng thái xử lý |
+| `inventory_checks`, `inventory_check_items` | Phiếu kiểm kê: số trên hệ thống, số đếm thực tế, chênh lệch, lý do |
 | `manager_reports` | Báo cáo Manager gửi Admin |
 
 ## 9. Câu hỏi còn mở
