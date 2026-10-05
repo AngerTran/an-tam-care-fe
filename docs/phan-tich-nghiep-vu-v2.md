@@ -147,6 +147,54 @@ Phạm vi đã chốt: **quản lý phòng, giường và sức chứa, kèm ki�
 - Tự gán **giường cố định** cho cụ Cao cấp. Các hạng khác được xếp giường theo từng ngày.
 - Đưa số liệu thiếu, hỏng, tỷ lệ sử dụng phòng và giường vào **báo cáo gửi Admin**.
 
+### 4.6 Màn hình Manager nhập cơ sở vật chất
+
+Trên web, Manager có menu **"Cơ sở vật chất"** gồm 5 màn hình:
+
+| Màn hình | Manager nhập / làm gì |
+|---|---|
+| **Khu và phòng** | Thêm, sửa phòng: tên, loại khu (y tế / sinh hoạt chung / VLTL / ăn / nghỉ trưa / kiểm soát ra vào / 1-1 / sân vườn / sảnh), tầng hoặc vị trí, diện tích, sức chứa, hạng được dùng, trạng thái (hoạt động / tạm đóng), ảnh và mô tả cho trang giới thiệu |
+| **Giường nghỉ trưa** | Thêm giường theo phòng: mã giường, hạng, trạng thái. Xem sơ đồ giường: trống / gán cố định / xếp theo ngày |
+| **Thiết bị** | Thêm thiết bị: tên, nhóm (y tế / tập VLTL / sinh hoạt / an toàn), phòng đặt, tổng số lượng, định mức tối thiểu, **số chỗ phục vụ cùng lúc** (dùng để xếp khung giờ VLTL), ghi chú. Nhập lô hàng loạt bằng file Excel **[ĐỀ XUẤT]** |
+| **Báo hỏng** | Danh sách báo hỏng từ staff. Đổi trạng thái: đang sửa / đã sửa xong / thanh lý |
+| **Kiểm kê** | Tạo phiếu kiểm kê, nhập số đếm thực tế, xem chênh lệch, ghi lý do, chốt phiếu |
+
+Trang tổng quan của menu này hiện: số chỗ còn trống theo hạng hôm nay, thiết bị dưới định mức, phòng đang tạm đóng, báo hỏng chưa xử lý.
+
+### 4.7 Sức chứa, giữ chỗ và danh sách chờ
+- **Chỗ chia cứng theo hạng**, tính bằng số giường nghỉ trưa của hạng đó.
+- **Cao cấp được ưu tiên:** không đẩy cụ hạng thấp ra ngoài. Cao cấp chỉ được xếp **đầu danh sách chờ**.
+- **Danh sách chờ:** khi hạng đã đầy, Family đăng ký vào danh sách chờ. Thứ tự là hạng cao trước, sau đó ai đăng ký trước. Khi có chỗ trống, hệ thống báo người đầu danh sách và **giữ chỗ 24 giờ** để họ thanh toán. Quá 24 giờ thì chuyển sang người kế tiếp.
+- **Nâng hạng** khi hạng cao đã hết giường: vào danh sách chờ, giữ nguyên hạng cũ cho tới khi có chỗ.
+- **Giường cố định của Cao cấp** được giữ trống cả khi cụ báo nghỉ.
+- **Gói ngày hạng Cao cấp** được bán nếu hôm đó còn giường Cao cấp trống. Cụ được xếp giường theo ngày; hết giường thì không bán.
+- **Khu sa sút trí tuệ** có sức chứa riêng. Đầy thì không nhận thêm cụ mức `DEMENTIA`, chỉ cho vào danh sách chờ.
+
+### 4.8 Bù quyền lợi khi cơ sở vật chất gặp sự cố
+
+| Tình huống | Xử lý |
+|---|---|
+| Phòng Cao cấp tạm đóng, còn phòng tương đương | Chuyển tạm sang phòng tương đương, không cần bù |
+| Phòng Cao cấp tạm đóng, **không còn** phòng tương đương | Xếp tạm phòng 4–6 người, **bù 1 buổi dịch vụ lẻ** cho mỗi ngày bị ảnh hưởng |
+| Phòng hoặc máy VLTL hỏng, cụ mất buổi tập | **Bù buổi vào tuần sau**. Hệ thống tự báo gia đình |
+| Phòng ăn hoặc bếp có sự cố | Đặt suất ăn bên ngoài thay thế. Ghi lại để đưa vào báo cáo |
+
+Mọi trường hợp bù đều được ghi vào bảng `entitlement_compensations` và gửi thông báo cho gia đình.
+
+### 4.9 Xếp khung giờ VLTL và hoạt động 1-1
+- Hệ thống chia khung giờ, mỗi khung 30 phút. Số cụ tối đa trong một khung bằng số chỗ phục vụ cùng lúc của thiết bị trong phòng. Ví dụ phòng có 3 xe đạp tập thì mỗi khung tối đa 3 cụ.
+- Hệ thống tự xếp khung cho cụ Cao cấp (hằng ngày) và Tiêu chuẩn (2 buổi/tuần). Manager được sửa.
+- Thiết bị hỏng làm giảm chỗ trong khung: hệ thống báo các cụ bị ảnh hưởng và đưa vào diện bù buổi (4.8).
+- Gia đình xem được trên app: **phòng và giường** cụ được xếp, **khung giờ VLTL**.
+
+### 4.10 Đồ cá nhân và bồi thường
+- **Đồ cá nhân gửi lại** (xe lăn riêng, máy trợ thính, thuốc mang theo, quần áo thay): staff ghi nhận khi nhận và khi trả, có ảnh. Gia đình xem danh sách trên app.
+- **Hư hỏng đồ của trung tâm:** hao mòn bình thường thì trung tâm chịu. Nếu hỏng do cố ý, hoặc do đồ cá nhân của cụ gây ra, staff lập biên bản kèm ảnh, Manager quyết định có tính **phí phát sinh** vào hóa đơn kỳ sau hay không **[ĐỀ XUẤT]**.
+
+### 4.11 Trang giới thiệu cơ sở vật chất
+- Manager cập nhật ảnh và mô tả từng khu ngay trong màn hình "Khu và phòng" (4.6).
+- Trang gói dịch vụ ghi rõ **hạng nào dùng khu nào** để khách so sánh trước khi đăng ký.
+
 ## 5. Các luồng nghiệp vụ chính
 
 ### 5.1 Đăng ký và đánh giá đầu vào
@@ -239,7 +287,12 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | BR-70 | Tổng số lượng phòng, giường, thiết bị chỉ do Manager nhập hoặc sửa. Hệ thống chỉ thay đổi **số dùng được** qua báo hỏng, sửa xong và kiểm kê |
 | BR-71 | Không bán gói và không xếp cụ vượt sức chứa của hạng đó. Cụ mức `DEMENTIA` chỉ được xếp vào khu có kiểm soát ra vào |
 | BR-72 | Thiết bị dùng được thấp hơn định mức tối thiểu thì cảnh báo Manager và ghi vào báo cáo |
-| BR-73 | Phòng tạm đóng thì không xếp lịch hay giường vào. Cụ Cao cấp bị ảnh hưởng được chuyển tạm sang phòng tương đương **[ĐỀ XUẤT]** |
+| BR-73 | Phòng tạm đóng thì không xếp lịch hay giường vào. Cụ Cao cấp bị ảnh hưởng được chuyển tạm sang phòng tương đương |
+| BR-74 | Chỗ chia cứng theo hạng, bằng số giường nghỉ trưa của hạng đó. Không đẩy cụ hạng thấp ra ngoài để nhường chỗ cho hạng cao |
+| BR-75 | Danh sách chờ xếp theo hạng cao trước, sau đó ai đăng ký trước. Giữ chỗ 24 giờ để thanh toán |
+| BR-76 | Giường cố định của cụ Cao cấp được giữ trống cả khi cụ báo nghỉ |
+| BR-77 | Quyền lợi bị mất do cơ sở vật chất gặp sự cố phải được bù theo bảng ở mục 4.8 và báo cho gia đình |
+| BR-78 | Số cụ tối đa trong một khung VLTL không vượt quá số chỗ phục vụ cùng lúc của thiết bị đang dùng được |
 | BR-60 | Admin chỉ xem số liệu tổng hợp, không xem hồ sơ sức khỏe từng cụ **[HỎI]** |
 
 ## 7. Ma trận phân quyền
@@ -268,6 +321,9 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | Nhắn tin | — | BR-40 | ◐ | ◐ | ◐ |
 | Chatbot | — | — | — | — | ✔ (cả khách vãng lai) |
 | Phòng, giường, thiết bị, kiểm kê | 👁 báo cáo | ✔ | báo hỏng | báo hỏng | 👁 trang giới thiệu |
+| Danh sách chờ | — | ✔ | — | — | ◐ |
+| Khung giờ VLTL, xếp giường | — | ✔ | 👁 | 👁 | 👁 của cụ mình |
+| Đồ cá nhân gửi lại | — | 👁 | ✔ | ✔ | 👁 |
 | Audit log | ✔ | — | — | — | — |
 
 ## 8. Thay đổi dữ liệu so với ERD cũ (21 bảng)
@@ -307,6 +363,11 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | `equipment` | Thiết bị: nhóm, phòng, tổng số lượng, định mức tối thiểu, số đang hỏng, số đang sửa |
 | `damage_reports` | Báo hỏng: thiết bị hoặc phòng, số lượng, ảnh, người báo, trạng thái xử lý |
 | `inventory_checks`, `inventory_check_items` | Phiếu kiểm kê: số trên hệ thống, số đếm thực tế, chênh lệch, lý do |
+| `room_photos` | Ảnh từng khu cho trang giới thiệu |
+| `waitlist_entries` | Danh sách chờ: cụ, hạng mong muốn, thời điểm đăng ký, hạn giữ chỗ, trạng thái |
+| `therapy_slots`, `therapy_bookings` | Khung giờ VLTL và hoạt động 1-1, cụ được xếp, trạng thái (đã tập / vắng / cần bù) |
+| `entitlement_compensations` | Ghi nhận bù quyền lợi: lý do, hình thức bù, ngày, cụ |
+| `personal_belongings` | Đồ cá nhân gửi lại: mô tả, ảnh, người nhận, thời điểm nhận và trả |
 | `manager_reports` | Báo cáo Manager gửi Admin |
 
 ## 9. Câu hỏi còn mở
