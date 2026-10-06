@@ -72,30 +72,49 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 - Cụ đã từng được đánh giá thì ô đối tượng được **điền sẵn và khóa**, gia đình không tự đổi.
 - Cụ **sa sút trí tuệ** có được nhận vào nhóm `MEDICAL` không? Cụ **nằm liệt giường hoàn toàn** có nhận không (đề xuất là không)? **[HỎI]**
 
-**Trục 2: Hạng dịch vụ**
+**Trục 2: Hạng dịch vụ (bảng chốt)**
 
-| Quyền lợi | Cơ bản | Tiêu chuẩn | Cao cấp |
+| Mục | Cơ bản | Tiêu chuẩn | Cao cấp |
 |---|---|---|---|
-| Giờ chăm sóc | 7h–16h30 | 7h–16h30 | 7h–16h30 |
-| Bữa ăn | Trưa + xế | Sáng + trưa + xế | Sáng + trưa + xế, **thực đơn riêng theo bệnh lý** |
-| Chỗ nghỉ trưa | Phòng chung | Phòng 4–6 người | **Phòng 2 người, giường riêng cố định** |
-| Số cụ trên mỗi staff | 1:8 | 1:6 | 1:4 |
-| Đo chỉ số sức khỏe | 1 lần/ngày | 2 lần/ngày | 2 lần/ngày, kèm **báo cáo sức khỏe tháng** |
-| Dưỡng sinh buổi sáng | Có | Có | Có |
-| Vật lý trị liệu (30 phút/buổi) | — (mua lẻ được) | 2 buổi/tuần | Hằng ngày |
-| Thể dục trên ghế (20 phút) | 2 buổi/tuần | 3 buổi/tuần | Hằng ngày |
-| Ghế massage (15–20 phút/lượt) | 1 lượt/tuần | 3 lượt/tuần | Hằng ngày |
-| Ngâm chân thảo dược (20 phút) | — | 2 lượt/tuần | Hằng ngày |
-| Đo đường huyết hằng ngày | — | Có | Có |
+| **Giá tham khảo** | 350.000đ/ngày | 420.000đ/ngày | 520.000đ/ngày |
+| **Đối tượng được mua** | Chỉ nhóm vận động được | Cả hai nhóm | Cả hai nhóm |
+| **Giờ chăm sóc** | 7h–16h30 | 7h–16h30 | 7h–16h30 |
+| **Số cụ trên mỗi staff** | 1:8 | 1:6 | 1:4 |
+| **1. Ăn uống** | | | |
+| Bữa trong ngày | Trưa + xế | Sáng + trưa + xế | Sáng + trưa + xế |
+| Thực đơn | Chung | Chung, có món thay khi kiêng | **Riêng theo bệnh lý** |
+| **2. Nghỉ trưa** | | | |
+| Phòng | Phòng chung | Phòng 4–6 người | Phòng 2 người |
+| Giường | Xếp theo ngày | Xếp theo ngày | **Giường cố định** |
+| **3. Sức khỏe (có sẵn)** | | | |
+| Đo huyết áp, mạch, nhiệt độ | 1 lần/ngày | 2 lần/ngày | 2 lần/ngày + **báo cáo sức khỏe tháng** |
+| Nhắc và ghi nhận uống thuốc | Có | Có | Có |
+| Đo đường huyết (cụ tiểu đường) | Mua thêm | Hằng ngày | Hằng ngày |
 | Theo dõi cân nặng | Hằng tháng | 2 tuần/lần | Hằng tuần |
-| Thư giãn tự do (TV, nhạc, báo, cờ) | Có | Có | Có |
-| Số dịch vụ tự chọn được tích | Tối đa 4 | Tối đa 7 | Không giới hạn |
+| **4. Hoạt động có sẵn** | | | |
+| Dưỡng sinh, thở, khởi động khớp buổi sáng | Hằng ngày | Hằng ngày | Hằng ngày |
+| Thư giãn tự do (TV, nhạc xưa, báo, cờ, trà) | Có | Có | Có |
+| Sinh nhật tháng, lễ Tết | Có | Có | Có |
+| **5. Hoạt động tự chọn** (gia đình tích) | **Tối đa 4 trong 7** | **Tối đa 7 trong 10** | **Cả 10** |
+| Vật lý trị liệu bằng máy (30 phút) | — | 2 buổi/tuần | Hằng ngày |
+| Ghế massage (20 phút) ⚠ | 1 lượt/tuần | 3 lượt/tuần | Hằng ngày |
+| Ngâm chân thảo dược (20 phút) ⚠ | — | 2 lượt/tuần | Hằng ngày |
+| Thể dục trên ghế (20 phút) | 2 buổi/tuần | 3 buổi/tuần | Hằng ngày |
+| Đi bộ có người dìu ở sân vườn (15 phút) | Hằng ngày | Hằng ngày | Hằng ngày |
+| Trò chơi trí nhớ (30 phút) | Theo lịch tuần | Theo lịch tuần | Theo lịch tuần |
+| Âm nhạc, hát cùng nhau (30 phút) | Theo lịch tuần | Theo lịch tuần | Theo lịch tuần |
+| Thủ công nhẹ (30 phút) | Theo lịch tuần | Theo lịch tuần | Theo lịch tuần |
+| Sinh hoạt tâm linh (30 phút) | Theo lịch tuần | Theo lịch tuần | Theo lịch tuần |
+| Hồi tưởng: ảnh xưa, nhạc thời trẻ (30 phút) | — | Theo lịch tuần | Theo lịch tuần |
+| **6. Kết nối gia đình** | | | |
 | Care log trên app | Theo từng mục | Theo từng mục | Theo từng mục |
 | Ảnh trên app | 3 ảnh/ngày | Tối đa 5 ảnh/ngày | Không giới hạn |
-| Cảnh báo sức khỏe AI tới gia đình | — | Có | Có |
-| Nhắn tin với staff | Trong giờ hành chính | Trong ca | Trong ca, **được ưu tiên phản hồi** |
-| Ưu tiên giữ chỗ khi trung tâm đầy | — | — | Có |
-| Giá tham khảo (gói ngày) | 350k | 420k | 520k |
+| Cảnh báo sức khỏe AI tới gia đình | Chỉ khi khẩn cấp | Có | Có |
+| Nhắn tin với staff | Trong giờ hành chính | Trong ca | Trong ca, **ưu tiên phản hồi** |
+| **7. Ưu tiên** | | | |
+| Giữ chỗ khi trung tâm đầy | — | — | Đầu danh sách chờ |
+
+⚠ = nhóm cần hỗ trợ về bệnh phải được điều dưỡng cho phép. Dịch vụ mua thêm (mục 4.2C) áp dụng như nhau cho cả ba hạng.
 
 > Các con số trên chỉ để làm mẫu dữ liệu. Manager được sửa toàn bộ, vì tạo gói và đặt giá là quyền của Manager.
 
@@ -113,8 +132,11 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 | Dưỡng sinh, thở, khởi động khớp buổi sáng | 20–30 phút/ngày | Cả nhóm, ngồi hoặc đứng tùy sức |
 | Thư giãn tự do | Cả ngày | TV, nhạc xưa, báo, cờ, trà |
 | Sinh nhật tháng, lễ Tết | Theo lịch | — |
+| Nhắc và ghi nhận uống thuốc | Theo giờ uống | Điều dưỡng làm; gia đình gửi thuốc kèm hướng dẫn |
+| Theo dõi cân nặng | Theo hạng | Điều dưỡng làm |
+| Đo đường huyết hằng ngày (cụ tiểu đường) | 5 phút | Có sẵn ở Tiêu chuẩn, Cao cấp; hạng Cơ bản mua thêm |
 
-**B. Tự chọn trong gói** (gia đình tích có hoặc không; số mục được tích: Cơ bản tối đa 4, Tiêu chuẩn tối đa 7, Cao cấp không giới hạn)
+**B. Tự chọn trong gói** (chỉ gồm **hoạt động**; gia đình tích có hoặc không. Cơ bản có 7 hoạt động, tích tối đa 4. Tiêu chuẩn có 10, tích tối đa 7. Cao cấp dùng cả 10)
 
 | Nhóm | Hoạt động | Thời lượng | Cơ bản | Tiêu chuẩn | Cao cấp | Người phụ trách | Lưu ý sức khỏe |
 |---|---|---|---|---|---|---|---|
@@ -128,15 +150,13 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 | Tinh thần | Âm nhạc: nghe, hát cùng nhau | 30 phút | Có | Có | Có | Hộ lý | — |
 | | Sinh hoạt tâm linh (tụng kinh, đọc kinh) | 30 phút | Có | Có | Có | Tự sinh hoạt | Tùy tôn giáo |
 | | Thủ công nhẹ: tô màu, đan len, xếp giấy | 30 phút | Có | Có | Có | Hộ lý | Không dùng kéo nhọn |
-| Sức khỏe | Nhắc và ghi nhận uống thuốc | — | Có | Có | Có | Điều dưỡng | Gia đình gửi thuốc kèm hướng dẫn |
-| | Đo đường huyết hằng ngày | 5 phút | — | Có | Có | Điều dưỡng | Cho cụ tiểu đường |
-| | Theo dõi cân nặng | — | Hằng tháng | 2 tuần/lần | Hằng tuần | Điều dưỡng | — |
 
 **C. Mua thêm** (tính tiền riêng)
 
 | Dịch vụ | Đơn vị | Lưu ý |
 |---|---|---|
 | Thêm buổi vật lý trị liệu | Gói 4 buổi | — |
+| Đo đường huyết hằng ngày | Theo tháng | Chỉ hạng Cơ bản; Tiêu chuẩn và Cao cấp đã có sẵn |
 | Phục hồi chức năng 1-1 sau tai biến | Buổi 45 phút | Điều dưỡng hướng dẫn |
 | Cắt tóc, gội đầu | Lần | — |
 | Cắt móng tay chân | Lần | ⚠ Cụ tiểu đường do điều dưỡng làm |
@@ -154,6 +174,25 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 | Làm vườn, nấu ăn, gói bánh | Có dao, lửa, phải cúi lâu |
 | Khiêu vũ, zumba | Nguy cơ té ngã |
 | Dã ngoại, đi chùa bên ngoài | Rủi ro di chuyển; để phiên bản sau |
+
+**E. Lịch một ngày mẫu**
+
+Vật lý trị liệu, ghế massage và ngâm chân được **xoay vòng theo lượt** trong hai khung sáng và chiều. Cụ chưa tới lượt thì tham gia hoạt động nhóm của khung đó.
+
+| Giờ | Hoạt động | Hạng |
+|---|---|---|
+| 7h00–7h45 | Đón cụ, check-in; ăn sáng | Ăn sáng: Tiêu chuẩn, Cao cấp |
+| 7h45–8h15 | Đo chỉ số sáng, nhắc uống thuốc, đo đường huyết | Tất cả |
+| 8h15–8h45 | Dưỡng sinh, thở, khởi động khớp | Tất cả |
+| 8h45–10h30 | **Khung sáng:** vật lý trị liệu, ghế massage, thể dục trên ghế theo lượt. Hoạt động nhóm: trò chơi trí nhớ (T2, T4, T6), thủ công (T3, T5, T7) | Theo dịch vụ đã tích |
+| 10h30–11h00 | Đi bộ có người dìu ở sân vườn, uống nước | Theo dịch vụ đã tích |
+| 11h00–12h00 | Ăn trưa | Tất cả |
+| 12h00–13h30 | Nghỉ trưa | Tất cả |
+| 13h30–14h00 | Đo chỉ số chiều | Tiêu chuẩn, Cao cấp |
+| 14h00–15h00 | **Khung chiều:** ngâm chân, ghế massage, vật lý trị liệu theo lượt. Hoạt động nhóm: âm nhạc (T2, T4, T6), hồi tưởng (T3, T5), tâm linh (T7) | Theo dịch vụ đã tích |
+| 15h00–15h30 | Ăn xế | Tất cả |
+| 15h30–16h30 | Thư giãn tự do, staff chốt care log, trả cụ và xác nhận người đón | Tất cả |
+| 16h30–18h00 | Ở lại muộn: ăn nhẹ, thư giãn | Cụ có gói ở lại muộn |
 
 **Manager quản lý dịch vụ (thêm, sửa, xóa)** với các trường: tên, nhóm, mô tả, ảnh, thời lượng mỗi lượt, thiết bị cần dùng (liên kết bảng `equipment`), người phụ trách (điều dưỡng / hộ lý), có cần điều dưỡng cho phép với nhóm `MEDICAL` không, giá khi mua lẻ, trạng thái (đang bán / tạm ngừng). Danh mục trên là khung ban đầu; trung tâm muốn thêm dịch vụ thì Manager tự thêm.
 
