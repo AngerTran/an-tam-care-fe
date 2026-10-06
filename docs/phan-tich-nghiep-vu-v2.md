@@ -81,10 +81,15 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 | Chỗ nghỉ trưa | Phòng chung | Phòng 4–6 người | **Phòng 2 người, giường riêng cố định** |
 | Số cụ trên mỗi staff | 1:8 | 1:6 | 1:4 |
 | Đo chỉ số sức khỏe | 1 lần/ngày | 2 lần/ngày | 2 lần/ngày, kèm **báo cáo sức khỏe tháng** |
+| Dưỡng sinh buổi sáng | Có | Có | Có |
 | Vật lý trị liệu (30 phút/buổi) | — (mua lẻ được) | 2 buổi/tuần | Hằng ngày |
-| Ghế massage (15–20 phút/lượt) **[ĐỀ XUẤT]** | 1 lượt/tuần | 3 lượt/tuần | Hằng ngày |
+| Thể dục trên ghế (20 phút) | 2 buổi/tuần | 3 buổi/tuần | Hằng ngày |
+| Ghế massage (15–20 phút/lượt) | 1 lượt/tuần | 3 lượt/tuần | Hằng ngày |
+| Ngâm chân thảo dược (20 phút) | — | 2 lượt/tuần | Hằng ngày |
+| Đo đường huyết hằng ngày | — | Có | Có |
+| Theo dõi cân nặng | Hằng tháng | 2 tuần/lần | Hằng tuần |
 | Thư giãn tự do (TV, nhạc, báo, cờ) | Có | Có | Có |
-| Số dịch vụ tự chọn được tích **[ĐỀ XUẤT]** | Tối đa 2 | Tối đa 3 | Tối đa 4 |
+| Số dịch vụ tự chọn được tích | Tối đa 4 | Tối đa 7 | Không giới hạn |
 | Care log trên app | Theo từng mục | Theo từng mục | Theo từng mục |
 | Ảnh trên app | 3 ảnh/ngày | Tối đa 5 ảnh/ngày | Không giới hạn |
 | Cảnh báo sức khỏe AI tới gia đình | — | Có | Có |
@@ -96,21 +101,65 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 
 ### 4.2 Danh mục dịch vụ (Manager tự thêm, sửa, xóa)
 
-Đối tượng là người cao tuổi, nên danh mục chỉ gồm những dịch vụ **nhẹ nhàng, phù hợp sức khỏe**. Trọng tâm là vật lý trị liệu và ghế massage.
+Đối tượng là người cao tuổi, nên danh mục chỉ gồm những hoạt động **nhẹ nhàng, an toàn**. Danh mục dưới đây đã đối chiếu với BV Phục hồi chức năng TP.HCM (bán trú), Thiên Đức, Phú Nghĩa, Diên Hồng, Nhân Ái DayCare và mô hình adult day care của Mỹ. Bộ lõi các nơi đều có: đo chỉ số, dưỡng sinh, vật lý trị liệu, massage.
 
-| Nhóm | Gồm những gì | Cách đưa vào gói |
+⚠ = nhóm `MEDICAL` phải được **điều dưỡng cho phép** mới dùng.
+
+**A. Có sẵn trong mọi gói** (không tích, ai cũng được)
+
+| Hoạt động | Thời lượng | Ghi chú |
 |---|---|---|
-| **1. Chăm sóc cơ bản** | Đón trả, ăn uống theo hạng, đo chỉ số, nhắc uống thuốc, hỗ trợ vệ sinh, nghỉ trưa | **Có sẵn**, gia đình không bỏ được |
-| **2. Vật lý trị liệu** | Tập với xe đạp tập, thanh song song, tập tay chân, tập đi; có người hướng dẫn | **Tự chọn trong gói** hoặc **mua thêm** |
-| **3. Ghế massage** | Massage toàn thân bằng ghế | **Tự chọn trong gói** hoặc **mua thêm** |
-| **4. Thư giãn tự do** | Xem TV, nghe nhạc, đọc báo, đánh cờ, trò chuyện ở phòng sinh hoạt chung | Có sẵn, cụ tự do tham gia, không cần đăng ký |
-| **5. Dịch vụ lẻ** | Thêm buổi VLTL, thêm lượt massage, cắt tóc gội đầu, suất ăn thêm, đo đường huyết, đi cùng cụ tới phòng khám | **Mua thêm**, tính tiền riêng |
+| Đo chỉ số (huyết áp, mạch, nhiệt độ) | Theo hạng: 1–2 lần/ngày | Điều dưỡng làm |
+| Dưỡng sinh, thở, khởi động khớp buổi sáng | 20–30 phút/ngày | Cả nhóm, ngồi hoặc đứng tùy sức |
+| Thư giãn tự do | Cả ngày | TV, nhạc xưa, báo, cờ, trà |
+| Sinh nhật tháng, lễ Tết | Theo lịch | — |
 
-**Manager quản lý dịch vụ (thêm, sửa, xóa)** với các trường: tên, nhóm, mô tả, ảnh, thời lượng mỗi lượt, thiết bị cần dùng (liên kết với bảng `equipment`), có cần điều dưỡng cho phép với nhóm `MEDICAL` không, giá khi mua lẻ, trạng thái (đang bán / tạm ngừng). Bảng trên chỉ là khung ban đầu; trung tâm muốn thêm dịch vụ khác (ví dụ ngâm chân thảo dược) thì Manager tự thêm.
+**B. Tự chọn trong gói** (gia đình tích có hoặc không; số mục được tích: Cơ bản tối đa 4, Tiêu chuẩn tối đa 7, Cao cấp không giới hạn)
+
+| Nhóm | Hoạt động | Thời lượng | Cơ bản | Tiêu chuẩn | Cao cấp | Người phụ trách | Lưu ý sức khỏe |
+|---|---|---|---|---|---|---|---|
+| Vận động, phục hồi | Vật lý trị liệu bằng máy (xe đạp tập, thanh song song, ròng rọc) | 30 phút | — | 2 buổi/tuần | Hằng ngày | Điều dưỡng | Đo huyết áp trước khi tập |
+| | Thể dục trên ghế | 20 phút | 2 buổi/tuần | 3 buổi/tuần | Hằng ngày | Hộ lý | Hợp cụ đi lại khó, ngồi xe lăn |
+| | Đi bộ có người dìu ở sân vườn | 15 phút | Có | Có | Có | Hộ lý | Phòng té ngã |
+| Thư giãn | Ghế massage | 15–20 phút | 1 lượt/tuần | 3 lượt/tuần | Hằng ngày | Hộ lý trông | ⚠ Không dùng khi huyết áp cao, mới tai biến, loãng xương nặng |
+| | Ngâm chân thảo dược | 20 phút | — | 2 lượt/tuần | Hằng ngày | Hộ lý | ⚠ Tiểu đường: nước tối đa 40°C, kiểm tra vết thương ở chân |
+| Trí nhớ, nhận thức | Trò chơi trí nhớ: lật thẻ, ô chữ, đố vui | 30 phút | Có | Có | Có | Hộ lý | Hợp cụ sa sút trí tuệ nhẹ |
+| | Hồi tưởng: xem ảnh xưa, kể chuyện, nghe nhạc thời trẻ | 30 phút | — | Có | Có | Hộ lý | Gia đình gửi ảnh cũ qua app |
+| Tinh thần | Âm nhạc: nghe, hát cùng nhau | 30 phút | Có | Có | Có | Hộ lý | — |
+| | Sinh hoạt tâm linh (tụng kinh, đọc kinh) | 30 phút | Có | Có | Có | Tự sinh hoạt | Tùy tôn giáo |
+| | Thủ công nhẹ: tô màu, đan len, xếp giấy | 30 phút | Có | Có | Có | Hộ lý | Không dùng kéo nhọn |
+| Sức khỏe | Nhắc và ghi nhận uống thuốc | — | Có | Có | Có | Điều dưỡng | Gia đình gửi thuốc kèm hướng dẫn |
+| | Đo đường huyết hằng ngày | 5 phút | — | Có | Có | Điều dưỡng | Cho cụ tiểu đường |
+| | Theo dõi cân nặng | — | Hằng tháng | 2 tuần/lần | Hằng tuần | Điều dưỡng | — |
+
+**C. Mua thêm** (tính tiền riêng)
+
+| Dịch vụ | Đơn vị | Lưu ý |
+|---|---|---|
+| Thêm buổi vật lý trị liệu | Gói 4 buổi | — |
+| Phục hồi chức năng 1-1 sau tai biến | Buổi 45 phút | Điều dưỡng hướng dẫn |
+| Cắt tóc, gội đầu | Lần | — |
+| Cắt móng tay chân | Lần | ⚠ Cụ tiểu đường do điều dưỡng làm |
+| Sữa dinh dưỡng, suất ăn thêm | Theo tháng | — |
+| Ở lại muộn đến 18h | Lần hoặc tháng | Mục 4.3 |
+| Đi cùng cụ tới phòng khám | Lần | — |
+
+**D. Không đưa vào** (dù có nơi đang làm)
+
+| Hoạt động | Lý do |
+|---|---|
+| Xông hơi, onsen, tắm nóng | Dễ tụt hoặc tăng huyết áp, choáng; hợp nội trú có y tế 24/7 hơn bán trú |
+| Cứu ngải, chiếu đèn nhiệt | Nguy cơ bỏng, nhất là cụ tiểu đường giảm cảm giác ở da |
+| Bấm huyệt, tập nói và tập nuốt | Cần kỹ thuật viên chuyên môn; trung tâm chỉ có điều dưỡng và hộ lý |
+| Làm vườn, nấu ăn, gói bánh | Có dao, lửa, phải cúi lâu |
+| Khiêu vũ, zumba | Nguy cơ té ngã |
+| Dã ngoại, đi chùa bên ngoài | Rủi ro di chuyển; để phiên bản sau |
+
+**Manager quản lý dịch vụ (thêm, sửa, xóa)** với các trường: tên, nhóm, mô tả, ảnh, thời lượng mỗi lượt, thiết bị cần dùng (liên kết bảng `equipment`), người phụ trách (điều dưỡng / hộ lý), có cần điều dưỡng cho phép với nhóm `MEDICAL` không, giá khi mua lẻ, trạng thái (đang bán / tạm ngừng). Danh mục trên là khung ban đầu; trung tâm muốn thêm dịch vụ thì Manager tự thêm.
 
 **Manager tạo gói** bằng cách chọn dịch vụ đưa vào gói. Với mỗi dịch vụ, Manager đặt:
 - **Loại:** có sẵn / tự chọn trong gói / mua thêm.
-- **Số lượt** mỗi tuần (ví dụ VLTL 2 buổi/tuần).
+- **Số lượt** mỗi tuần (ví dụ vật lý trị liệu 2 buổi/tuần).
 - **Áp dụng cho:** thời hạn nào, đối tượng nào.
 - **Giá** nếu là mua thêm.
 
@@ -155,7 +204,7 @@ Phạm vi đã chốt: **quản lý phòng, giường và sức chứa, kèm ki�
 **Manager nhập tay**
 - **Phòng:** tên, loại khu, sức chứa, hạng được dùng, trạng thái (hoạt động / tạm đóng).
 - **Giường nghỉ trưa:** thuộc phòng nào, dành cho hạng nào.
-- **Thiết bị:** tên, nhóm (y tế / tập VLTL / sinh hoạt / an toàn), phòng đặt, **tổng số lượng**, **định mức tối thiểu** cần có. Ví dụ: máy đo huyết áp, máy SpO₂, máy đo đường huyết, bình oxy, xe lăn, xe đạp tập, thanh song song.
+- **Thiết bị:** tên, nhóm (y tế / tập VLTL / sinh hoạt / an toàn), phòng đặt, **tổng số lượng**, **định mức tối thiểu** cần có. Ví dụ: máy đo huyết áp, máy SpO₂, máy đo đường huyết, bình oxy, xe lăn, xe đạp tập, thanh song song, máy tập ròng rọc, ghế massage, bồn ngâm chân.
 
 **Hệ thống tự làm**
 - Tính **số lượng dùng được** = tổng − đang hỏng − đang sửa.
@@ -230,20 +279,21 @@ Mọi trường hợp bù đều được ghi vào bảng `entitlement_compensat
 | Loại | Gia đình thấy gì | Gia đình làm được gì |
 |---|---|---|
 | Có sẵn | Danh sách kèm dấu tích xanh | Chỉ xem |
-| Tự chọn trong gói | Ô tích, có ghi "Đã chọn x/y" | **Tích có hoặc không** dùng dịch vụ đó, không vượt quá giới hạn của hạng. Bỏ tích không làm giảm giá **[ĐỀ XUẤT]** |
+| Tự chọn trong gói | Ô tích, có ghi "Đã chọn x/y" | **Tích có hoặc không** dùng dịch vụ đó, không vượt quá giới hạn của hạng (4 / 7 / không giới hạn). Bỏ tích không làm giảm giá |
 | Mua thêm | Ô tích, kèm giá | Tích thì cộng tiền vào tổng |
 | Có ở hạng cao hơn | Mờ, có biểu tượng khóa | Chỉ xem, có gợi ý nâng hạng |
 
 - Gia đình **chỉ chọn có dùng dịch vụ hay không**, **không chọn khung giờ**. Giờ cụ thể do Manager và staff xếp sau.
 - Trong ngày, nếu một dịch vụ đang kín chỗ (ví dụ cả 4 ghế massage đều có người), staff cho cụ **làm hoạt động khác trước**, xong thì quay lại. Không dùng danh sách chờ cho dịch vụ.
 - Gia đình **đổi lựa chọn** trên app được, có hiệu lực **từ tuần sau**.
+- Nếu tích **hồi tưởng**, gia đình được **gửi ảnh cũ** của cụ qua app để staff dùng trong buổi kể chuyện.
 - **Khách chưa đăng nhập** chỉ xem được **thẻ tóm tắt** của mỗi hạng (tên hạng, giá "từ … đ/ngày", 3–4 quyền lợi chính). Phải đăng nhập mới xem danh sách chi tiết và tích chọn.
 
 **Hệ thống lọc theo lựa chọn ở bước 2 và 3 [ĐỀ XUẤT]**
 
 | Lựa chọn trước đó | Ảnh hưởng tới bước 4 |
 |---|---|
-| Đối tượng `MEDICAL` | Ẩn hạng Cơ bản. Dịch vụ ghế massage ghi chú "cần điều dưỡng cho phép" |
+| Đối tượng `MEDICAL` | Ẩn hạng Cơ bản. Ghế massage, ngâm chân thảo dược ghi chú "cần điều dưỡng cho phép" |
 | Đối tượng `ACTIVE` | Hiện đủ 3 hạng và đủ dịch vụ |
 | Gói ngày | Chỉ hiện dịch vụ có trong ngày đã đặt. Không bán mua thêm theo tháng (ví dụ ở lại muộn theo tháng) |
 | Tháng 3 buổi/tuần | Số lượt dịch vụ tính theo các ngày cụ đi |
@@ -328,6 +378,7 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | BR-11 | Đối tượng `MEDICAL` không mua được hạng Cơ bản; dùng ghế massage phải được điều dưỡng cho phép |
 | BR-13 | Gia đình chỉ tích chọn dịch vụ có trong gói, không vượt quá số dịch vụ tự chọn của hạng. Đổi lựa chọn có hiệu lực từ tuần sau |
 | BR-14 | Khách chưa đăng nhập chỉ xem thẻ tóm tắt của từng hạng |
+| BR-15 | Dịch vụ có dấu ⚠ (ghế massage, ngâm chân, cắt móng cho cụ tiểu đường) chỉ dùng được cho nhóm `MEDICAL` khi điều dưỡng đã cho phép |
 | BR-12 | Đánh giá lại mức độ định kỳ mỗi 3 tháng, hoặc khi sức khỏe thay đổi. Mức đổi thì giá đổi từ kỳ sau |
 | BR-20 | Đã thanh toán thì **không hoàn tiền** khi cụ nghỉ hoặc gia đình dừng gói, trừ trường hợp qua đời (5.9) |
 | BR-21 | Gói `DAY`: báo nghỉ trước **17h ngày hôm trước** thì không mất tiền ngày đó **[HỎI]** |
@@ -409,6 +460,8 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | `services` | Danh mục dịch vụ do Manager quản lý: nhóm, mô tả, ảnh, thời lượng, thiết bị cần dùng, cần điều dưỡng cho phép không, giá mua lẻ, trạng thái |
 | `package_services` | Gói gồm dịch vụ nào: loại (có sẵn / tự chọn / mua thêm), số lượt mỗi tuần, áp dụng cho thời hạn và đối tượng nào, giá |
 | `subscription_service_choices` | Dịch vụ gia đình đã tích chọn, ngày hiệu lực |
+| `service_permissions` | Điều dưỡng cho phép hoặc không cho phép cụ dùng dịch vụ có dấu ⚠, kèm lý do và ngày đánh giá lại |
+| `reminiscence_photos` | Ảnh cũ gia đình gửi cho buổi hồi tưởng |
 | `subscription_add_ons` | Dịch vụ lẻ đã mua (dịch vụ lấy từ bảng `services`) |
 | `late_stay_bookings` | Gói ở lại muộn (theo lần hoặc theo tháng): ngày, giờ kết thúc, không quá `closing_time`. Ghi cả đón trễ khi không có gói |
 | `assessments` | Đánh giá đầu vào và đánh giá định kỳ (điểm ADL, ghi chú, người đánh giá, người duyệt) |
@@ -439,7 +492,7 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 4. **Đặt cọc:** có thu cọc như Hạnh Phúc Viên (bằng 1 tháng phí) không, hay chỉ trả trước là đủ?
 5. **Ngày lễ, Tết:** trung tâm nghỉ hay mở cửa có phụ thu? Gói tháng có trừ ngày lễ không?
 6. **Tiền mặt:** có cho Manager ghi nhận thanh toán tiền mặt tại quầy cho gia đình không dùng app không? Người già và một số gia đình có thể không quen thanh toán online.
-7. **Ghế massage** theo hạng (1 lượt/tuần, 3 lượt/tuần, hằng ngày) và **số dịch vụ tự chọn** (2 / 3 / 4) có ổn không? Bỏ tích một dịch vụ tự chọn thì **không giảm giá**, đúng không?
+7. Không có kỹ thuật viên: vật lý trị liệu và phục hồi chức năng 1-1 do **điều dưỡng** hướng dẫn, đúng không?
 8. **Cụ không có smartphone:** Family là người dùng app. Còn cụ có cần thẻ hoặc mã QR để check-in không? Mình đề xuất in **thẻ QR** cho mỗi cụ.
 9. **Báo cáo Manager gửi Admin:** tự động theo tuần hoặc tháng (doanh thu, số cụ, sự cố), hay Manager tự soạn rồi gửi?
 10. **Giờ đóng cửa** của trung tâm là mấy giờ (giới hạn cho gói ở lại muộn)? Không có gói mà đón trễ thì phụ thu bao nhiêu mỗi giờ?
