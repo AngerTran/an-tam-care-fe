@@ -425,6 +425,93 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 2. Hệ thống so với số trên hệ thống, hiện **chênh lệch** (thiếu hoặc dư) theo từng thiết bị.
 3. Manager ghi lý do chênh lệch, chốt phiếu. Số liệu được cập nhật và đưa vào báo cáo gửi Admin.
 
+### 5.11 Care log và chăm sóc hằng ngày
+
+Tham khảo cách làm của Ankota, myEZcare, OneCare, Assistly, MyAdultDayCare (phần mềm bán trú của Mỹ) và Birdie, Person Centred Software (Anh). Mỗi sáng hệ thống tự tạo **danh sách việc trong ngày** cho từng cụ, dựa trên lịch ngày mẫu, các hoạt động gia đình đã tích và nhóm đối tượng của cụ. Staff chỉ làm và ghi các việc có trong lịch; chuyện khác thường thì ghi bằng **"lưu ý / bất thường"**.
+
+**Vai trò và trách nhiệm**
+
+| Vai trò | Trách nhiệm |
+|---|---|
+| Hộ lý | Check-in, check-out, xác nhận người đón. Ghi ăn uống, vệ sinh, hoạt động, nghỉ trưa, tâm trạng, ảnh, lưu ý bất thường. Ghi nhanh cho cả nhóm. **Hộ lý phụ trách chính chốt care log** của cụ mình phụ trách |
+| Điều dưỡng | Đo chỉ số. Cho uống thuốc và ghi lại. Ghi và xử lý sự cố, chuyển viện. Xử lý cảnh báo. Cho phép hoặc không cho dùng dịch vụ ⚠. Phải ghi xong phần của mình trước khi hộ lý chốt |
+| Manager | Theo dõi trong ngày. **Chốt thay** nếu staff quên. **Sửa care log đã chốt** (ghi lý do, có log). Xử lý sự cố nặng. Cấu hình ngưỡng, mẫu việc, giờ cảnh báo |
+| Admin | Để sau. Được sửa care log đã chốt như Manager |
+| Gia đình | Khai danh sách thuốc gửi kèm. Xem **ngay** dòng thời gian, "cụ đang làm gì", ảnh, chỉ số, cảnh báo. Nhận thông báo. Nhắn tin với staff phụ trách (không bình luận vào care log) |
+| AI Service | Chỉ phát hiện chỉ số bất thường theo xu hướng. **Không** viết tóm tắt ngày |
+| Hệ thống | Tạo danh sách việc mỗi sáng. Nhắc cụ chưa đến, thuốc quá giờ, chưa chốt. Gửi thông báo cho gia đình |
+
+**Các mục care log**
+
+| Mục | Chi tiết ghi | Ai ghi |
+|---|---|---|
+| Ăn uống | Bữa; lượng ăn (hết, 3/4, 1/2, 1/4, không ăn); số cốc nước; ghi chú nhanh (ho, sặc, chán ăn) | Hộ lý |
+| Vệ sinh | Đi vệ sinh, thay quần hoặc tã, bất thường | Hộ lý |
+| Hoạt động | Hoạt động trong lịch; mức tham gia (tích cực / có / từ chối); thời lượng | Hộ lý |
+| Nghỉ trưa | Giờ ngủ, giờ dậy, ngủ ngon hay không | Hộ lý |
+| Tâm trạng | 5 mức (vui, bình thường, buồn, lo âu, kích động); nhóm sa sút trí tuệ có thêm hành vi | Hộ lý |
+| Ảnh | Theo giới hạn của hạng (3 / 5 / không giới hạn) | Hộ lý |
+| Lưu ý / bất thường | Chuyện khác thường trong ngày, ghi chữ | Hộ lý, điều dưỡng |
+| Chỉ số sức khỏe | Huyết áp, mạch, nhiệt độ, SpO₂, đường huyết, cân nặng, nhịp thở (tùy chọn); nhóm sau tai biến có checklist dấu hiệu tái phát | Điều dưỡng |
+| Thuốc | Theo danh sách gia đình khai: đã uống / cụ từ chối / chưa có thuốc, kèm lý do | Điều dưỡng |
+| Sự cố | Loại, giờ, mức độ, mô tả, ảnh, cách xử lý, đã báo gia đình chưa, chuyển viện | Điều dưỡng (hộ lý báo nhanh) |
+
+**Màn hình app staff**
+
+| Mã | Màn hình | Các mục |
+|---|---|---|
+| S1 | Ca hôm nay | Ca và giờ ca; số cụ có mặt / chưa đến / đã về; cảnh báo cần xử lý; việc sắp tới trong 30 phút; cụ có lịch mà chưa đến sau 8h30 |
+| S2 | Check-in, check-out | Quét QR; check-in hộ khi quên thẻ (chọn lý do); 3 danh sách chưa đến / đang ở / đã về; check-out chọn người đón, hiện ảnh và 4 số cuối CCCD; người lạ thì nút gọi liên hệ chính; sau check-out hiện nút **"Chốt care log"** |
+| S3 | Cụ hôm nay | Chỉ cụ đã check-in; ảnh, tên, nhóm, hạng, % việc đã xong, cảnh báo, biểu tượng ⚠ |
+| S4 | Care log của một cụ | Đầu trang: ảnh, tên, nhóm, hạng, dị ứng, chế độ kiêng, dịch vụ ⚠ được hay không được dùng, trạng thái **đang mở / đã chốt (ai, lúc nào)**. Tab "Việc hôm nay": việc theo giờ, trạng thái chưa làm / đã làm / bỏ qua (bắt buộc lý do). Tab "Dòng thời gian". Thanh icon ghi nhanh. Nút "Ghi lưu ý / bất thường" |
+| S5 | Ghi một mục | Khung bật lên theo từng mục ở bảng trên |
+| S6 | Ghi nhanh cả nhóm | Chọn bữa hoặc hoạt động; danh sách cụ có mặt tích sẵn với giá trị mặc định; sửa riêng từng cụ |
+| S7 | Đo chỉ số (điều dưỡng) | Các ô chỉ số, hiện ngưỡng của cụ, vượt ngưỡng thì đỏ và tạo cảnh báo; checklist tái phát cho nhóm sau tai biến |
+| S8 | Thuốc đến hạn (điều dưỡng) | Danh sách đến hạn / quá hạn / đã xong; mỗi liều có tên, liều, giờ, ảnh vỉ thuốc; nút đã uống / từ chối / chưa có thuốc |
+| S9 | Báo sự cố | Loại, giờ, mức độ, mô tả, ảnh, xử lý, đã báo gia đình, chuyển viện (bệnh viện, giờ, người đi kèm) |
+| S10 | Cảnh báo | Danh sách cảnh báo theo nguồn; nhận xử lý; ghi kết quả; đóng cảnh báo |
+
+**Màn hình app gia đình**
+
+| Mã | Màn hình | Các mục |
+|---|---|---|
+| G1 | Hôm nay của cụ | Thẻ **"Cụ đang làm gì"** (ví dụ "Đang tập vật lý trị liệu · từ 9:15"); trạng thái đến và về, ai đón; dòng thời gian cập nhật ngay khi staff ghi; ảnh |
+| G2 | Tổng kết ngày | Hệ thống tự gom số liệu đã ghi (không dùng AI): ăn uống, hoạt động, tâm trạng, chỉ số chính, thuốc đã uống, lưu ý |
+| G3 | Sức khỏe | Chỉ số mới nhất; biểu đồ tuần và tháng; lịch sử uống thuốc; hạng Cao cấp có báo cáo tháng |
+| G4 | Cảnh báo và sự cố | Cảnh báo theo quyền lợi của hạng, mức khẩn cấp luôn hiện; chi tiết sự cố và cách xử lý |
+| G5 | Thuốc gửi kèm | Gia đình khai tên thuốc, liều, giờ uống, ảnh vỉ thuốc, ngày bắt đầu và kết thúc; đổi đơn có lưu lịch sử |
+| G6 | Cài đặt thông báo **[ĐỀ XUẤT]** | Gia đình tự tắt bớt từng loại thông báo; không tắt được bất thường, sự cố, khẩn cấp |
+
+Gia đình nhận thông báo khi: cụ đến; ăn xong mỗi bữa; bắt đầu hoạt động; có ảnh mới; có chỉ số mới; đã uống thuốc; có lưu ý bất thường hoặc sự cố; cụ sẵn sàng về; cụ đã về.
+
+**Màn hình web Manager**
+
+| Mã | Màn hình | Các mục |
+|---|---|---|
+| M1 | Vận hành trong ngày | Số cụ có mặt / chưa đến / báo nghỉ / đã về; care log chưa chốt; sự cố mới; cảnh báo chưa xử lý; thuốc quá giờ; cụ chờ đón sau 16h30 |
+| M2 | Xem care log | Lọc theo cụ, ngày, staff; xem dòng thời gian và tổng kết |
+| M3 | Sự cố và chuyển viện | Danh sách theo mức độ, trạng thái, người xử lý; báo cáo theo tháng |
+| M4 | Cài đặt care log | Ngưỡng chỉ số mặc định và riêng từng cụ; mẫu việc trong ngày; giờ cảnh báo chưa đến (8h30); giờ nhắc đón (16h30, 17h00, 18h30); giờ nhắc chốt (18h00) và giờ Manager chốt thay (20h00); quy tắc cảnh báo |
+| M5 | Care log trong ngày | Cụ đã chốt / chưa chốt; lưu ý bất thường; **chốt thay**; **sửa care log đã chốt** (bắt buộc lý do, có log) |
+
+**Quy tắc care log**
+
+| Mã | Quy tắc |
+|---|---|
+| CL-01 | Chỉ ghi care log cho cụ đã check-in hôm đó |
+| CL-02 | Bỏ qua một việc thì bắt buộc ghi lý do |
+| CL-03 | Chỉ điều dưỡng ghi chỉ số, thuốc, sự cố |
+| CL-04 | Ảnh gửi gia đình không vượt giới hạn của hạng |
+| CL-05 | Cụ vắng thì việc và thuốc của cụ tự rớt khỏi danh sách hôm đó |
+| CL-06 | **Hộ lý phụ trách chính chốt** care log của cụ, thường ngay khi check-out, sau khi điều dưỡng đã ghi xong chỉ số và thuốc. Hệ thống kiểm tra việc còn thiếu trước khi cho chốt. Sau khi chốt, chỉ **Manager hoặc Admin** sửa, bắt buộc lý do, lưu ai sửa, lúc nào, sửa từ gì thành gì |
+| CL-07 | Cảnh báo khi: chỉ số vượt ngưỡng; thuốc quá 30 phút; ăn ít (1/4 trở xuống) 2 bữa liền; từ chối thuốc 2 lần liền; tâm trạng kích động; có sự cố; 8h30 chưa đến mà chưa báo nghỉ |
+| CL-08 | Mức khẩn cấp luôn gửi gia đình, không phụ thuộc hạng |
+| CL-09 | App staff ghi được khi mất mạng, có mạng lại thì tự đồng bộ |
+| CL-10 | Staff chỉ ghi các việc có trong lịch của cụ; chuyện khác thường ghi bằng "lưu ý / bất thường" |
+| CL-11 | 18h00 chưa chốt thì nhắc staff phụ trách; 20h00 vẫn chưa chốt thì Manager chốt thay |
+
+**Để làm sau:** ghi chú bằng giọng nói.
+
 ## 6. Business rules
 
 | Mã | Quy tắc |
@@ -548,6 +635,14 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | `therapy_slots`, `therapy_bookings` | Khung giờ VLTL và ghế massage, cụ được xếp, trạng thái (đã tập / vắng / cần bù) |
 | `entitlement_compensations` | Ghi nhận bù quyền lợi: lý do, hình thức bù, ngày, cụ |
 | `personal_belongings` | Đồ cá nhân gửi lại: mô tả, ảnh, người nhận, thời điểm nhận và trả |
+| `daily_tasks` | Danh sách việc trong ngày của từng cụ, tạo tự động mỗi sáng: giờ, loại việc, người làm, trạng thái (chưa làm / đã làm / bỏ qua), lý do bỏ qua |
+| `care_log_entries` | Từng ghi chép: cụ, loại mục, giá trị (ăn uống, vệ sinh, hoạt động, nghỉ trưa, tâm trạng, lưu ý), người ghi, giờ ghi |
+| `care_log_days` | Care log của một cụ trong một ngày: trạng thái mở hoặc đã chốt, người chốt, giờ chốt |
+| `care_log_edits` | Lịch sử sửa sau khi chốt: ai sửa, lúc nào, giá trị cũ, giá trị mới, lý do |
+| `medication_plans` | Thuốc gia đình khai: tên, liều, giờ uống, ảnh vỉ thuốc, ngày bắt đầu, ngày kết thúc |
+| `medication_administrations` | Mỗi liều trong ngày: đã uống / từ chối / chưa có thuốc, người cho uống, giờ thật, lý do |
+| `incidents` | Sự cố: loại, giờ, mức độ, mô tả, ảnh, xử lý, đã báo gia đình, liên kết chuyển viện |
+| `notification_preferences` | Loại thông báo gia đình đã tắt |
 | `manager_reports` | Báo cáo tuần và tháng hệ thống tự tạo, Manager thêm nhận xét rồi gửi Admin |
 | `center_holidays` | Lịch nghỉ lễ, Tết do Manager nhập |
 | `announcements` | Thông báo chung Manager gửi tới tất cả hoặc một nhóm gia đình |
