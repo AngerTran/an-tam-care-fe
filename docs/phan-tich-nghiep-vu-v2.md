@@ -61,23 +61,48 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 
 `DAY` phù hợp cho người đi ngắn hạn hoặc **đi thử**. `M3` dành cho cụ mới làm quen. `MONTH`, `Q`, `Y` là gói dài hạn.
 
-**Trục 3: Đối tượng người cao tuổi (gia đình tự khai, điều dưỡng đánh giá, Manager duyệt)**
+**Trục 3: Đối tượng và mức độ chăm sóc (gia đình tự khai, điều dưỡng đánh giá, Manager duyệt)**
 
-| Mã | Đối tượng | Mô tả | Phụ phí **[ĐỀ XUẤT]** | Ràng buộc **[ĐỀ XUẤT]** |
+Cách chia theo tình trạng sức khỏe giống các viện đang hoạt động (Damoca, Bình Mỹ, Diên Hồng).
+
+| Mã | Đối tượng | Dành cho ai | Phụ phí | Hạng tối thiểu |
 |---|---|---|---|---|
-| `ACTIVE` | Người già vận động được | Tự đi lại, tự ăn, tự vệ sinh, hoặc chỉ cần nhắc nhở. Không có bệnh cần theo dõi đặc biệt | +0% | Mua được mọi hạng |
-| `MEDICAL` | Người già cần hỗ trợ về bệnh | Có bệnh cần theo dõi hoặc chăm sóc thêm: sau tai biến, tiểu đường, cao huyết áp, tim mạch, đi lại khó cần dìu hoặc xe lăn | +30% | Chỉ mua từ hạng **Tiêu chuẩn** trở lên. Dùng ghế massage phải được **điều dưỡng cho phép** |
+| `MOBILE` | Người già vận động được | Tự đi lại, tự ăn, tự vệ sinh, hoặc chỉ cần nhắc nhở; không có bệnh cần theo dõi đặc biệt | Không có | Cơ bản |
+| `CHRONIC` | Cần hỗ trợ về bệnh mãn tính | Tiểu đường, cao huyết áp, tim mạch; cần theo dõi chỉ số và thuốc | **Thỏa thuận với gia đình** | Tiêu chuẩn |
+| `REHAB` | Tập phục hồi chức năng | Yếu cơ, thoái hóa khớp, sau gãy xương hoặc phẫu thuật, đi lại khó cần tập lại | **Thỏa thuận với gia đình** | Tiêu chuẩn |
+| `DEMENTIA` | Sa sút trí tuệ **mức nhẹ đến vừa** | Giảm trí nhớ, dễ đi lạc; còn đi lại được, không kích động nặng | **Thỏa thuận với gia đình** | Tiêu chuẩn |
+| `STROKE` | Sau tai biến, đột quỵ | Đã qua giai đoạn cấp ở bệnh viện; còn yếu liệt một bên, nói hoặc nuốt khó | **Thỏa thuận với gia đình** | Tiêu chuẩn |
 
-- Điều dưỡng chấm thang **Barthel (ADL)** khi đánh giá đầu vào. Barthel từ 61 trở lên **và** không có bệnh cần theo dõi thì xếp nhóm `ACTIVE`; còn lại xếp nhóm `MEDICAL`.
+**Không nhận:** cụ nằm liệt giường hoàn toàn, sa sút trí tuệ nặng (kích động mạnh, không kiểm soát được), cụ cần chăm sóc tích cực (ăn qua sonde, mở khí quản, vết loét nặng, giai đoạn cuối). Những trường hợp này cần y tế 24/7, không hợp mô hình bán trú.
+
+**Chăm sóc riêng của từng nhóm** (có sẵn, không tính vào số hoạt động tự chọn)
+
+| | `CHRONIC` | `REHAB` | `DEMENTIA` | `STROKE` |
+|---|---|---|---|---|
+| Chăm sóc riêng | Đo chỉ số và đường huyết theo bệnh; nhắc thuốc đúng giờ; thực đơn ít đường, ít muối | VLTL tăng cường: Tiêu chuẩn 3 buổi/tuần, Cao cấp hằng ngày. Bài tập về nhà gửi gia đình qua app | Sinh hoạt ở **khu có kiểm soát ra vào**; **thẻ hoặc vòng tay nhận diện** chống đi lạc; hoạt động trí nhớ, hồi tưởng, âm nhạc **hằng ngày** | VLTL phục hồi (tập đi, tập tay) **hằng ngày**; đo huyết áp **3 lần/ngày**; thức ăn mềm, có người hỗ trợ khi ăn để phòng sặc |
+| Theo dõi | Xu hướng chỉ số; AI cảnh báo khi vượt ngưỡng | Đánh giá tiến triển hằng tháng (chấm lại Barthel, khả năng đi lại) | Ghi **hành vi** vào care log: lo âu, kích động, đi lang thang | **Dấu hiệu tái phát** (méo miệng, yếu tay, nói khó): cảnh báo khẩn cấp, gọi gia đình, chuyển viện |
+| Báo cáo cho gia đình | Biểu đồ chỉ số hằng tháng | Báo cáo tiến triển hằng tháng | Báo cáo hành vi và sinh hoạt hằng tuần | Báo cáo huyết áp và tiến triển hằng tháng |
+| Hạn chế | Ngâm chân ⚠ nếu tiểu đường | Massage, ngâm chân ⚠ | Thủ công không dùng kéo; check-out kiểm tra kỹ người đón | Ghế massage ⚠ chỉ khi đã qua giai đoạn cấp; ngâm chân ⚠ vì giảm cảm giác bên liệt |
+| Người phụ trách | Điều dưỡng | Điều dưỡng hướng dẫn VLTL | Điều dưỡng, hộ lý | Điều dưỡng hướng dẫn VLTL |
+
+**Quy tắc xếp nhóm**
+- Một cụ chỉ thuộc **một nhóm chính**. Có nhiều bệnh thì xếp theo nhóm có mức chăm sóc cao nhất (ví dụ sau tai biến kèm tiểu đường thì xếp `STROKE`). Bệnh còn lại vẫn ghi vào hồ sơ để theo dõi.
+- Điều dưỡng xếp nhóm khi đánh giá đầu vào, dựa trên **điểm Barthel cộng chẩn đoán** (giấy ra viện, giấy khám sức khỏe). Manager duyệt.
 - Cụ đã từng được đánh giá thì ô đối tượng được **điền sẵn và khóa**, gia đình không tự đổi.
-- Cụ **sa sút trí tuệ** có được nhận vào nhóm `MEDICAL` không? Cụ **nằm liệt giường hoàn toàn** có nhận không (đề xuất là không)? **[HỎI]**
+- Đánh giá lại **mỗi tháng** với `REHAB` và `STROKE` (tình trạng thay đổi nhanh), **3 tháng một lần** với các nhóm còn lại.
+
+**Phụ phí thỏa thuận**
+- Mỗi nhóm có phụ phí, nhưng mức cụ thể **do Manager thỏa thuận với gia đình** sau buổi đánh giá, tùy tình trạng của cụ.
+- Khi duyệt đăng ký, Manager nhập mức phụ phí (số tiền theo kỳ), kèm ghi chú lý do. Gia đình thấy giá cuối cùng và **xác nhận trên app** trước khi thanh toán.
+- Trên web và ở bước chọn gói, giá hiển thị là **giá gói chưa gồm phụ phí**, kèm dòng "Phụ phí theo tình trạng sức khỏe, báo sau buổi đánh giá".
+- Không thu **đặt cọc**: gia đình trả trước toàn bộ qua cổng thanh toán.
 
 **Trục 2: Hạng dịch vụ (bảng chốt)**
 
 | Mục | Cơ bản | Tiêu chuẩn | Cao cấp |
 |---|---|---|---|
 | **Giá tham khảo** | 350.000đ/ngày | 420.000đ/ngày | 520.000đ/ngày |
-| **Đối tượng được mua** | Chỉ nhóm vận động được | Cả hai nhóm | Cả hai nhóm |
+| **Đối tượng được mua** | Chỉ nhóm vận động được | Cả 5 nhóm | Cả 5 nhóm |
 | **Giờ chăm sóc** | 7h–16h30 | 7h–16h30 | 7h–16h30 |
 | **Số cụ trên mỗi staff** | 1:8 | 1:6 | 1:4 |
 | **1. Ăn uống** | | | |
@@ -114,7 +139,7 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 | **7. Ưu tiên** | | | |
 | Giữ chỗ khi trung tâm đầy | — | — | Đầu danh sách chờ |
 
-⚠ = nhóm cần hỗ trợ về bệnh phải được điều dưỡng cho phép. Dịch vụ mua thêm (mục 4.2C) áp dụng như nhau cho cả ba hạng.
+⚠ = các nhóm bệnh (`CHRONIC`, `REHAB`, `DEMENTIA`, `STROKE`) phải được điều dưỡng cho phép. Dịch vụ mua thêm (mục 4.2C) áp dụng như nhau cho cả ba hạng.
 
 > Các con số trên chỉ để làm mẫu dữ liệu. Manager được sửa toàn bộ, vì tạo gói và đặt giá là quyền của Manager.
 
@@ -122,7 +147,7 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 
 Đối tượng là người cao tuổi, nên danh mục chỉ gồm những hoạt động **nhẹ nhàng, an toàn**. Danh mục dưới đây đã đối chiếu với BV Phục hồi chức năng TP.HCM (bán trú), Thiên Đức, Phú Nghĩa, Diên Hồng, Nhân Ái DayCare và mô hình adult day care của Mỹ. Bộ lõi các nơi đều có: đo chỉ số, dưỡng sinh, vật lý trị liệu, massage.
 
-⚠ = nhóm `MEDICAL` phải được **điều dưỡng cho phép** mới dùng.
+⚠ = các nhóm bệnh phải được **điều dưỡng cho phép** mới dùng.
 
 **A. Có sẵn trong mọi gói** (không tích, ai cũng được)
 
@@ -170,7 +195,7 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 |---|---|
 | Xông hơi, onsen, tắm nóng | Dễ tụt hoặc tăng huyết áp, choáng; hợp nội trú có y tế 24/7 hơn bán trú |
 | Cứu ngải, chiếu đèn nhiệt | Nguy cơ bỏng, nhất là cụ tiểu đường giảm cảm giác ở da |
-| Bấm huyệt, tập nói và tập nuốt | Cần kỹ thuật viên chuyên môn; trung tâm chỉ có điều dưỡng và hộ lý |
+| Bấm huyệt, tập nói và tập nuốt | Cần kỹ thuật viên chuyên môn; trung tâm chỉ có điều dưỡng và hộ lý (vật lý trị liệu do điều dưỡng hướng dẫn) |
 | Làm vườn, nấu ăn, gói bánh | Có dao, lửa, phải cúi lâu |
 | Khiêu vũ, zumba | Nguy cơ té ngã |
 | Dã ngoại, đi chùa bên ngoài | Rủi ro di chuyển; để phiên bản sau |
@@ -194,7 +219,7 @@ Vật lý trị liệu, ghế massage và ngâm chân được **xoay vòng theo
 | 15h30–16h30 | Thư giãn tự do, staff chốt care log, trả cụ và xác nhận người đón | Tất cả |
 | 16h30–18h00 | Ở lại muộn: ăn nhẹ, thư giãn | Cụ có gói ở lại muộn |
 
-**Manager quản lý dịch vụ (thêm, sửa, xóa)** với các trường: tên, nhóm, mô tả, ảnh, thời lượng mỗi lượt, thiết bị cần dùng (liên kết bảng `equipment`), người phụ trách (điều dưỡng / hộ lý), có cần điều dưỡng cho phép với nhóm `MEDICAL` không, giá khi mua lẻ, trạng thái (đang bán / tạm ngừng). Danh mục trên là khung ban đầu; trung tâm muốn thêm dịch vụ thì Manager tự thêm.
+**Manager quản lý dịch vụ (thêm, sửa, xóa)** với các trường: tên, nhóm, mô tả, ảnh, thời lượng mỗi lượt, thiết bị cần dùng (liên kết bảng `equipment`), người phụ trách (điều dưỡng / hộ lý), có cần điều dưỡng cho phép với nhóm nhóm bệnh không, giá khi mua lẻ, trạng thái (đang bán / tạm ngừng). Danh mục trên là khung ban đầu; trung tâm muốn thêm dịch vụ thì Manager tự thêm.
 
 **Manager tạo gói** bằng cách chọn dịch vụ đưa vào gói. Với mỗi dịch vụ, Manager đặt:
 - **Loại:** có sẵn / tự chọn trong gói / mua thêm.
@@ -217,7 +242,7 @@ Dành cho gia đình đi làm về trễ, đăng ký **thêm** bên cạnh gói 
 ### 4.4 Công thức giá
 
 ```
-Giá kỳ = Giá gốc (hạng × thời hạn) × (1 + phụ phí mức độ) − giảm giá thời hạn + dịch vụ lẻ + gói ở lại muộn
+Giá kỳ = Giá gốc (hạng × thời hạn) − giảm giá thời hạn + phụ phí thỏa thuận theo nhóm + dịch vụ lẻ + gói ở lại muộn
 ```
 
 Một **đăng ký (subscription)** luôn gắn với một cụ, một gói (hạng + thời hạn), một đối tượng, các dịch vụ đã tích chọn, ngày bắt đầu và ngày kết thúc. **Nâng hạng** có hiệu lực ngay và chỉ trả phần chênh lệch cho số ngày còn lại. **Hạ hạng** có hiệu lực từ kỳ sau.
@@ -237,7 +262,7 @@ Phạm vi đã chốt: **quản lý phòng, giường và sức chứa, kèm ki�
 | Phòng ăn | Bữa sáng, trưa, xế | Bữa theo hạng |
 | Phòng nghỉ trưa | Nghỉ trưa | Cơ bản: phòng chung; Tiêu chuẩn: phòng 4–6 người; Cao cấp: phòng 2 người, giường cố định |
 | Khu ghế massage | Ghế massage toàn thân | Theo số lượt của hạng |
-| Khu có kiểm soát ra vào | Chống đi lạc | Chỉ cần nếu trung tâm nhận cụ sa sút trí tuệ **[HỎI]** |
+| Khu có kiểm soát ra vào | Chống đi lạc | Bắt buộc cho nhóm `DEMENTIA` |
 | Sân vườn, lối đi bộ | Tắm nắng, đi bộ, dưỡng sinh | Mọi hạng |
 
 **Manager nhập tay**
@@ -276,7 +301,7 @@ Trang tổng quan của menu này hiện: số chỗ còn trống theo hạng h�
 - **Nâng hạng** khi hạng cao đã hết giường: vào danh sách chờ, giữ nguyên hạng cũ cho tới khi có chỗ.
 - **Giường cố định của Cao cấp** được giữ trống cả khi cụ báo nghỉ.
 - **Gói ngày hạng Cao cấp** được bán nếu hôm đó còn giường Cao cấp trống. Cụ được xếp giường theo ngày; hết giường thì không bán.
-- Nếu trung tâm nhận cụ sa sút trí tuệ **[HỎI]**: khu có kiểm soát ra vào có sức chứa riêng, đầy thì chỉ cho vào danh sách chờ.
+- Khu có kiểm soát ra vào cho nhóm `DEMENTIA` có sức chứa riêng; đầy thì chỉ cho vào danh sách chờ.
 
 ### 4.8 Bù quyền lợi khi cơ sở vật chất gặp sự cố
 
@@ -332,13 +357,14 @@ Mọi trường hợp bù đều được ghi vào bảng `entitlement_compensat
 
 | Lựa chọn trước đó | Ảnh hưởng tới bước 4 |
 |---|---|
-| Đối tượng `MEDICAL` | Ẩn hạng Cơ bản. Ghế massage, ngâm chân thảo dược ghi chú "cần điều dưỡng cho phép" |
-| Đối tượng `ACTIVE` | Hiện đủ 3 hạng và đủ dịch vụ |
+| Các nhóm bệnh | Ẩn hạng Cơ bản. Hiện thêm phần "Chăm sóc riêng của nhóm". Dịch vụ có ⚠ ghi chú "cần điều dưỡng cho phép". Giá ghi "chưa gồm phụ phí" |
+| `DEMENTIA` | Thủ công ghi chú "không dùng kéo" |
+| Đối tượng `MOBILE` | Hiện đủ 3 hạng và đủ dịch vụ |
 | Gói ngày | Chỉ hiện dịch vụ có trong ngày đã đặt. Không bán mua thêm theo tháng (ví dụ ở lại muộn theo tháng) |
 | Tháng 3 buổi/tuần | Số lượt dịch vụ tính theo các ngày cụ đi |
 | Gói tháng, quý, năm | Hiện đầy đủ |
 
-**Khi điều dưỡng đánh giá khác với gia đình khai [ĐỀ XUẤT]:** hệ thống tính lại giá; nếu đang chọn hạng Cơ bản mà cụ thuộc nhóm `MEDICAL` thì buộc nâng lên Tiêu chuẩn; tự bỏ dịch vụ không phù hợp; gửi lại cho gia đình **xác nhận** trước khi thanh toán. Nếu cụ đang đi và được đánh giá lại thì thay đổi có hiệu lực **từ kỳ sau**.
+**Khi điều dưỡng đánh giá khác với gia đình khai [ĐỀ XUẤT]:** Manager nhập phụ phí thỏa thuận; nếu đang chọn hạng Cơ bản mà cụ thuộc một nhóm bệnh thì buộc nâng lên Tiêu chuẩn; tự bỏ dịch vụ không phù hợp; gửi lại cho gia đình **xác nhận** trước khi thanh toán. Nếu cụ đang đi và được đánh giá lại thì thay đổi có hiệu lực **từ kỳ sau**.
 
 ## 5. Các luồng nghiệp vụ chính
 
@@ -414,10 +440,14 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | BR-03 | Mỗi cụ chỉ có **một subscription chính đang hiệu lực** tại một thời điểm, cộng thêm các dịch vụ lẻ |
 | BR-04 | Tính năng trên app của Family được bật hoặc tắt theo quyền lợi của gói đang hiệu lực (mục 4.1) |
 | BR-10 | Chỉ điều dưỡng được đánh giá đầu vào. Chỉ Manager được chốt đối tượng của cụ |
-| BR-11 | Đối tượng `MEDICAL` không mua được hạng Cơ bản; dùng ghế massage phải được điều dưỡng cho phép |
+| BR-11 | Các nhóm bệnh (`CHRONIC`, `REHAB`, `DEMENTIA`, `STROKE`) không mua được hạng Cơ bản |
 | BR-13 | Gia đình chỉ tích chọn dịch vụ có trong gói, không vượt quá số dịch vụ tự chọn của hạng. Đổi lựa chọn có hiệu lực từ tuần sau |
 | BR-14 | Khách chưa đăng nhập chỉ xem thẻ tóm tắt của từng hạng |
-| BR-15 | Dịch vụ có dấu ⚠ (ghế massage, ngâm chân, cắt móng cho cụ tiểu đường) chỉ dùng được cho nhóm `MEDICAL` khi điều dưỡng đã cho phép |
+| BR-15 | Dịch vụ có dấu ⚠ (ghế massage, ngâm chân, cắt móng cho cụ tiểu đường) chỉ dùng được cho các nhóm bệnh khi điều dưỡng đã cho phép |
+| BR-16 | Mỗi cụ thuộc một nhóm chính; nhiều bệnh thì xếp theo nhóm có mức chăm sóc cao nhất |
+| BR-17 | Phụ phí theo nhóm do Manager thỏa thuận với gia đình và nhập khi duyệt; gia đình phải xác nhận giá cuối trên app trước khi thanh toán |
+| BR-18 | Không nhận cụ nằm liệt giường hoàn toàn, sa sút trí tuệ nặng, hoặc cần chăm sóc tích cực |
+| BR-19 | Không thu đặt cọc; mọi khoản thanh toán trả trước qua cổng thanh toán |
 | BR-12 | Đánh giá lại mức độ định kỳ mỗi 3 tháng, hoặc khi sức khỏe thay đổi. Mức đổi thì giá đổi từ kỳ sau |
 | BR-20 | Đã thanh toán thì **không hoàn tiền** khi cụ nghỉ hoặc gia đình dừng gói, trừ trường hợp qua đời (5.9) |
 | BR-21 | Gói `DAY`: báo nghỉ trước **17h ngày hôm trước** thì không mất tiền ngày đó **[HỎI]** |
@@ -433,7 +463,7 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | BR-50 | AI chỉ gợi ý. Lịch ca và thực đơn phải được Manager duyệt mới có hiệu lực |
 | BR-51 | Dữ liệu gửi sang AI phải ẩn thông tin cá nhân (tên, CCCD, số điện thoại) |
 | BR-70 | Tổng số lượng phòng, giường, thiết bị chỉ do Manager nhập hoặc sửa. Hệ thống chỉ thay đổi **số dùng được** qua báo hỏng, sửa xong và kiểm kê |
-| BR-71 | Không bán gói và không xếp cụ vượt sức chứa của hạng đó. Cụ sa sút trí tuệ (nếu nhận) chỉ được xếp vào khu có kiểm soát ra vào |
+| BR-71 | Không bán gói và không xếp cụ vượt sức chứa của hạng đó. Cụ nhóm `DEMENTIA` chỉ được xếp vào khu có kiểm soát ra vào |
 | BR-72 | Thiết bị dùng được thấp hơn định mức tối thiểu thì cảnh báo Manager và ghi vào báo cáo |
 | BR-73 | Phòng tạm đóng thì không xếp lịch hay giường vào. Cụ Cao cấp bị ảnh hưởng được chuyển tạm sang phòng tương đương |
 | BR-74 | Chỗ chia cứng theo hạng, bằng số giường nghỉ trưa của hạng đó. Không đẩy cụ hạng thấp ra ngoài để nhường chỗ cho hạng cao |
@@ -482,7 +512,7 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 
 **Giữ, có sửa**
 - `service_packages`: thêm `tier`, `billing_cycle` (DAY/M3/MONTH/Q/Y), `weekdays`, `base_price`, `allowed_target_groups`.
-- `registrations` → đổi tên thành `subscriptions`: thêm `target_group` (ACTIVE/MEDICAL), `status` (PENDING_ASSESSMENT / AWAITING_PAYMENT / ACTIVE / PAUSED / SUSPENDED / TERMINATED / EXPIRED), `paused_until`.
+- `registrations` → đổi tên thành `subscriptions`: thêm `target_group` (MOBILE/CHRONIC/REHAB/DEMENTIA/STROKE), `surcharge_amount`, `surcharge_note`, `status` (PENDING_ASSESSMENT / AWAITING_PAYMENT / ACTIVE / PAUSED / SUSPENDED / TERMINATED / EXPIRED), `paused_until`.
 - `attendance`: thêm `checked_in_by`, `checked_out_by`, `pickup_person_id`.
 - `care_logs`: tách phần chỉ số sức khỏe ra bảng riêng.
 - `shifts`: thêm `note` (text, thay cho chức vụ trưởng ca).
@@ -495,7 +525,7 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 |---|---|
 | `staff_profiles` | Chức vụ (NURSE/CAREGIVER), chứng chỉ, ngày vào làm |
 | `package_entitlements` | Quyền lợi của từng gói (khóa, giá trị), ví dụ `photo_per_day=5`, `ai_alert_family=true` |
-| `target_group_surcharges` | Phụ phí theo đối tượng (vận động được / cần hỗ trợ về bệnh) |
+| `target_groups` | 5 nhóm đối tượng: tên, mô tả, hạng tối thiểu, chu kỳ đánh giá lại, các dịch vụ chăm sóc riêng của nhóm |
 | `services` | Danh mục dịch vụ do Manager quản lý: nhóm, mô tả, ảnh, thời lượng, thiết bị cần dùng, cần điều dưỡng cho phép không, giá mua lẻ, trạng thái |
 | `package_services` | Gói gồm dịch vụ nào: loại (có sẵn / tự chọn / mua thêm), số lượt mỗi tuần, áp dụng cho thời hạn và đối tượng nào, giá |
 | `subscription_service_choices` | Dịch vụ gia đình đã tích chọn, ngày hiệu lực |
@@ -528,14 +558,10 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 1. **Admin có xem hồ sơ sức khỏe chi tiết không?** Lần trước bạn giữ nguyên dòng đề xuất nhưng chưa trả lời. Mình đang tạm để là không (BR-60).
 2. **Manager xem tin nhắn:** bạn trả lời "tùy vào lịch sử tin nhắn". Mình đề xuất Manager chỉ mở khi có khiếu nại hoặc Family yêu cầu, và việc mở được ghi log (BR-40). Bạn đồng ý không?
 3. **Hạn báo nghỉ cho gói ngày:** 17h hôm trước có hợp lý không? Tiền ngày đó hoàn lại qua cổng thanh toán, hay giữ thành **số dư** để trừ vào lần đặt sau? Mình đề xuất giữ thành số dư vì đơn giản hơn.
-4. **Đặt cọc:** có thu cọc như Hạnh Phúc Viên (bằng 1 tháng phí) không, hay chỉ trả trước là đủ?
-5. **Ngày lễ, Tết:** trung tâm nghỉ hay mở cửa có phụ thu? Gói tháng có trừ ngày lễ không?
-6. **Tiền mặt:** có cho Manager ghi nhận thanh toán tiền mặt tại quầy cho gia đình không dùng app không? Người già và một số gia đình có thể không quen thanh toán online.
-7. Không có kỹ thuật viên: vật lý trị liệu và phục hồi chức năng 1-1 do **điều dưỡng** hướng dẫn, đúng không?
-8. **Cụ không có smartphone:** Family là người dùng app. Còn cụ có cần thẻ hoặc mã QR để check-in không? Mình đề xuất in **thẻ QR** cho mỗi cụ.
-9. **Báo cáo Manager gửi Admin:** tự động theo tuần hoặc tháng (doanh thu, số cụ, sự cố), hay Manager tự soạn rồi gửi?
-10. **Giờ đóng cửa** của trung tâm là mấy giờ (giới hạn cho gói ở lại muộn)? Không có gói mà đón trễ thì phụ thu bao nhiêu mỗi giờ?
-11. **Chatbot** trả lời dựa trên FAQ và thông tin gói mà Manager nhập, đúng không? Khi chatbot không trả lời được thì chuyển cho ai: Manager hay một staff trực?
-12. **Đối tượng `MEDICAL`:** phụ phí +30% và chỉ mua từ hạng Tiêu chuẩn trở lên, được không?
-13. **Sa sút trí tuệ:** trung tâm có nhận không? Nếu nhận thì cần khu có kiểm soát ra vào. **Nằm liệt giường hoàn toàn:** đề xuất không nhận, vì bán trú phải đưa đón cụ hằng ngày.
-14. **Giá gói tháng** cố định một mức, bất kể tháng đó có 24 hay 27 ngày đi được, đúng không?
+4. **Ngày lễ, Tết:** trung tâm nghỉ hay mở cửa có phụ thu? Gói tháng có trừ ngày lễ không?
+5. **Tiền mặt:** có cho Manager ghi nhận thanh toán tiền mặt tại quầy cho gia đình không dùng app không? Người già và một số gia đình có thể không quen thanh toán online.
+6. **Cụ không có smartphone:** Family là người dùng app. Còn cụ có cần thẻ hoặc mã QR để check-in không? Mình đề xuất in **thẻ QR** cho mỗi cụ.
+7. **Báo cáo Manager gửi Admin:** tự động theo tuần hoặc tháng (doanh thu, số cụ, sự cố), hay Manager tự soạn rồi gửi?
+8. **Giờ đóng cửa** của trung tâm là mấy giờ (giới hạn cho gói ở lại muộn)? Không có gói mà đón trễ thì phụ thu bao nhiêu mỗi giờ?
+9. **Chatbot** trả lời dựa trên FAQ và thông tin gói mà Manager nhập, đúng không? Khi chatbot không trả lời được thì chuyển cho ai: Manager hay một staff trực?
+10. **Giá gói tháng** cố định một mức, bất kể tháng đó có 24 hay 27 ngày đi được, đúng không?
