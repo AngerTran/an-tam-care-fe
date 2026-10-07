@@ -56,7 +56,7 @@ Gia đình chọn gói theo thứ tự **Thời hạn (Trục 1) → Đối tư�
 |---|---|---|---|
 | `DAY` | Gói ngày | Đặt trước từng ngày, trả trước | **Không mất tiền** nếu báo nghỉ đúng hạn (BR-21) |
 | `M3` | Tháng 3 buổi/tuần | 12–13 buổi/tháng, cố định T2-4-6 hoặc T3-5-7 | Vẫn tính tiền |
-| `MONTH` | Gói tháng | **Đi cả tháng, trừ Chủ nhật** (thứ 2 đến thứ 7). Giá cố định một mức, không phụ thuộc tháng có bao nhiêu ngày **[ĐỀ XUẤT]** | Vẫn tính tiền |
+| `MONTH` | Gói tháng | **Đi cả tháng, trừ Chủ nhật** (thứ 2 đến thứ 7). Giá cố định một mức, không phụ thuộc tháng có bao nhiêu ngày | Vẫn tính tiền |
 | `Q` / `Y` | Quý / Năm | Như gói tháng, giảm giá 5% / 10% **[ĐỀ XUẤT]** | Vẫn tính tiền |
 
 `DAY` phù hợp cho người đi ngắn hạn hoặc **đi thử**. `M3` dành cho cụ mới làm quen. `MONTH`, `Q`, `Y` là gói dài hạn.
@@ -186,7 +186,6 @@ Cách chia theo tình trạng sức khỏe giống các viện đang hoạt đ�
 | Cắt tóc, gội đầu | Lần | — |
 | Cắt móng tay chân | Lần | ⚠ Cụ tiểu đường do điều dưỡng làm |
 | Sữa dinh dưỡng, suất ăn thêm | Theo tháng | — |
-| Ở lại muộn đến 18h | Lần hoặc tháng | Mục 4.3 |
 | Đi cùng cụ tới phòng khám | Lần | — |
 
 **D. Không đưa vào** (dù có nơi đang làm)
@@ -218,7 +217,7 @@ Vật lý trị liệu, ghế massage và ngâm chân được **xoay vòng theo
 | 14h00–15h00 | **Khung chiều:** ngâm chân, ghế massage, máy massage chân, vật lý trị liệu theo lượt. Hoạt động nhóm: âm nhạc, hát nhẹ (hằng ngày), cờ tướng, cờ caro (hằng ngày) | Theo hoạt động đã tích |
 | 15h00–15h30 | Ăn xế | Tất cả |
 | 15h30–16h30 | Thư giãn tự do, staff chốt care log, trả cụ và xác nhận người đón | Tất cả |
-| 16h30–18h00 | Ở lại muộn: ăn nhẹ, thư giãn | Cụ có gói ở lại muộn |
+| 16h30–19h30 | Chờ gia đình đón: không hoạt động, không ăn uống; một staff trực | Cụ chưa được đón |
 
 **Manager quản lý dịch vụ (thêm, sửa, xóa)** với các trường: tên, nhóm, mô tả, ảnh, thời lượng mỗi lượt, thiết bị cần dùng (liên kết bảng `equipment`), người phụ trách (điều dưỡng / hộ lý), có cần điều dưỡng cho phép với nhóm nhóm bệnh không, giá khi mua lẻ, trạng thái (đang bán / tạm ngừng). Danh mục trên là khung ban đầu; trung tâm muốn thêm dịch vụ thì Manager tự thêm.
 
@@ -228,22 +227,20 @@ Vật lý trị liệu, ghế massage và ngâm chân được **xoay vòng theo
 - **Áp dụng cho:** thời hạn nào, đối tượng nào.
 - **Giá** nếu là mua thêm.
 
-### 4.3 Gói ở lại muộn
+### 4.3 Giờ đón cụ và chờ đón muộn
 
-Dành cho gia đình đi làm về trễ, đăng ký **thêm** bên cạnh gói chính.
+Trung tâm chỉ làm **bán trú**. **Không có gói ở lại muộn.**
 
-| Loại | Cách tính | Ghi chú |
-|---|---|---|
-| Theo lần | Theo giờ, đặt trước trong ngày | Ví dụ 16h30–18h |
-| Theo tháng | Cố định các ngày trong tuần | Giá theo tháng rẻ hơn so với mua từng lần |
-
-- Giờ ở lại muộn kéo dài **tối đa tới giờ đóng cửa của trung tâm**, cấu hình trong `center_settings.closing_time`. Đề xuất đóng cửa lúc 18h **[HỎI]**.
-- Trong giờ ở lại muộn, cụ được ăn nhẹ và tham gia hoạt động nhẹ. Staff trực muộn được xếp theo số cụ đã đăng ký.
+- **7h–16h30** là giờ chăm sóc. Sau 16h30 trung tâm **không có hoạt động và không có ăn uống**.
+- **16h30–19h30** chỉ là thời gian **chờ gia đình đón**, **miễn phí**. Cụ ngồi chờ ở sảnh, có một staff **trực chờ đón**.
+- **19h30** là giờ đóng cửa, cũng là giờ đón muộn nhất. Manager chỉnh được giờ này trong cài đặt (`center_settings.closing_time`).
+- Hệ thống tự nhắc gia đình: 16h30 báo "cụ đã sẵn sàng về", 17h00 nhắc lần 1, 18h30 nhắc lần 2 và gọi người liên hệ chính.
+- Quá 19h30 chưa có người đón: staff gọi tất cả người được phép đón, ghi **sự cố đón trễ**, báo Manager, và ở lại tới khi giao được cụ.
 
 ### 4.4 Công thức giá
 
 ```
-Giá kỳ = Giá gốc (hạng × thời hạn) − giảm giá thời hạn + phụ phí thỏa thuận theo nhóm + dịch vụ lẻ + gói ở lại muộn
+Giá kỳ = Giá gốc (hạng × thời hạn) − giảm giá thời hạn + phụ phí thỏa thuận theo nhóm + dịch vụ lẻ
 ```
 
 Một **đăng ký (subscription)** luôn gắn với một cụ, một gói (hạng + thời hạn), một đối tượng, các dịch vụ đã tích chọn, ngày bắt đầu và ngày kết thúc. **Nâng hạng** có hiệu lực ngay và chỉ trả phần chênh lệch cho số ngày còn lại. **Hạ hạng** có hiệu lực từ kỳ sau.
@@ -360,7 +357,7 @@ Mọi trường hợp bù đều được ghi vào bảng `entitlement_compensat
 | Các nhóm bệnh | Ẩn hạng Cơ bản. Hiện thêm phần "Chăm sóc riêng của nhóm". Dịch vụ có ⚠ ghi chú "cần điều dưỡng cho phép". Giá ghi "chưa gồm phụ phí" |
 | `DEMENTIA` | Hiện phần chăm sóc riêng: âm nhạc, đọc báo kể chuyện nhóm hằng ngày |
 | Đối tượng `MOBILE` | Hiện đủ 3 hạng và đủ dịch vụ |
-| Gói ngày | Chỉ hiện dịch vụ có trong ngày đã đặt. Không bán mua thêm theo tháng (ví dụ ở lại muộn theo tháng) |
+| Gói ngày | Chỉ hiện dịch vụ có trong ngày đã đặt. Không bán dịch vụ mua thêm theo tháng |
 | Tháng 3 buổi/tuần | Số lượt dịch vụ tính theo các ngày cụ đi |
 | Gói tháng, quý, năm | Hiện đầy đủ |
 
@@ -381,10 +378,7 @@ Mọi trường hợp bù đều được ghi vào bảng `entitlement_compensat
 2. **Đo chỉ số sáng** (điều dưỡng): huyết áp, mạch, nhiệt độ, SpO₂, đường huyết nếu cần. AI kiểm tra bất thường.
 3. Hoạt động, bữa ăn, nghỉ trưa, vật lý trị liệu theo lịch của gói. Hộ lý ghi care log và chụp ảnh.
 4. **Check-out:** staff chọn người đón trong danh sách **người được phép đón**, đối chiếu ảnh và CCCD. Nếu không có trong danh sách thì không giao cụ, gọi Family chính xác nhận và ghi lại. Gia đình nhận thông báo "đã về" cùng tóm tắt trong ngày.
-5. Đến 16h30 mà chưa có người đón:
-   - Cụ có **gói ở lại muộn** (4.3) thì ở lại theo gói, nhưng phải được đón **trước giờ đóng cửa**.
-   - Cụ không có gói thì hệ thống tự nhắc Family, staff ghi nhận **đón trễ**, có phụ thu theo giờ **[ĐỀ XUẤT]**.
-   - Trước giờ đóng cửa 30 phút mà vẫn chưa có người đón: nhắc lần nữa và gọi người liên hệ chính.
+5. Đến 16h30 mà chưa có người đón: cụ chờ ở sảnh với staff trực, không hoạt động và không ăn uống. Hệ thống nhắc gia đình lúc 16h30, 17h00 và 18h30. Quá 19h30 (giờ đóng cửa) thì staff gọi tất cả người được phép đón, ghi sự cố đón trễ và báo Manager (mục 4.3).
 
 ### 5.3 Báo nghỉ
 - Family báo nghỉ trên app, chọn ngày và lý do.
@@ -450,16 +444,19 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | BR-19 | Không thu đặt cọc; mọi khoản thanh toán trả trước qua cổng thanh toán |
 | BR-12 | Đánh giá lại mức độ định kỳ mỗi 3 tháng, hoặc khi sức khỏe thay đổi. Mức đổi thì giá đổi từ kỳ sau |
 | BR-20 | Đã thanh toán thì **không hoàn tiền** khi cụ nghỉ hoặc gia đình dừng gói, trừ trường hợp qua đời (5.9) |
-| BR-21 | Gói `DAY`: báo nghỉ trước **17h ngày hôm trước** thì không mất tiền ngày đó **[HỎI]** |
+| BR-21 | Gói `DAY`: báo nghỉ trước **17h ngày hôm trước** thì không mất tiền ngày đó; tiền ngày đó được giữ thành **số dư** để trừ vào lần đặt sau |
 | BR-22 | Nhập viện có giấy tờ thì được bảo lưu tối đa 30 ngày |
 | BR-23 | Nhắc gia hạn trước 7 ngày. Hết hạn chưa đóng thì `SUSPENDED` |
-| BR-24 | Thanh toán chỉ qua cổng thanh toán, không thu tiền mặt **[HỎI]** |
+| BR-24 | Thanh toán chỉ qua cổng thanh toán, không thu tiền mặt |
+| BR-25 | Manager nhập lịch nghỉ lễ, Tết và gửi thông báo cho gia đình. Ngày nghỉ không tính buổi; gói tháng được cộng bù số ngày nghỉ lễ |
+| BR-26 | Giá gói tháng cố định một mức, không phụ thuộc tháng có bao nhiêu ngày đi được |
 | BR-30 | Chỉ giao cụ cho người có trong danh sách người được phép đón. Mọi lần đón đều được ghi lại |
+| BR-35 | Mỗi cụ có một thẻ QR để check-in và check-out |
 | BR-31 | Không check-in được nếu subscription không `ACTIVE`, hoặc nếu hôm đó không thuộc lịch của gói (ví dụ gói M3 đi vào thứ Ba) |
-| BR-34 | Giờ chăm sóc chung của mọi hạng là 7h–16h30. Ở lại sau 16h30 cần gói ở lại muộn, và không được quá giờ đóng cửa của trung tâm |
+| BR-34 | Giờ chăm sóc 7h–16h30. Từ 16h30 đến giờ đóng cửa (19h30) chỉ là chờ đón, miễn phí, không hoạt động và không ăn uống. Không có gói ở lại muộn |
 | BR-32 | Chỉ điều dưỡng được ghi chỉ số sức khỏe. Hộ lý ghi ăn uống, vệ sinh, hoạt động, ảnh |
 | BR-33 | Staff chỉ thấy các cụ được phân công trong ca của mình |
-| BR-40 | Staff chỉ nhắn tin được với Family của các cụ mình phụ trách. Toàn bộ tin nhắn được lưu. Manager **[ĐỀ XUẤT]** chỉ mở lịch sử tin nhắn khi có khiếu nại hoặc khi Family yêu cầu, và việc mở được ghi vào audit log |
+| BR-40 | Staff chỉ nhắn tin được với Family của các cụ mình phụ trách. Toàn bộ tin nhắn được lưu. Manager chỉ mở lịch sử tin nhắn khi có khiếu nại hoặc khi Family yêu cầu, và việc mở được ghi vào audit log |
 | BR-50 | AI chỉ gợi ý. Lịch ca và thực đơn phải được Manager duyệt mới có hiệu lực |
 | BR-51 | Dữ liệu gửi sang AI phải ẩn thông tin cá nhân (tên, CCCD, số điện thoại) |
 | BR-70 | Tổng số lượng phòng, giường, thiết bị chỉ do Manager nhập hoặc sửa. Hệ thống chỉ thay đổi **số dùng được** qua báo hỏng, sửa xong và kiểm kê |
@@ -471,7 +468,9 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | BR-76 | Giường cố định của cụ Cao cấp được giữ trống cả khi cụ báo nghỉ |
 | BR-77 | Quyền lợi bị mất do cơ sở vật chất gặp sự cố phải được bù theo bảng ở mục 4.8 và báo cho gia đình |
 | BR-78 | Số cụ tối đa trong một khung VLTL không vượt quá số chỗ phục vụ cùng lúc của thiết bị đang dùng được |
-| BR-60 | Admin chỉ xem số liệu tổng hợp, không xem hồ sơ sức khỏe từng cụ **[HỎI]** |
+| BR-60 | Phần quyền của Admin **để sau**; tạm thời Admin chỉ xem số liệu tổng hợp |
+| BR-61 | Báo cáo gửi Admin do hệ thống tự tạo theo tuần và tháng; Manager thêm nhận xét rồi gửi |
+| BR-52 | Chatbot trả lời dựa trên FAQ và thông tin gói do Manager nhập; không trả lời được thì chuyển thành tin nhắn tới Manager |
 
 ## 7. Ma trận phân quyền
 
@@ -507,7 +506,7 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 ## 8. Thay đổi dữ liệu so với ERD cũ (21 bảng)
 
 **Bỏ hoặc gộp**
-- `centers` (nhiều trung tâm) → gộp vào `center_settings` dạng 1 dòng, chứa giờ mở cửa, chính sách, FAQ cho chatbot.
+- `centers` (nhiều trung tâm) → gộp vào `center_settings` dạng 1 dòng, chứa giờ chăm sóc (7h–16h30), giờ đóng cửa (19h30), chính sách, FAQ cho chatbot.
 - `messages.channel` = `CENTER_ADMIN` → bỏ.
 
 **Giữ, có sửa**
@@ -531,7 +530,6 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | `subscription_service_choices` | Dịch vụ gia đình đã tích chọn, ngày hiệu lực |
 | `service_permissions` | Điều dưỡng cho phép hoặc không cho phép cụ dùng dịch vụ có dấu ⚠, kèm lý do và ngày đánh giá lại |
 | `subscription_add_ons` | Dịch vụ lẻ đã mua (dịch vụ lấy từ bảng `services`) |
-| `late_stay_bookings` | Gói ở lại muộn (theo lần hoặc theo tháng): ngày, giờ kết thúc, không quá `closing_time`. Ghi cả đón trễ khi không có gói |
 | `assessments` | Đánh giá đầu vào và đánh giá định kỳ (điểm ADL, ghi chú, người đánh giá, người duyệt) |
 | `authorized_pickups` | Người được phép đón (tên, quan hệ, SĐT, CCCD, ảnh) |
 | `health_metrics` | Huyết áp, mạch, nhiệt độ, SpO₂, đường huyết, cân nặng, thời điểm đo, người đo |
@@ -550,17 +548,12 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | `therapy_slots`, `therapy_bookings` | Khung giờ VLTL và ghế massage, cụ được xếp, trạng thái (đã tập / vắng / cần bù) |
 | `entitlement_compensations` | Ghi nhận bù quyền lợi: lý do, hình thức bù, ngày, cụ |
 | `personal_belongings` | Đồ cá nhân gửi lại: mô tả, ảnh, người nhận, thời điểm nhận và trả |
-| `manager_reports` | Báo cáo Manager gửi Admin |
+| `manager_reports` | Báo cáo tuần và tháng hệ thống tự tạo, Manager thêm nhận xét rồi gửi Admin |
+| `center_holidays` | Lịch nghỉ lễ, Tết do Manager nhập |
+| `announcements` | Thông báo chung Manager gửi tới tất cả hoặc một nhóm gia đình |
+| `account_credits` | Số dư của gia đình (tiền gói ngày báo nghỉ đúng hạn), trừ vào lần đặt sau |
+| `late_pickup_incidents` | Sự cố đón trễ quá giờ đóng cửa |
 
 ## 9. Câu hỏi còn mở
 
-1. **Admin có xem hồ sơ sức khỏe chi tiết không?** Lần trước bạn giữ nguyên dòng đề xuất nhưng chưa trả lời. Mình đang tạm để là không (BR-60).
-2. **Manager xem tin nhắn:** bạn trả lời "tùy vào lịch sử tin nhắn". Mình đề xuất Manager chỉ mở khi có khiếu nại hoặc Family yêu cầu, và việc mở được ghi log (BR-40). Bạn đồng ý không?
-3. **Hạn báo nghỉ cho gói ngày:** 17h hôm trước có hợp lý không? Tiền ngày đó hoàn lại qua cổng thanh toán, hay giữ thành **số dư** để trừ vào lần đặt sau? Mình đề xuất giữ thành số dư vì đơn giản hơn.
-4. **Ngày lễ, Tết:** trung tâm nghỉ hay mở cửa có phụ thu? Gói tháng có trừ ngày lễ không?
-5. **Tiền mặt:** có cho Manager ghi nhận thanh toán tiền mặt tại quầy cho gia đình không dùng app không? Người già và một số gia đình có thể không quen thanh toán online.
-6. **Cụ không có smartphone:** Family là người dùng app. Còn cụ có cần thẻ hoặc mã QR để check-in không? Mình đề xuất in **thẻ QR** cho mỗi cụ.
-7. **Báo cáo Manager gửi Admin:** tự động theo tuần hoặc tháng (doanh thu, số cụ, sự cố), hay Manager tự soạn rồi gửi?
-8. **Giờ đóng cửa** của trung tâm là mấy giờ (giới hạn cho gói ở lại muộn)? Không có gói mà đón trễ thì phụ thu bao nhiêu mỗi giờ?
-9. **Chatbot** trả lời dựa trên FAQ và thông tin gói mà Manager nhập, đúng không? Khi chatbot không trả lời được thì chuyển cho ai: Manager hay một staff trực?
-10. **Giá gói tháng** cố định một mức, bất kể tháng đó có 24 hay 27 ngày đi được, đúng không?
+1. **Phần quyền của Admin** (có xem hồ sơ sức khỏe từng cụ không, dashboard gồm gì): **để sau**.
