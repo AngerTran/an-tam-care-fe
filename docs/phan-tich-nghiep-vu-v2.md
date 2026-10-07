@@ -79,10 +79,10 @@ Cách chia theo tình trạng sức khỏe giống các viện đang hoạt đ�
 
 | | `CHRONIC` | `REHAB` | `DEMENTIA` | `STROKE` |
 |---|---|---|---|---|
-| Chăm sóc riêng | Đo chỉ số và đường huyết theo bệnh; nhắc thuốc đúng giờ; thực đơn ít đường, ít muối | VLTL tăng cường: Tiêu chuẩn 3 buổi/tuần, Cao cấp hằng ngày. Bài tập về nhà gửi gia đình qua app | Sinh hoạt ở **khu có kiểm soát ra vào**; **thẻ hoặc vòng tay nhận diện** chống đi lạc; hoạt động trí nhớ, hồi tưởng, âm nhạc **hằng ngày** | VLTL phục hồi (tập đi, tập tay) **hằng ngày**; đo huyết áp **3 lần/ngày**; thức ăn mềm, có người hỗ trợ khi ăn để phòng sặc |
+| Chăm sóc riêng | Đo chỉ số và đường huyết theo bệnh; nhắc thuốc đúng giờ; thực đơn ít đường, ít muối | VLTL tăng cường: Tiêu chuẩn 3 buổi/tuần, Cao cấp hằng ngày. Bài tập về nhà gửi gia đình qua app | Sinh hoạt ở **khu có kiểm soát ra vào**; **thẻ hoặc vòng tay nhận diện** chống đi lạc; âm nhạc, đọc báo kể chuyện nhóm **hằng ngày** | VLTL phục hồi (tập đi, tập tay) **hằng ngày**; đo huyết áp **3 lần/ngày**; thức ăn mềm, có người hỗ trợ khi ăn để phòng sặc |
 | Theo dõi | Xu hướng chỉ số; AI cảnh báo khi vượt ngưỡng | Đánh giá tiến triển hằng tháng (chấm lại Barthel, khả năng đi lại) | Ghi **hành vi** vào care log: lo âu, kích động, đi lang thang | **Dấu hiệu tái phát** (méo miệng, yếu tay, nói khó): cảnh báo khẩn cấp, gọi gia đình, chuyển viện |
 | Báo cáo cho gia đình | Biểu đồ chỉ số hằng tháng | Báo cáo tiến triển hằng tháng | Báo cáo hành vi và sinh hoạt hằng tuần | Báo cáo huyết áp và tiến triển hằng tháng |
-| Hạn chế | Ngâm chân ⚠ nếu tiểu đường | Massage, ngâm chân ⚠ | Thủ công không dùng kéo; check-out kiểm tra kỹ người đón | Ghế massage ⚠ chỉ khi đã qua giai đoạn cấp; ngâm chân ⚠ vì giảm cảm giác bên liệt |
+| Hạn chế | Ngâm chân ⚠ nếu tiểu đường | Massage, ngâm chân ⚠ | Không dùng vật sắc nhọn; check-out kiểm tra kỹ người đón | Ghế massage ⚠ chỉ khi đã qua giai đoạn cấp; ngâm chân ⚠ vì giảm cảm giác bên liệt |
 | Người phụ trách | Điều dưỡng | Điều dưỡng hướng dẫn VLTL | Điều dưỡng, hộ lý | Điều dưỡng hướng dẫn VLTL |
 
 **Quy tắc xếp nhóm**
@@ -120,17 +120,17 @@ Cách chia theo tình trạng sức khỏe giống các viện đang hoạt đ�
 | Dưỡng sinh, thở, khởi động khớp buổi sáng | Hằng ngày | Hằng ngày | Hằng ngày |
 | Thư giãn tự do (TV, nhạc xưa, báo, cờ, trà) | Có | Có | Có |
 | Sinh nhật tháng, lễ Tết | Có | Có | Có |
-| **5. Hoạt động tự chọn** (gia đình tích) | **Tối đa 4 trong 7** | **Tối đa 7 trong 10** | **Cả 10** |
+| **5. Hoạt động tự chọn** (gia đình tích) | **Tối đa 5 trong 8** | **Tối đa 7 trong 10** | **Cả 10** |
 | Vật lý trị liệu bằng máy (30 phút) | — | 2 buổi/tuần | Hằng ngày |
 | Ghế massage (20 phút) ⚠ | 1 lượt/tuần | 3 lượt/tuần | Hằng ngày |
+| Máy massage chân (15 phút) ⚠ | 1 lượt/tuần | 3 lượt/tuần | Hằng ngày |
 | Ngâm chân thảo dược (20 phút) ⚠ | — | 2 lượt/tuần | Hằng ngày |
 | Thể dục trên ghế (20 phút) | 2 buổi/tuần | 3 buổi/tuần | Hằng ngày |
 | Đi bộ có người dìu ở sân vườn (15 phút) | Hằng ngày | Hằng ngày | Hằng ngày |
-| Trò chơi trí nhớ (30 phút) | Theo lịch tuần | Theo lịch tuần | Theo lịch tuần |
-| Âm nhạc, hát cùng nhau (30 phút) | Theo lịch tuần | Theo lịch tuần | Theo lịch tuần |
-| Thủ công nhẹ (30 phút) | Theo lịch tuần | Theo lịch tuần | Theo lịch tuần |
-| Sinh hoạt tâm linh (30 phút) | Theo lịch tuần | Theo lịch tuần | Theo lịch tuần |
-| Hồi tưởng: ảnh xưa, nhạc thời trẻ (30 phút) | — | Theo lịch tuần | Theo lịch tuần |
+| Âm nhạc, hát nhẹ (30 phút) | Theo lịch | Theo lịch | Theo lịch |
+| Đọc báo, kể chuyện nhóm (30 phút) | Theo lịch | Theo lịch | Theo lịch |
+| Cắm hoa đơn giản (30 phút) | Theo lịch | Theo lịch | Theo lịch |
+| Cờ tướng, cờ caro (30 phút) | Theo lịch | Theo lịch | Theo lịch |
 | **6. Kết nối gia đình** | | | |
 | Care log trên app | Theo từng mục | Theo từng mục | Theo từng mục |
 | Ảnh trên app | 3 ảnh/ngày | Tối đa 5 ảnh/ngày | Không giới hạn |
@@ -161,20 +161,20 @@ Cách chia theo tình trạng sức khỏe giống các viện đang hoạt đ�
 | Theo dõi cân nặng | Theo hạng | Điều dưỡng làm |
 | Đo đường huyết hằng ngày (cụ tiểu đường) | 5 phút | Có sẵn ở Tiêu chuẩn, Cao cấp; hạng Cơ bản mua thêm |
 
-**B. Tự chọn trong gói** (chỉ gồm **hoạt động**; gia đình tích có hoặc không. Cơ bản có 7 hoạt động, tích tối đa 4. Tiêu chuẩn có 10, tích tối đa 7. Cao cấp dùng cả 10)
+**B. Tự chọn trong gói: danh sách cứng 10 hoạt động** (chỉ gồm hoạt động thực tế, không có tâm linh. Cơ bản có 8 hoạt động, tích tối đa 5. Tiêu chuẩn có 10, tích tối đa 7. Cao cấp dùng cả 10)
 
-| Nhóm | Hoạt động | Thời lượng | Cơ bản | Tiêu chuẩn | Cao cấp | Người phụ trách | Lưu ý sức khỏe |
-|---|---|---|---|---|---|---|---|
-| Vận động, phục hồi | Vật lý trị liệu bằng máy (xe đạp tập, thanh song song, ròng rọc) | 30 phút | — | 2 buổi/tuần | Hằng ngày | Điều dưỡng | Đo huyết áp trước khi tập |
-| | Thể dục trên ghế | 20 phút | 2 buổi/tuần | 3 buổi/tuần | Hằng ngày | Hộ lý | Hợp cụ đi lại khó, ngồi xe lăn |
-| | Đi bộ có người dìu ở sân vườn | 15 phút | Có | Có | Có | Hộ lý | Phòng té ngã |
-| Thư giãn | Ghế massage | 15–20 phút | 1 lượt/tuần | 3 lượt/tuần | Hằng ngày | Hộ lý trông | ⚠ Không dùng khi huyết áp cao, mới tai biến, loãng xương nặng |
-| | Ngâm chân thảo dược | 20 phút | — | 2 lượt/tuần | Hằng ngày | Hộ lý | ⚠ Tiểu đường: nước tối đa 40°C, kiểm tra vết thương ở chân |
-| Trí nhớ, nhận thức | Trò chơi trí nhớ: lật thẻ, ô chữ, đố vui | 30 phút | Có | Có | Có | Hộ lý | Hợp cụ sa sút trí tuệ nhẹ |
-| | Hồi tưởng: xem ảnh xưa, kể chuyện, nghe nhạc thời trẻ | 30 phút | — | Có | Có | Hộ lý | Gia đình gửi ảnh cũ qua app |
-| Tinh thần | Âm nhạc: nghe, hát cùng nhau | 30 phút | Có | Có | Có | Hộ lý | — |
-| | Sinh hoạt tâm linh (tụng kinh, đọc kinh) | 30 phút | Có | Có | Có | Tự sinh hoạt | Tùy tôn giáo |
-| | Thủ công nhẹ: tô màu, đan len, xếp giấy | 30 phút | Có | Có | Có | Hộ lý | Không dùng kéo nhọn |
+| # | Hoạt động | Cụ thể làm gì | Thời lượng | Nơi, thiết bị | Người phụ trách | Lưu ý sức khỏe |
+|---|---|---|---|---|---|---|
+| 1 | Vật lý trị liệu bằng máy | Xe đạp tập, thanh song song tập đi, ròng rọc tập tay vai | 30 phút | Phòng VLTL | Điều dưỡng hướng dẫn | Đo huyết áp trước khi tập |
+| 2 | Ghế massage | Massage lưng, vai, chân bằng ghế, chế độ nhẹ | 15–20 phút | Khu ghế massage | Hộ lý trông | ⚠ Không dùng khi huyết áp cao, mới tai biến, loãng xương nặng |
+| 3 | Máy massage chân | Đặt chân vào máy, massage bàn chân và bắp chân | 15 phút | Khu ghế massage | Hộ lý trông | ⚠ Nhẹ hơn ghế massage, hợp cụ hay tê chân |
+| 4 | Ngâm chân thảo dược | Nước ấm với gừng, ngải, sả | 20 phút | Bồn ngâm chân | Hộ lý | ⚠ Nước tối đa 40°C; cụ tiểu đường kiểm tra vết thương ở chân |
+| 5 | Thể dục trên ghế | Nâng tay, duỗi chân, xoay khớp theo nhạc | 20 phút | Phòng sinh hoạt chung | Hộ lý | Hợp cả cụ ngồi xe lăn |
+| 6 | Đi bộ có người dìu | Đi chậm quanh sân có tay vịn | 15 phút | Sân vườn | Hộ lý | Giày chống trơn, phòng té ngã |
+| 7 | Âm nhạc, hát nhẹ | Nghe nhạc xưa, hát nhẹ nhàng cùng nhau, vỗ tay theo nhịp. Không hát karaoke | 30 phút | Phòng sinh hoạt chung | Hộ lý | Âm lượng vừa phải |
+| 8 | Đọc báo, kể chuyện nhóm | Staff đọc to tin tức nhẹ nhàng, cả nhóm trò chuyện | 30 phút | Phòng sinh hoạt chung | Hộ lý | Tránh tin tiêu cực |
+| 9 | Cắm hoa đơn giản | Cắm hoa đã cắt sẵn cành vào bình | 30 phút | Phòng sinh hoạt chung | Hộ lý | Không dùng kéo |
+| 10 | Cờ tướng, cờ caro | Chơi theo cặp, staff ghép cặp | 30 phút | Phòng sinh hoạt chung | Hộ lý | — |
 
 **C. Mua thêm** (tính tiền riêng)
 
@@ -195,6 +195,7 @@ Cách chia theo tình trạng sức khỏe giống các viện đang hoạt đ�
 |---|---|
 | Xông hơi, onsen, tắm nóng | Dễ tụt hoặc tăng huyết áp, choáng; hợp nội trú có y tế 24/7 hơn bán trú |
 | Cứu ngải, chiếu đèn nhiệt | Nguy cơ bỏng, nhất là cụ tiểu đường giảm cảm giác ở da |
+| Tâm linh, trò chơi trí nhớ, hồi tưởng, thủ công, chăm cây | Nhóm chọn danh sách cứng 10 hoạt động thực tế ở mục B |
 | Bấm huyệt, tập nói và tập nuốt | Cần kỹ thuật viên chuyên môn; trung tâm chỉ có điều dưỡng và hộ lý (vật lý trị liệu do điều dưỡng hướng dẫn) |
 | Làm vườn, nấu ăn, gói bánh | Có dao, lửa, phải cúi lâu |
 | Khiêu vũ, zumba | Nguy cơ té ngã |
@@ -209,12 +210,12 @@ Vật lý trị liệu, ghế massage và ngâm chân được **xoay vòng theo
 | 7h00–7h45 | Đón cụ, check-in; ăn sáng | Ăn sáng: Tiêu chuẩn, Cao cấp |
 | 7h45–8h15 | Đo chỉ số sáng, nhắc uống thuốc, đo đường huyết | Tất cả |
 | 8h15–8h45 | Dưỡng sinh, thở, khởi động khớp | Tất cả |
-| 8h45–10h30 | **Khung sáng:** vật lý trị liệu, ghế massage, thể dục trên ghế theo lượt. Hoạt động nhóm: trò chơi trí nhớ (T2, T4, T6), thủ công (T3, T5, T7) | Theo dịch vụ đã tích |
+| 8h45–10h30 | **Khung sáng:** vật lý trị liệu, ghế massage, máy massage chân, thể dục trên ghế theo lượt. Hoạt động nhóm: đọc báo, kể chuyện (T2, T4, T6), cắm hoa (T3, T5, T7) | Theo hoạt động đã tích |
 | 10h30–11h00 | Đi bộ có người dìu ở sân vườn, uống nước | Theo dịch vụ đã tích |
 | 11h00–12h00 | Ăn trưa | Tất cả |
 | 12h00–13h30 | Nghỉ trưa | Tất cả |
 | 13h30–14h00 | Đo chỉ số chiều | Tiêu chuẩn, Cao cấp |
-| 14h00–15h00 | **Khung chiều:** ngâm chân, ghế massage, vật lý trị liệu theo lượt. Hoạt động nhóm: âm nhạc (T2, T4, T6), hồi tưởng (T3, T5), tâm linh (T7) | Theo dịch vụ đã tích |
+| 14h00–15h00 | **Khung chiều:** ngâm chân, ghế massage, máy massage chân, vật lý trị liệu theo lượt. Hoạt động nhóm: âm nhạc, hát nhẹ (hằng ngày), cờ tướng, cờ caro (hằng ngày) | Theo hoạt động đã tích |
 | 15h00–15h30 | Ăn xế | Tất cả |
 | 15h30–16h30 | Thư giãn tự do, staff chốt care log, trả cụ và xác nhận người đón | Tất cả |
 | 16h30–18h00 | Ở lại muộn: ăn nhẹ, thư giãn | Cụ có gói ở lại muộn |
@@ -268,7 +269,7 @@ Phạm vi đã chốt: **quản lý phòng, giường và sức chứa, kèm ki�
 **Manager nhập tay**
 - **Phòng:** tên, loại khu, sức chứa, hạng được dùng, trạng thái (hoạt động / tạm đóng).
 - **Giường nghỉ trưa:** thuộc phòng nào, dành cho hạng nào.
-- **Thiết bị:** tên, nhóm (y tế / tập VLTL / sinh hoạt / an toàn), phòng đặt, **tổng số lượng**, **định mức tối thiểu** cần có. Ví dụ: máy đo huyết áp, máy SpO₂, máy đo đường huyết, bình oxy, xe lăn, xe đạp tập, thanh song song, máy tập ròng rọc, ghế massage, bồn ngâm chân.
+- **Thiết bị:** tên, nhóm (y tế / tập VLTL / sinh hoạt / an toàn), phòng đặt, **tổng số lượng**, **định mức tối thiểu** cần có. Ví dụ: máy đo huyết áp, máy SpO₂, máy đo đường huyết, bình oxy, xe lăn, xe đạp tập, thanh song song, máy tập ròng rọc, ghế massage, máy massage chân, bồn ngâm chân, bàn cờ.
 
 **Hệ thống tự làm**
 - Tính **số lượng dùng được** = tổng − đang hỏng − đang sửa.
@@ -343,14 +344,13 @@ Mọi trường hợp bù đều được ghi vào bảng `entitlement_compensat
 | Loại | Gia đình thấy gì | Gia đình làm được gì |
 |---|---|---|
 | Có sẵn | Danh sách kèm dấu tích xanh | Chỉ xem |
-| Tự chọn trong gói | Ô tích, có ghi "Đã chọn x/y" | **Tích có hoặc không** dùng dịch vụ đó, không vượt quá giới hạn của hạng (4 / 7 / không giới hạn). Bỏ tích không làm giảm giá |
+| Tự chọn trong gói | Ô tích, có ghi "Đã chọn x/y" | **Tích có hoặc không** dùng dịch vụ đó, không vượt quá giới hạn của hạng (Cơ bản 5, Tiêu chuẩn 7, Cao cấp cả 10). Bỏ tích không làm giảm giá |
 | Mua thêm | Ô tích, kèm giá | Tích thì cộng tiền vào tổng |
 | Có ở hạng cao hơn | Mờ, có biểu tượng khóa | Chỉ xem, có gợi ý nâng hạng |
 
 - Gia đình **chỉ chọn có dùng dịch vụ hay không**, **không chọn khung giờ**. Giờ cụ thể do Manager và staff xếp sau.
 - Trong ngày, nếu một dịch vụ đang kín chỗ (ví dụ cả 4 ghế massage đều có người), staff cho cụ **làm hoạt động khác trước**, xong thì quay lại. Không dùng danh sách chờ cho dịch vụ.
 - Gia đình **đổi lựa chọn** trên app được, có hiệu lực **từ tuần sau**.
-- Nếu tích **hồi tưởng**, gia đình được **gửi ảnh cũ** của cụ qua app để staff dùng trong buổi kể chuyện.
 - **Khách chưa đăng nhập** chỉ xem được **thẻ tóm tắt** của mỗi hạng (tên hạng, giá "từ … đ/ngày", 3–4 quyền lợi chính). Phải đăng nhập mới xem danh sách chi tiết và tích chọn.
 
 **Hệ thống lọc theo lựa chọn ở bước 2 và 3 [ĐỀ XUẤT]**
@@ -358,7 +358,7 @@ Mọi trường hợp bù đều được ghi vào bảng `entitlement_compensat
 | Lựa chọn trước đó | Ảnh hưởng tới bước 4 |
 |---|---|
 | Các nhóm bệnh | Ẩn hạng Cơ bản. Hiện thêm phần "Chăm sóc riêng của nhóm". Dịch vụ có ⚠ ghi chú "cần điều dưỡng cho phép". Giá ghi "chưa gồm phụ phí" |
-| `DEMENTIA` | Thủ công ghi chú "không dùng kéo" |
+| `DEMENTIA` | Hiện phần chăm sóc riêng: âm nhạc, đọc báo kể chuyện nhóm hằng ngày |
 | Đối tượng `MOBILE` | Hiện đủ 3 hạng và đủ dịch vụ |
 | Gói ngày | Chỉ hiện dịch vụ có trong ngày đã đặt. Không bán mua thêm theo tháng (ví dụ ở lại muộn theo tháng) |
 | Tháng 3 buổi/tuần | Số lượt dịch vụ tính theo các ngày cụ đi |
@@ -530,7 +530,6 @@ Family gửi giấy nhập viện, Manager duyệt. Subscription chuyển `PAUSE
 | `package_services` | Gói gồm dịch vụ nào: loại (có sẵn / tự chọn / mua thêm), số lượt mỗi tuần, áp dụng cho thời hạn và đối tượng nào, giá |
 | `subscription_service_choices` | Dịch vụ gia đình đã tích chọn, ngày hiệu lực |
 | `service_permissions` | Điều dưỡng cho phép hoặc không cho phép cụ dùng dịch vụ có dấu ⚠, kèm lý do và ngày đánh giá lại |
-| `reminiscence_photos` | Ảnh cũ gia đình gửi cho buổi hồi tưởng |
 | `subscription_add_ons` | Dịch vụ lẻ đã mua (dịch vụ lấy từ bảng `services`) |
 | `late_stay_bookings` | Gói ở lại muộn (theo lần hoặc theo tháng): ngày, giờ kết thúc, không quá `closing_time`. Ghi cả đón trễ khi không có gói |
 | `assessments` | Đánh giá đầu vào và đánh giá định kỳ (điểm ADL, ghi chú, người đánh giá, người duyệt) |
