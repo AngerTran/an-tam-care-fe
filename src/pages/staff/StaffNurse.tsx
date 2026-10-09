@@ -202,7 +202,7 @@ export function StaffAssessments() {
               </label>
             )}
             {sel.assessment.kind === "FIRST_DAY" && !f.notAccepted && f.group !== sel.elderly.declaredGroup && <Note tone="red">Khác khai báo ({GROUP_LABEL[sel.elderly.declaredGroup]} → {GROUP_LABEL[f.group]}): vi phạm cam kết. Gia đình trả phụ phí nhóm và chênh lệch nâng hạng cho số ngày còn lại trong 3 ngày.</Note>}
-            {sel.assessment.kind !== "FIRST_DAY" && f.group !== sel.elderly.declaredGroup && <Note tone="orange">Khác với gia đình khai. Quản lý sẽ thỏa thuận phụ phí; nếu đang chọn Cơ bản mà thuộc nhóm bệnh thì buộc nâng lên Tiêu chuẩn.</Note>}
+            {sel.assessment.kind !== "FIRST_DAY" && f.group !== sel.elderly.declaredGroup && <Note tone="orange">Khác với gia đình khai. Áp phụ phí cố định của nhóm; nếu đang chọn Cơ bản mà thuộc nhóm bệnh thì buộc nâng lên Tiêu chuẩn.</Note>}
             {GROUP_INFO[f.group].limits !== "—" && <Note>Hạn chế nhóm {GROUP_LABEL[f.group]}: {GROUP_INFO[f.group].limits}</Note>}
             <div>
               <div className="mb-1 text-[12px] font-semibold text-navy">Cho phép dịch vụ ⚠ (BR-15)</div>

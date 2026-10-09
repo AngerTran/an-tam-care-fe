@@ -5,7 +5,7 @@ import { CYCLE_MONTHS, GROUP_LABEL, minTierFor, TIER_LABEL, tierRank, TIERS } fr
 import { addDays, daysBetween } from "../lib/format";
 import {
   activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, invoicesOf,
-  lookups, metricsOf, need, nextId, notify, notifyManagers, nowDoing, NOW, paymentOf, pkgName, priceOfPkg, scheduledOn, stamp, TODAY, wait,
+  lookups, metricsOf, need, nextId, notify, notifyManagers, fixedSurcharge, nowDoing, NOW, paymentOf, pkgName, priceOfPkg, scheduledOn, stamp, TODAY, wait,
 } from "./core";
 
 const mine = (me: User) => db().elderly.filter((e) => e.familyUserId === me.id);
@@ -166,7 +166,7 @@ export const family = {
     return {
       elderly: mine(me).filter((e) => e.status !== "TERMINATED").map((e) => ({ elderly: e, sub: currentSub(e.id), assessed: !!e.targetGroup })),
       packages: d.packages.filter((p) => p.status === "ACTIVE"), entitlements: d.entitlements, services: d.services.filter((s) => s.status === "ACTIVE"),
-      capacity: capacity(), credit: creditBalance(me),
+      capacity: capacity(), credit: creditBalance(me), surcharges: d.groupSurcharges,
     };
   },
   async register(me: User, input: { elderlyId: number; cycle: Cycle; group: TargetGroup; tier: Tier; choiceIds: number[]; addOns: { serviceId: number; quantity: number }[]; startDate: string; weekdays?: number[]; dayDates?: string[]; commit: boolean }) {
@@ -186,18 +186,16 @@ export const family = {
     const start = dayDates?.[0] ?? input.startDate;
     const end = dayDates ? dayDates[dayDates.length - 1] : endOf(input.cycle, start);
     const base = input.cycle === "DAY" ? priceOfPkg(input.tier, "DAY") * (dayDates?.length ?? 1) : priceOfPkg(input.tier, input.cycle);
-    // Already assessed → no new assessment; previous negotiated surcharge carries over, family still confirms (4.12)
-    const prev = d.subscriptions.filter((s) => s.elderlyId === e.id && s.targetGroup === group && s.familyConfirmedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     const assessed = !!e.targetGroup;
-    // BR-79: "Vận động được" + commitment → pay online now, nurse checks on the first morning
-    const online = !assessed && group === "MOBILE";
-    const months = Math.max(1, CYCLE_MONTHS[input.cycle]);
-    const surcharge = assessed && prev ? Math.round((prev.surchargeAmount / Math.max(1, CYCLE_MONTHS[prev.cycle])) * months) : 0;
+    // BR-79: every group pays online right away after committing; not yet assessed → nurse checks on the first morning
+    const online = !assessed;
+    // BR-17: fixed surcharge per group published on the web
+    const surcharge = fixedSurcharge(group, input.cycle, dayDates?.length ?? 1);
     const id = nextId(d.subscriptions);
     d.subscriptions.push({
       id, elderlyId: e.id, packageId: need(d.packages.find((p) => p.tier === input.tier && p.cycle === input.cycle)).id, targetGroup: group, tier: input.tier, cycle: input.cycle,
       weekdays: input.cycle === "M3" ? input.weekdays : undefined, dayDates, startDate: start, endDate: end, basePrice: base, discount: 0, surchargeAmount: surcharge,
-      surchargeNote: surcharge ? `Giữ mức đã thỏa thuận kỳ trước (${prev?.surchargeNote ?? ""})` : undefined, status: assessed || online ? "AWAITING_PAYMENT" : "PENDING_ASSESSMENT", createdAt: stamp(), createdBy: me.id, previousId: cur?.id,
+      surchargeNote: surcharge ? `Phụ phí cố định nhóm ${GROUP_LABEL[group]}` : undefined, status: assessed || online ? "AWAITING_PAYMENT" : "PENDING_ASSESSMENT", createdAt: stamp(), createdBy: me.id, previousId: cur?.id,
       commitmentAt: stamp(), familyConfirmedAt: assessed || online ? stamp() : undefined,
     });
     input.choiceIds.forEach((serviceId) => d.serviceChoices.push({ subscriptionId: id, serviceId, effectiveFrom: start }));
@@ -339,7 +337,8 @@ export const family = {
     const start = addDays(s.endDate, 1);
     const months = Math.max(1, CYCLE_MONTHS[s.cycle]);
     const lines = [{ label: `${pkgName(s)} (${start.slice(8)}/${start.slice(5, 7)}–${endOf(s.cycle, start).slice(8)}/${endOf(s.cycle, start).slice(5, 7)})`, amount: priceOfPkg(s.tier, s.cycle) }];
-    if (s.surchargeAmount) lines.push({ label: `Phụ phí nhóm ${GROUP_LABEL[s.targetGroup]}`, amount: Math.round((s.surchargeAmount / Math.max(1, CYCLE_MONTHS[s.cycle])) * months) });
+    const fixed = fixedSurcharge(s.targetGroup, s.cycle);
+    if (fixed) lines.push({ label: `Phụ phí nhóm ${GROUP_LABEL[s.targetGroup]}`, amount: fixed });
     const id = nextId(d.invoices);
     d.invoices.push({ id, subscriptionId: s.id, number: invNo(id), kind: "RENEWAL", lines, creditUsed: 0, total: lines.reduce((x, l) => x + l.amount, 0), issueDate: TODAY, dueDate: s.endDate, status: "UNPAID" });
     commit();

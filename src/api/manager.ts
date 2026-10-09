@@ -1,14 +1,14 @@
 // Center Manager API (web). Covers M1–M5, registrations & assessment approval, packages, facilities,
 // shifts, finance and reports (mục 3, 4, 5, 7).
 import type {
-  ActivitySchedule, CenterSettings, ElderlyMember, Equipment, Incident, Menu, NapBed, Room, Service, TargetGroup,
+  ActivitySchedule, CenterSettings, Cycle, ElderlyMember, Equipment, Incident, Menu, NapBed, Room, Service, TargetGroup,
   Tier, TierEntitlement, User,
 } from "../types/models";
 import { CYCLE_LABEL, GROUP_LABEL, minTierFor, TIER_LABEL, tierRank, VIOLATION_KEEP } from "../domain/catalog";
 import { addDays, daysBetween } from "../lib/format";
 import {
   activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, honor, invoicesOf, lookups, metricsOf, need,
-  nextId, notify, NOW, paymentOf, pkgName, priceOfPkg, scheduledOn, stamp, TODAY, usable, wait,
+  nextId, notify, NOW, paymentOf, pkgName, priceOfPkg, scheduledOn, stamp, surchargeMonthly, fixedSurcharge, TODAY, usable, wait,
 } from "./core";
 
 const elderlyRow = (e: ElderlyMember) => {
@@ -372,7 +372,7 @@ export const manager = {
       packages: d.packages.map((p) => ({ pkg: p, active: d.subscriptions.filter((s) => s.packageId === p.id && s.status === "ACTIVE").length })),
       entitlements: d.entitlements,
       capacity: capacity(),
-      groups: (["MOBILE", "CHRONIC", "REHAB", "DEMENTIA", "STROKE"] as TargetGroup[]).map((g) => ({ group: g, count: d.elderly.filter((e) => e.targetGroup === g && ["ACTIVE", "PAUSED"].includes(e.status)).length })),
+      groups: (["MOBILE", "CHRONIC", "REHAB", "DEMENTIA", "STROKE"] as TargetGroup[]).map((g) => ({ group: g, count: d.elderly.filter((e) => e.targetGroup === g && ["ACTIVE", "PAUSED"].includes(e.status)).length, monthly: surchargeMonthly(g) })),
     };
   },
   async savePrice(me: User, pkgId: number, price: number, status: "ACTIVE" | "HIDDEN") {
@@ -381,6 +381,21 @@ export const manager = {
     p.basePrice = price;
     p.status = status;
     audit(me.id, `Đổi giá ${CYCLE_LABEL[p.cycle]} · ${TIER_LABEL[p.tier]} = ${price.toLocaleString("vi-VN")}đ`, "service_packages", p.id);
+    commit();
+  },
+  /** fixed surcharge for one period of a subscription (BR-17) */
+  surchargeFor(group: TargetGroup, cycle: Cycle, days = 1) {
+    return fixedSurcharge(group, cycle, days);
+  },
+  monthlySurcharge(group: TargetGroup) {
+    return surchargeMonthly(group);
+  },
+  async saveSurcharge(me: User, group: TargetGroup, monthly: number) {
+    await wait();
+    const row = db().groupSurcharges.find((x) => x.group === group);
+    if (row) row.monthly = monthly;
+    else db().groupSurcharges.push({ group, monthly });
+    audit(me.id, `Đổi phụ phí nhóm ${GROUP_LABEL[group]} = ${monthly.toLocaleString("vi-VN")}đ/tháng`, "group_surcharges");
     commit();
   },
   async saveEntitlement(me: User, tier: Tier, patch: Partial<TierEntitlement>) {

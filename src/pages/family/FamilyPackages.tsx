@@ -142,6 +142,8 @@ export function RegisterWizard() {
   const disease = DISEASE_GROUPS.includes(g);
   const svc = (k: Service["kind"]) => data.services.filter((s) => s.kind === k);
   const base = pkg ? (cycle === "DAY" ? pkg.basePrice * Math.max(1, dayDates.length) : pkg.basePrice) : 0;
+  const monthlyOf = (x: TargetGroup) => data.surcharges.find((s) => s.group === x)?.monthly ?? 0;
+  const surcharge = !monthlyOf(g) ? 0 : cycle === "DAY" ? Math.round(monthlyOf(g) / 26 / 1000) * 1000 * Math.max(1, dayDates.length) : monthlyOf(g) * (cycle === "Q" ? 3 : cycle === "Y" ? 12 : 1);
   const addonTotal = Object.entries(addons).reduce((s, [k, q]) => s + (data.services.find((x) => x.id === Number(k))?.addonPrice ?? 0) * q, 0);
   const canNext = [!!eid && !(el?.sub && ["PENDING_ASSESSMENT", "AWAITING_PAYMENT"].includes(el.sub.status)), cycle !== "DAY" || dayDates.length > 0, ack || !!el?.elderly.targetGroup, tierRank(tier) >= tierRank(minTierFor(g)) && choices.length <= ent.optionalMax, true][step];
   const fullErr = submit.error instanceof Error && submit.error.message.startsWith("FULL:");
@@ -205,7 +207,7 @@ export function RegisterWizard() {
               <button key={x} disabled={!!el?.elderly.targetGroup} onClick={() => { setGroup(x); if (tierRank(tier) < tierRank(minTierFor(x))) setTier(minTierFor(x)); }} className={cn("rounded-xl border p-3 text-left disabled:cursor-not-allowed", g === x ? "border-[2px] border-orange bg-orange-soft" : "border-line", el?.elderly.targetGroup && g !== x && "opacity-40")}>
                 <div className="text-[13px] font-bold text-navy">{GROUP_LABEL[x]}</div>
                 <div className="mt-0.5 text-[11.5px] text-muted">{GROUP_INFO[x].who}</div>
-                <div className="mt-1 text-[10.5px] text-subtle">{x === "MOBILE" ? "Không phụ phí" : "Phụ phí thỏa thuận · từ Tiêu chuẩn"}</div>
+                <div className="mt-1 text-[10.5px] text-subtle">{x === "MOBILE" ? "Không phụ phí" : `Phụ phí ${vnd(monthlyOf(x))}/tháng · từ Tiêu chuẩn`}</div>
               </button>
             ))}
           </div>
@@ -231,7 +233,7 @@ export function RegisterWizard() {
                 );
               })}
             </div>
-            {disease && <Note className="mt-3">Giá chưa gồm phụ phí theo tình trạng sức khỏe — Quản lý báo sau buổi đánh giá.</Note>}
+            {disease && <Note className="mt-3">Giá trên chưa gồm phụ phí nhóm {GROUP_LABEL[g]}: {vnd(monthlyOf(g))}/tháng (cố định, công bố trên web).</Note>}
           </Card>
           {disease && GROUP_INFO[g].care.length > 0 && <Card title={`Chăm sóc riêng nhóm ${GROUP_LABEL[g]}`}><ul className="grid gap-1 text-[12.5px] sm:grid-cols-2">{GROUP_INFO[g].care.map((c) => <li key={c} className="flex gap-1.5"><CircleCheck size={14} className="mt-0.5 text-green" />{c}</li>)}</ul></Card>}
           <Card title="4b. Có sẵn trong gói">
@@ -269,14 +271,14 @@ export function RegisterWizard() {
         <Card title="5. Tóm tắt và giá" className="mx-auto max-w-2xl">
           <KV label="Cụ">{el.elderly.fullName}</KV>
           <KV label="Thời hạn">{CYCLE_LABEL[cycle]}{cycle === "M3" ? ` · ${weekdaysLabel(weekdays)}` : ""}{cycle === "DAY" ? ` · ${dayDates.sort().map(dm).join(", ")}` : ` · từ ${dmy(start)}`}</KV>
-          <KV label="Đối tượng"><GroupBadge group={g} /> {el.elderly.targetGroup ? "(đã đánh giá)" : g === "MOBILE" ? "(tự khai, điều dưỡng kiểm tra sáng ngày đầu)" : "(tự khai, chờ đánh giá)"}</KV>
+          <KV label="Đối tượng"><GroupBadge group={g} /> {el.elderly.targetGroup ? "(đã đánh giá)" : g === "MOBILE" ? "(tự khai, điều dưỡng kiểm tra sáng ngày đầu)" : "(tự khai, điều dưỡng kiểm tra sáng ngày đầu)"}</KV>
           <KV label="Hạng"><TierBadge tier={tier} /></KV>
           <KV label="Hoạt động">{choices.map((id) => data.services.find((s) => s.id === id)?.name).join(", ") || "—"}</KV>
           <div className="mt-3 rounded-xl bg-canvas p-3">
             <KV label="Giá gói" w={200}>{vnd(base)}</KV>
-            <KV label="Phụ phí theo nhóm" w={200}>{disease ? (el.elderly.targetGroup ? "Giữ mức đã thỏa thuận kỳ trước" : "Báo sau buổi đánh giá") : "Không có"}</KV>
+            <KV label={`Phụ phí nhóm ${GROUP_LABEL[g]}`} w={200}>{surcharge ? `${vnd(surcharge)}${cycle === "DAY" ? ` (${vnd(Math.round(monthlyOf(g) / 26 / 1000) * 1000)}/ngày)` : cycle === "Q" ? " (3 tháng)" : cycle === "Y" ? " (12 tháng)" : ""}` : "Không có"}</KV>
             <KV label="Dịch vụ mua thêm" w={200}>{vnd(addonTotal)}</KV>
-            <KV label="Tạm tính" w={200}><span className="text-[16px] text-orange">{vnd(base + addonTotal)}</span>{disease && " + phụ phí"}</KV>
+            <KV label="Tổng thanh toán" w={200}><span className="text-[16px] text-orange">{vnd(base + surcharge + addonTotal)}</span></KV>
           </div>
           <div className="mt-4">
             <div className="mb-1.5 flex items-center gap-2 text-[13px] font-bold text-navy"><ShieldCheck size={16} className="text-orange" />Quy định dịch vụ</div>
@@ -286,8 +288,7 @@ export function RegisterWizard() {
             <input type="checkbox" checked={commit} onChange={(e) => setCommit(e.target.checked)} className="mt-0.5" />
             <span><b className="text-navy">Tôi đã đọc Quy định dịch vụ và cam kết thông tin khai là đúng sự thật.</b> Nếu khai sai là vi phạm hợp đồng và được xử lý theo mục 4 của Quy định (BR-79, BR-80).</span>
           </label>
-          {!el.elderly.targetGroup && g === "MOBILE" && <Note tone="green" className="mt-2">Thanh toán ngay, không chờ duyệt. Gói hiệu lực từ {cycle === "DAY" ? dm([...dayDates].sort()[0] ?? start) : dmy(start)}. Sáng ngày đầu điều dưỡng kiểm tra chỉ số, Barthel và giấy tờ.</Note>}
-          {!el.elderly.targetGroup && disease && <Note className="mt-2">Nhóm bệnh: điều dưỡng đánh giá trước, Quản lý báo phụ phí, rồi bạn thanh toán.</Note>}
+          {!el.elderly.targetGroup && <Note tone="green" className="mt-2">Thanh toán ngay, không chờ duyệt. Gói hiệu lực từ {cycle === "DAY" ? dm([...dayDates].sort()[0] ?? start) : dmy(start)}. Sáng ngày đầu điều dưỡng kiểm tra chỉ số, Barthel và giấy tờ.</Note>}
           {cap.full && cycle !== "DAY" && <Note tone="red" className="mt-2">Hạng {TIER_LABEL[tier]} đang hết chỗ. Bạn có thể vào danh sách chờ: có chỗ trung tâm giữ 24 giờ để thanh toán. {data.entitlements.find((x) => x.tier === tier)?.waitlistPriority && "Hạng Cao cấp được xếp đầu danh sách chờ."}</Note>}
           {wait.isSuccess && <Note tone="green" className="mt-2">Đã vào danh sách chờ, vị trí {wait.data}.</Note>}
           <ErrorText error={fullErr ? null : submit.error ?? wait.error} />
@@ -295,7 +296,7 @@ export function RegisterWizard() {
       )}
       <div className="flex justify-between">
         <Button variant="neutral" disabled={step === 0} onClick={() => setStep(step - 1)}>Quay lại</Button>
-        {step < 4 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Tiếp tục</Button> : cap.full && cycle !== "DAY" ? <Button icon={Hourglass} loading={wait.isPending} disabled={wait.isSuccess} onClick={() => wait.mutate()}>Vào danh sách chờ</Button> : <Button icon={!disease || el?.elderly.targetGroup ? CreditCard : CircleCheck} disabled={!commit} loading={submit.isPending} onClick={() => submit.mutate()}>{!disease || el?.elderly.targetGroup ? "Thanh toán ngay" : "Gửi đăng ký"}</Button>}
+        {step < 4 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Tiếp tục</Button> : cap.full && cycle !== "DAY" ? <Button icon={Hourglass} loading={wait.isPending} disabled={wait.isSuccess} onClick={() => wait.mutate()}>Vào danh sách chờ</Button> : <Button icon={CreditCard} disabled={!commit} loading={submit.isPending} onClick={() => submit.mutate()}>Thanh toán ngay</Button>}
       </div>
     </Page>
   );

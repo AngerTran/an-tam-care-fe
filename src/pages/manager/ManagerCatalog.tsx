@@ -10,7 +10,7 @@ import { GroupBadge, TierBadge } from "../../components/domain";
 import { Badge, Button, Card, Chip, ErrorText, Field, KV, Loading, Modal, Note, SelectField, Table, Tabs, TextArea, Toggle, cn } from "../../components/ui";
 import { CYCLE_DESC, CYCLE_LABEL, CYCLES, GROUP_INFO, GROUP_LABEL, GROUPS, minTierFor, POSITION_LABEL, TIER_LABEL, TIERS } from "../../domain/catalog";
 import { dm, dmy, hm, vnd, weekday } from "../../lib/format";
-import type { ActivitySchedule, Menu, Service, ServiceKind, Tier, TierEntitlement } from "../../types/models";
+import type { ActivitySchedule, Menu, Service, ServiceKind, TargetGroup, Tier, TierEntitlement } from "../../types/models";
 
 // ------------------------------------------------------------------ packages
 const ENT_ROWS: [keyof TierEntitlement, string, "money" | "num" | "text" | "bool" | "nullnum"][] = [
@@ -25,6 +25,8 @@ export function PackagesPage() {
   const [tab, setTab] = useState<"price" | "ent" | "groups">("price");
   const [edit, setEdit] = useState<{ id: number; price: string; hidden: boolean }>();
   const [entEdit, setEntEdit] = useState<Tier>();
+  const [sur, setSur] = useState<{ group: TargetGroup; monthly: string }>();
+  const saveSur = useMutation({ mutationFn: () => manager.saveSurcharge(me, sur!.group, Number(sur!.monthly) || 0), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-pkgs"] }); setSur(undefined); } });
   const [ent, setEnt] = useState<Partial<TierEntitlement>>({});
   const { data, isLoading } = useQuery({ queryKey: ["m-pkgs"], queryFn: () => manager.packages() });
   const savePrice = useMutation({ mutationFn: () => manager.savePrice(me, edit!.id, Number(edit!.price), edit!.hidden ? "HIDDEN" : "ACTIVE"), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-pkgs"] }); setEdit(undefined); } });
@@ -65,7 +67,7 @@ export function PackagesPage() {
             </div>
           </Card>
           <Card title="Công thức giá (mục 4.4)">
-            <div className="rounded-lg bg-canvas px-3 py-2 font-mono text-[12px] text-navy">Giá kỳ = Giá gốc (hạng × thời hạn) − giảm giá thời hạn + phụ phí thỏa thuận theo nhóm + dịch vụ lẻ</div>
+            <div className="rounded-lg bg-canvas px-3 py-2 font-mono text-[12px] text-navy">Giá kỳ = Giá gốc (hạng × thời hạn) − giảm giá thời hạn + phụ phí cố định theo nhóm + dịch vụ lẻ</div>
             <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[12px] text-muted">
               <li>Nhóm bệnh không mua được hạng Cơ bản (BR-11). Web hiển thị giá chưa gồm phụ phí.</li>
               <li>Nâng hạng có hiệu lực ngay, trả chênh lệch cho số ngày còn lại. Hạ hạng có hiệu lực từ kỳ sau.</li>
@@ -110,7 +112,7 @@ export function PackagesPage() {
                 <KV label="Hạn chế" w={110}>{i.limits}</KV>
                 <KV label="Phụ trách" w={110}>{i.owner}</KV>
                 <KV label="Đánh giá lại" w={110}>{i.reassessMonths === 1 ? "Mỗi tháng" : "3 tháng/lần"}</KV>
-                <KV label="Phụ phí" w={110}>{g === "MOBILE" ? "Không có" : "Thỏa thuận với gia đình sau đánh giá"}</KV>
+                <KV label="Phụ phí" w={110}>{g === "MOBILE" ? "Không có" : <span className="flex items-center gap-2">{vnd(data.groups.find((x) => x.group === g)?.monthly ?? 0)}/tháng <Button size="sm" variant="neutral" icon={Pencil} onClick={() => setSur({ group: g, monthly: String(data.groups.find((x) => x.group === g)?.monthly ?? 0) })}>Sửa</Button></span>}</KV>
               </Card>
             );
           })}
@@ -125,6 +127,9 @@ export function PackagesPage() {
             <Note>Giá mới áp dụng cho đăng ký và gia hạn từ bây giờ. Đăng ký đã thanh toán giữ giá cũ.</Note>
           </div>
         )}
+      </Modal>
+      <Modal open={!!sur} onClose={() => setSur(undefined)} title={sur ? `Phụ phí nhóm ${GROUP_LABEL[sur.group]}` : ""} footer={<><Button variant="neutral" onClick={() => setSur(undefined)}>Hủy</Button><Button loading={saveSur.isPending} onClick={() => saveSur.mutate()}>Lưu</Button></>}>
+        {sur && <div className="space-y-2"><Field label="Phụ phí (đ/tháng)" type="number" step={50000} value={sur.monthly} onChange={(e) => setSur({ ...sur, monthly: e.target.value })} /><Note>Mức cố định công bố trên web (BR-17). Gói quý tính × 3, gói năm × 12, gói ngày = mức tháng / 26 mỗi ngày. Áp dụng cho đăng ký và gia hạn từ bây giờ.</Note></div>}
       </Modal>
       <Modal open={!!entEdit} onClose={() => setEntEdit(undefined)} title={`Quyền lợi hạng ${entEdit ? TIER_LABEL[entEdit] : ""}`} width={560} footer={<><Button variant="neutral" onClick={() => setEntEdit(undefined)}>Hủy</Button><Button loading={saveEnt.isPending} onClick={() => saveEnt.mutate()}>Lưu</Button></>}>
         <div className="grid gap-2 sm:grid-cols-2">

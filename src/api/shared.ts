@@ -136,6 +136,7 @@ export const publicSite = {
     const cap = capacity();
     return {
       settings: d.centerSettings,
+      surcharges: d.groupSurcharges,
       tiers: TIERS.map((tier) => {
         const e = entitlement(tier);
         return { tier, from: e.dailyPrice, monthFrom: need(d.packages.find((p) => p.tier === tier && p.cycle === "MONTH")).basePrice, full: cap.find((c) => c.tier === tier)?.full ?? false, highlights: [`Bữa ${e.meals.toLowerCase()}`, e.napRoom, `Đo chỉ số ${e.vitalsPerDay} lần/ngày`, e.optionalMax === e.optionalPool ? `Cả ${e.optionalPool} hoạt động tự chọn` : `Chọn ${e.optionalMax} trong ${e.optionalPool} hoạt động`] };

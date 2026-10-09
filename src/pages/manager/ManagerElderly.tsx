@@ -108,7 +108,7 @@ export function MemberDetailPage() {
                   {s.dayDates && <KV label="Ngày đã đặt">{s.dayDates.map(dm).join(", ")}</KV>}
                   <KV label="Thời hạn">{dmy(s.startDate)} – {dmy(s.endDate)}{s.pausedUntil ? ` · bảo lưu tới ${dmy(s.pausedUntil)}` : ""}</KV>
                   <KV label="Giá gói">{vnd(s.basePrice)}</KV>
-                  <KV label="Phụ phí thỏa thuận">{vnd(s.surchargeAmount)}{s.surchargeNote ? ` · ${s.surchargeNote}` : ""}</KV>
+                  <KV label="Phụ phí nhóm">{vnd(s.surchargeAmount)}{s.surchargeNote ? ` · ${s.surchargeNote}` : ""}</KV>
                   <KV label="Gia đình xác nhận">{s.familyConfirmedAt ? `${dmy(s.familyConfirmedAt.slice(0, 10))} ${hm(s.familyConfirmedAt)}` : "Chưa"}</KV>
                 </>
               ) : <div className="text-subtle">Chưa có gói</div>}
@@ -312,7 +312,8 @@ function RegistrationDetail({ r, capacity, nurses }: { r: RegRow; capacity: Cap;
   const [group, setGroup] = useState<TargetGroup>(a?.proposedGroup ?? r.elderly.declaredGroup);
   const needTier = minTierFor(group);
   const [tier, setTier] = useState<Tier>(tierRank(r.sub.tier) < tierRank(needTier) ? needTier : r.sub.tier);
-  const [surcharge, setSurcharge] = useState(String(r.sub.surchargeAmount || (group === "MOBILE" ? 0 : 600000)));
+  const fixedFor = (x: TargetGroup) => manager.surchargeFor(x, r.sub.cycle, r.sub.dayDates?.length ?? 1);
+  const [surcharge, setSurcharge] = useState(String(r.sub.surchargeAmount || fixedFor(group)));
   const [note, setNote] = useState(r.sub.surchargeNote ?? "");
   const [drop, setDrop] = useState<number[]>([]);
   const [reject, setReject] = useState(false);
@@ -377,13 +378,13 @@ function RegistrationDetail({ r, capacity, nurses }: { r: RegRow; capacity: Cap;
       {r.stage === "APPROVE" && (
         <Card title="Chốt đối tượng, hạng và phụ phí">
           <div className="grid gap-2 sm:grid-cols-2">
-            <SelectField label="Đối tượng (nhóm chính, BR-16)" value={group} onChange={(e) => { const g = e.target.value as TargetGroup; setGroup(g); if (tierRank(tier) < tierRank(minTierFor(g))) setTier(minTierFor(g)); setSurcharge(g === "MOBILE" ? "0" : surcharge === "0" ? "600000" : surcharge); }}>
+            <SelectField label="Đối tượng (nhóm chính, BR-16)" value={group} onChange={(e) => { const g = e.target.value as TargetGroup; setGroup(g); if (tierRank(tier) < tierRank(minTierFor(g))) setTier(minTierFor(g)); setSurcharge(String(fixedFor(g))); }}>
               {GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}
             </SelectField>
             <SelectField label="Hạng" value={tier} onChange={(e) => setTier(e.target.value as Tier)}>
               {TIERS.map((t) => <option key={t} value={t} disabled={tierRank(t) < tierRank(needTier)}>{TIER_LABEL[t]}{tierRank(t) < tierRank(needTier) ? " (không áp dụng cho nhóm này)" : ""}</option>)}
             </SelectField>
-            <Field label="Phụ phí thỏa thuận (đ/kỳ)" type="number" step={50000} value={surcharge} onChange={(e) => setSurcharge(e.target.value)} disabled={!disease} />
+            <Field label="Phụ phí nhóm (đ/kỳ, theo bảng cố định)" type="number" step={50000} value={surcharge} onChange={(e) => setSurcharge(e.target.value)} disabled={!disease} />
             <Field label="Lý do / nội dung phụ phí" value={note} onChange={(e) => setNote(e.target.value)} placeholder="VD: theo dõi đường huyết, nhắc thuốc 2 lần/ngày" />
           </div>
           {upgraded && <Note tone="orange" className="mt-2">Hạng {TIER_LABEL[r.sub.tier]} không áp dụng cho nhóm {GROUP_LABEL[group]} (BR-11) — tự nâng lên {TIER_LABEL[tier]}. Gia đình sẽ thấy giá mới khi xác nhận.</Note>}
@@ -435,7 +436,7 @@ function ViolationPanel({ r }: { r: RegRow }) {
   const qc = useQueryClient();
   const a = r.assessment;
   const [group, setGroup] = useState<TargetGroup>(a?.proposedGroup && a.proposedGroup !== "MOBILE" ? a.proposedGroup : "CHRONIC");
-  const [surcharge, setSurcharge] = useState("600000");
+  const surcharge = String(manager.monthlySurcharge(group));
   const [note, setNote] = useState(a?.nurseNote ?? "");
   const inv = () => qc.invalidateQueries();
   const charge = useMutation({ mutationFn: () => manager.chargeWrongGroup(me, r.sub.id, group, Number(surcharge) || 0, note), onSuccess: inv });
@@ -477,7 +478,7 @@ function ViolationPanel({ r }: { r: RegRow }) {
       <Note tone="red">Gia đình khai <b>{GROUP_LABEL[r.elderly.declaredGroup]}</b>, điều dưỡng kiểm tra ngày đầu: <b>{a?.proposedGroup ? GROUP_LABEL[a.proposedGroup] : "—"}</b> (Barthel {a?.barthel}, {a?.baseline}). Cam kết lúc {commitAt ? `${dmy(commitAt.slice(0, 10))} ${hm(commitAt)}` : "—"}.</Note>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <SelectField label="Nhóm thực tế" value={group} onChange={(e) => setGroup(e.target.value as TargetGroup)}>{DISEASE_GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}</SelectField>
-        <Field label="Phụ phí nhóm (đ/tháng)" type="number" step={50000} value={surcharge} onChange={(e) => setSurcharge(e.target.value)} />
+        <Field label="Phụ phí nhóm (đ/tháng, theo bảng cố định)" value={vnd(Number(surcharge))} readOnly />
         <TextArea label="Ghi chú cho gia đình" className="sm:col-span-2" value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
       <div className="mt-3 rounded-xl bg-canvas p-3 text-[12.5px]">

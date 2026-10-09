@@ -4,7 +4,7 @@
 import type {
   AbsenceRequest, AccountCredit, ActivitySchedule, AddOn, Announcement, Assessment, Attendance, AuditLog, AuthorizedPickup, Availability,
   BedAssignment, Belonging, CareLogDay, CareLogEdit, CareLogEntry, CenterSettings, Compensation, DailyTask, DamageReport, ElderlyMember,
-  Equipment, HealthAlert, HealthMetric, Holiday, Incident, InventoryCheck, Invoice, LeaveRequest, ManagerReport, MedicationDose,
+  Equipment, GroupSurcharge, HealthAlert, HealthMetric, Holiday, Incident, InventoryCheck, Invoice, LeaveRequest, ManagerReport, MedicationDose,
   MedicationPlan, Menu, Message, NapBed, Notification, NotificationPref, PauseRequest, Payment, Refund, Room, Service, ServiceChoice,
   ServicePackage, ServicePermission, Shift, ShiftAssignment, StaffProfile, Subscription, SystemSettings, TherapySlot, TierEntitlement,
   User, VisitBooking, WaitlistEntry,
@@ -741,6 +741,13 @@ const centerSettings: CenterSettings = {
   ],
   aiEnabled: true, vnpayConnected: true, momoConnected: true,
 };
+const groupSurcharges: GroupSurcharge[] = [
+  { group: "MOBILE", monthly: 0 },
+  { group: "CHRONIC", monthly: 600000 },
+  { group: "REHAB", monthly: 1000000 },
+  { group: "DEMENTIA", monthly: 800000 },
+  { group: "STROKE", monthly: 1200000 },
+];
 const systemSettings: SystemSettings = { vnpayMode: "PRODUCTION", momoMode: "PRODUCTION", sessionTimeoutMinutes: 30, lockAfterFailedLogins: true, llmDailyTokenLimit: 50000, llmMaskPersonalData: true, emailEnabled: true, pushEnabled: true };
 
 // ------------------------------------------------------------------ online registration with commitment (BR-79, BR-80)
@@ -779,6 +786,6 @@ export const seed = {
   assessments, waitlist, invoices, payments, refunds, credits, absences, pauses, rooms, beds, bedAssignments, equipment, damageReports,
   inventoryChecks, compensations, schedules, menus, therapySlots, attendance, dailyTasks, careLogEntries, careLogDays, careLogEdits,
   healthMetrics, alerts, incidents, medPlans, medDoses, belongings, shifts, shiftAssignments, availability, leaveRequests, messages,
-  notifications, auditLogs, holidays, announcements, reports, notificationPrefs, visits, centerSettings, systemSettings,
+  notifications, auditLogs, holidays, announcements, reports, notificationPrefs, visits, centerSettings, systemSettings, groupSurcharges,
 };
 export type DB = typeof seed;

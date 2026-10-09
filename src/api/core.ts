@@ -2,7 +2,7 @@
 // the same way the real backend must (BR-33, BR-40, mục 7).
 import { commit, db, nextId, wait } from "../mock/db";
 import { DEMO_NOW, DEMO_TODAY } from "../mock/seed";
-import type { Cycle, ElderlyMember, Notification, Position, Subscription, Tier, User } from "../types/models";
+import type { Cycle, ElderlyMember, Notification, Position, Subscription, TargetGroup, Tier, User } from "../types/models";
 import { CYCLE_LABEL, TIERS, TIER_LABEL } from "../domain/catalog";
 
 export { commit, db, nextId, wait };
@@ -84,6 +84,15 @@ export function capacity() {
     const waiting = d.waitlist.filter((w) => w.tier === tier && (w.status === "WAITING" || w.status === "HOLDING")).length;
     return { tier, beds, held: holding.length, free: Math.max(0, beds - holding.length), todayDay, waiting, full: holding.length >= beds };
   });
+}
+
+/** BR-17 (bản mới): phụ phí cố định theo nhóm, tính theo thời hạn gói. Gói ngày = phụ phí tháng / 26 mỗi ngày. */
+export const surchargeMonthly = (group: TargetGroup) => db().groupSurcharges.find((x) => x.group === group)?.monthly ?? 0;
+export function fixedSurcharge(group: TargetGroup, cycle: Cycle, days = 1) {
+  const m = surchargeMonthly(group);
+  if (!m) return 0;
+  if (cycle === "DAY") return Math.round(m / 26 / 1000) * 1000 * days;
+  return m * (cycle === "Q" ? 3 : cycle === "Y" ? 12 : 1);
 }
 
 export const isNurse = (me: User) => lookups.position(me.id) === "NURSE";

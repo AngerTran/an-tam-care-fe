@@ -673,6 +673,12 @@ export interface VisitBooking {
   status: "NEW" | "CONFIRMED" | "DONE";
 }
 
+/** group_surcharges: fixed monthly surcharge per target group, published on the web (BR-17) */
+export interface GroupSurcharge {
+  group: TargetGroup;
+  monthly: number;
+}
+
 /** center_settings: one row */
 export interface CenterSettings {
   name: string;

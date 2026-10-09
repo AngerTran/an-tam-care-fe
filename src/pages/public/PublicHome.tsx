@@ -63,7 +63,7 @@ export function PublicHome() {
 
       <section id="goi" className="mx-auto max-w-6xl px-4 py-12">
         <h2 className="text-[24px] font-bold text-navy">Ba hạng gói</h2>
-        <p className="mt-1 text-[13px] text-muted">Giá tham khảo theo ngày. Nhóm bệnh có phụ phí, Quản lý báo sau buổi đánh giá đầu vào. Đăng nhập để xem chi tiết dịch vụ và tích chọn hoạt động.</p>
+        <p className="mt-1 text-[13px] text-muted">Giá tham khảo theo ngày. Nhóm bệnh cộng phụ phí cố định theo tháng (xem mục Đối tượng). Đăng nhập để xem chi tiết dịch vụ và tích chọn hoạt động.</p>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {data?.tiers.map((t) => (
             <div key={t.tier} className={cn("relative rounded-2xl border-[1.5px] p-5", t.tier === "STANDARD" ? "border-orange shadow-lg" : "border-line")}>
@@ -100,7 +100,7 @@ export function PublicHome() {
                 <div className="text-[13.5px] font-bold text-navy">{GROUP_LABEL[g]}</div>
                 <p className="mt-1 text-[11.5px] text-muted">{GROUP_INFO[g].who}</p>
                 {GROUP_INFO[g].care.length > 0 && <ul className="mt-2 space-y-1 text-[11.5px]">{GROUP_INFO[g].care.map((c) => <li key={c} className="flex gap-1"><CircleCheck size={12} className="mt-0.5 shrink-0 text-green" />{c}</li>)}</ul>}
-                <div className="mt-2 text-[11px] text-subtle">{g === "MOBILE" ? "Mọi hạng · không phụ phí" : "Từ hạng Tiêu chuẩn · phụ phí thỏa thuận"}</div>
+                <div className="mt-2 text-[11px] text-subtle">{g === "MOBILE" ? "Mọi hạng · không phụ phí" : <>Từ hạng Tiêu chuẩn · phụ phí <b className="text-orange">{vnd(data?.surcharges.find((x) => x.group === g)?.monthly ?? 0)}/tháng</b></>}</div>
               </Card>
             ))}
           </div>
