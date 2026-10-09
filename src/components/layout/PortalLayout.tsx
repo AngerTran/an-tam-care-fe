@@ -1,4 +1,5 @@
 import { Bell, Clock, Heart, LogOut, Menu, X } from "lucide-react";
+import { ThemeToggle } from "../ThemeToggle";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -60,7 +61,7 @@ export function PortalLayout({ role }: { role: Role }) {
               <Sidebar role={role} onNavigate={() => setOpen(false)} />
             </div>
             <div className="flex-1 bg-black/40">
-              <button className="m-3 rounded-lg bg-white p-1.5" aria-label="Đóng menu"><X size={18} /></button>
+              <button className="m-3 rounded-lg bg-surface p-1.5" aria-label="Đóng menu"><X size={18} /></button>
             </div>
           </div>
         )}
@@ -97,7 +98,7 @@ export function Page({ title, actions, children, back, sub }: { title: ReactNode
   const profile = me.role === "FAMILY" ? "/family/account" : `${base}/profile`;
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white px-4 sm:px-5">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface px-4 sm:px-5">
         <button className="rounded-lg p-1.5 text-navy hover:bg-canvas lg:hidden" onClick={openDrawer} aria-label="Mở menu"><Menu size={20} /></button>
         {back && <Link to={back} className="text-[12px] font-semibold whitespace-nowrap text-subtle hover:text-orange">‹ Quay lại</Link>}
         <div className="min-w-0 flex-1">
@@ -105,6 +106,7 @@ export function Page({ title, actions, children, back, sub }: { title: ReactNode
           {sub && <div className="truncate text-[11px] text-subtle">{sub}</div>}
         </div>
         <span className="hidden rounded-full bg-canvas px-2.5 py-1 text-[10.5px] font-semibold text-subtle md:inline">Demo: T6 09/10/2026 · 10:15</span>
+        <ThemeToggle />
         <Link to={`${base}/notifications`} className="relative rounded-lg p-1.5 text-orange hover:bg-orange-soft" aria-label="Thông báo">
           <Bell size={18} />
           {unread > 0 && <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-red-ink text-[9px] font-bold text-white">{unread}</span>}

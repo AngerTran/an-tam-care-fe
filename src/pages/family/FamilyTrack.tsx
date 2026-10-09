@@ -141,7 +141,7 @@ export function FamilyHealth() {
         <>
           <div className="flex gap-1.5"><Chip active={range === 7} onClick={() => setRange(7)}>7 ngày</Chip><Chip active={range === 30} onClick={() => setRange(30)}>30 ngày</Chip></div>
           <Card title="Huyết áp buổi sáng">
-            <LineChart labels={bp.map((m) => dm(m.at.slice(0, 10)))} series={[{ name: "Tâm thu", color: "#e05a5a", values: bp.map((m) => m.sys) }, { name: "Tâm trương", color: "#3e6398", values: bp.map((m) => m.dia) }]} bands={[{ from: data.thresholds.sysMax, to: 220, label: `Trên ngưỡng ${data.thresholds.sysMax}` }]} />
+            <LineChart labels={bp.map((m) => dm(m.at.slice(0, 10)))} series={[{ name: "Tâm thu", color: "#e05a5a", values: bp.map((m) => m.sys) }, { name: "Tâm trương", color: "var(--color-blue)", values: bp.map((m) => m.dia) }]} bands={[{ from: data.thresholds.sysMax, to: 220, label: `Trên ngưỡng ${data.thresholds.sysMax}` }]} />
           </Card>
           {gl.length > 0 && (
             <Card title="Đường huyết trước ăn sáng (mmol/L)">
@@ -261,7 +261,7 @@ export function FamilySchedule() {
       {!fe.id ? <NoElderly /> : isLoading || !data ? <Loading /> : (
         <>
           <div className="flex flex-wrap items-center gap-2"><Chip active={week === "now"} onClick={() => { setWeek("now"); setDay(TODAY); }}>Tuần này</Chip><Chip active={week === "next"} onClick={() => { setWeek("next"); setDay(WEEKS.next[0]); }}>Tuần sau</Chip>{data.bed && <Badge tone="purple"><BedDouble size={11} />Giường {data.bed.code} · {data.bedRoom?.name}{data.bed.fixedElderlyId ? " (cố định)" : " (hôm nay)"}</Badge>}</div>
-          <div className="flex gap-1.5 overflow-x-auto">{dates.map((d) => <button key={d} onClick={() => setDay(d)} className={cn("min-w-20 rounded-xl border px-3 py-2 text-center text-[12px]", d === cur ? "border-orange bg-orange-soft font-semibold text-orange" : "border-line bg-white text-muted")}>{weekday(d)}<span className="block text-[15px] font-bold">{dm(d)}</span>{data.scheduledDays.includes(d) ? <span className="text-[10px] text-green-ink">Cụ đi</span> : <span className="text-[10px] text-faint">Không lịch</span>}</button>)}</div>
+          <div className="flex gap-1.5 overflow-x-auto">{dates.map((d) => <button key={d} onClick={() => setDay(d)} className={cn("min-w-20 rounded-xl border px-3 py-2 text-center text-[12px]", d === cur ? "border-orange bg-orange-soft font-semibold text-orange" : "border-line bg-surface text-muted")}>{weekday(d)}<span className="block text-[15px] font-bold">{dm(d)}</span>{data.scheduledDays.includes(d) ? <span className="text-[10px] text-green-ink">Cụ đi</span> : <span className="text-[10px] text-faint">Không lịch</span>}</button>)}</div>
           <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
             <Card title={`Lịch ${weekday(cur)} ${dm(cur)}`}>
               <ul className="divide-y divide-line-soft">

@@ -8,6 +8,9 @@ import "@fontsource/poppins/600.css";
 import "@fontsource/poppins/700.css";
 import "./styles.css";
 import App from "./App";
+import { initTheme } from "./lib/theme";
+
+initTheme();
 import { AuthProvider } from "./auth/AuthContext";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: false, refetchOnWindowFocus: false } } });

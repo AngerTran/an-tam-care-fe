@@ -144,7 +144,7 @@ export function MemberDetailPage() {
       {tab === "health" && (
         <div className="space-y-4">
           <Card title="Huyết áp 20 lần đo gần nhất">
-            <LineChart labels={[...data.metrics].reverse().filter((m) => m.sys).map((m) => dm(m.at.slice(0, 10)))} series={[{ name: "Tâm thu", color: "#e05a5a", values: [...data.metrics].reverse().filter((m) => m.sys).map((m) => m.sys) }, { name: "Tâm trương", color: "#3e6398", values: [...data.metrics].reverse().filter((m) => m.sys).map((m) => m.dia) }]} bands={[{ from: 150, to: 200, label: "Vượt ngưỡng tâm thu 150" }]} />
+            <LineChart labels={[...data.metrics].reverse().filter((m) => m.sys).map((m) => dm(m.at.slice(0, 10)))} series={[{ name: "Tâm thu", color: "#e05a5a", values: [...data.metrics].reverse().filter((m) => m.sys).map((m) => m.sys) }, { name: "Tâm trương", color: "var(--color-blue)", values: [...data.metrics].reverse().filter((m) => m.sys).map((m) => m.dia) }]} bands={[{ from: 150, to: 200, label: "Vượt ngưỡng tâm thu 150" }]} />
           </Card>
           <div className="grid gap-4 lg:grid-cols-3">
             <Card title="Thuốc gia đình gửi">{data.meds.map((m) => <div key={m.id} className={cn("border-b border-line-soft py-1.5 text-[12px] last:border-0", !m.active && "text-faint line-through")}><b>{m.name}</b> {m.dose} · {m.times.join(", ")}<span className="block text-subtle">{m.note}</span></div>)}</Card>

@@ -13,9 +13,9 @@ type BtnVariant = "primary" | "outline" | "neutral" | "danger" | "success" | "ai
 type BtnSize = "lg" | "md" | "sm";
 const btnVariant: Record<BtnVariant, string> = {
   primary: "bg-orange text-white hover:brightness-95",
-  outline: "bg-white text-orange border-[1.5px] border-orange hover:bg-orange-soft",
-  neutral: "bg-white text-muted border-[1.5px] border-input-line hover:bg-canvas",
-  danger: "bg-white text-red-ink border-[1.5px] border-red-line hover:bg-red-soft/40",
+  outline: "bg-surface text-orange border-[1.5px] border-orange hover:bg-orange-soft",
+  neutral: "bg-surface text-muted border-[1.5px] border-input-line hover:bg-canvas",
+  danger: "bg-surface text-red-ink border-[1.5px] border-red-line hover:bg-red-soft/40",
   success: "bg-green text-white hover:brightness-95",
   ai: "bg-teal text-white hover:brightness-95",
   navy: "bg-navy text-white hover:brightness-110",
@@ -57,7 +57,7 @@ export function Chip({ active, onClick, children }: { active?: boolean; onClick?
 }
 
 // ------------------------------------------------------------------ form fields (label sits inside the box, like Figma "Input")
-const boxCls = "group block rounded-[10px] border-[1.5px] border-input-line bg-white px-3 py-1.5 focus-within:border-orange transition";
+const boxCls = "group block rounded-[10px] border-[1.5px] border-input-line bg-surface px-3 py-1.5 focus-within:border-orange transition";
 const labelCls = "block text-[10px] text-subtle leading-4";
 const ctrlCls = "w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-faint";
 type FieldExtra = { label?: string; error?: string; className?: string };
@@ -98,7 +98,7 @@ export function TextArea({ label, error, className, ...p }: TextareaHTMLAttribut
 // ------------------------------------------------------------------ layout pieces
 export function Card({ title, actions, children, className, bodyClass }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; bodyClass?: string }) {
   return (
-    <section className={cn("rounded-xl bg-white p-4 shadow-[0_2px_6px_rgba(18,35,89,0.06)]", className)}>
+    <section className={cn("rounded-xl bg-surface p-4 shadow-[0_2px_6px_rgba(18,35,89,0.06)]", className)}>
       {(title || actions) && (
         <header className="mb-3 flex items-center justify-between gap-3">
           {title && <h2 className="text-[14px] font-bold text-navy">{title}</h2>}
@@ -113,7 +113,7 @@ export function Card({ title, actions, children, className, bodyClass }: { title
 export function Kpi({ label, value, sub, color = "blue" }: { label: string; value: ReactNode; sub?: ReactNode; color?: "blue" | "green" | "orange" | "red" | "teal" | "gray" }) {
   const bar = { blue: "border-blue", green: "border-green", orange: "border-orange", red: "border-[#e05a5a]", teal: "border-teal", gray: "border-subtle" }[color];
   return (
-    <div className={cn("min-w-0 flex-1 rounded-xl border-l-4 bg-white px-4 py-3 shadow-[0_2px_6px_rgba(18,35,89,0.06)]", bar)}>
+    <div className={cn("min-w-0 flex-1 rounded-xl border-l-4 bg-surface px-4 py-3 shadow-[0_2px_6px_rgba(18,35,89,0.06)]", bar)}>
       <div className="text-[11.5px] text-muted">{label}</div>
       <div className="text-2xl leading-tight font-bold text-navy">{value}</div>
       {sub && <div className="text-[11px] text-green">{sub}</div>}
@@ -161,15 +161,15 @@ export function Toggle({ checked, onChange, label, sub }: { checked: boolean; on
           {sub && <span className="block text-[11px] text-subtle">{sub}</span>}
         </span>
       )}
-      <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={cn("relative h-5 w-9 shrink-0 rounded-full transition", checked ? "bg-green" : "bg-[#c9d0df]")}>
-        <span className={cn("absolute top-[3px] size-3.5 rounded-full bg-white transition-all", checked ? "left-[19px]" : "left-[3px]")} />
+      <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={cn("relative h-5 w-9 shrink-0 rounded-full transition", checked ? "bg-green" : "bg-switch-off")}>
+        <span className={cn("absolute top-[3px] size-3.5 rounded-full bg-surface transition-all", checked ? "left-[19px]" : "left-[3px]")} />
       </button>
     </label>
   );
 }
 
 export function Avatar({ name, size = 32, tone = "blue" }: { name: string; size?: number; tone?: "blue" | "teal" | "purple" | "orange" }) {
-  const bg = { blue: "bg-[#cdd7ec] text-navy", teal: "bg-teal-soft text-teal-ink", purple: "bg-purple-soft text-purple-ink", orange: "bg-amber-soft text-amber-ink" }[tone];
+  const bg = { blue: "bg-blue-chip text-navy", teal: "bg-teal-soft text-teal-ink", purple: "bg-purple-soft text-purple-ink", orange: "bg-amber-soft text-amber-ink" }[tone];
   return (
     <span className={cn("inline-flex shrink-0 items-center justify-center rounded-full font-bold", bg)} style={{ width: size, height: size, fontSize: Math.round(size * 0.34) }}>
       {toInitials(name)}
@@ -178,7 +178,7 @@ export function Avatar({ name, size = 32, tone = "blue" }: { name: string; size?
 }
 
 export function Note({ tone = "orange", children, className }: { tone?: "orange" | "red" | "green"; children: ReactNode; className?: string }) {
-  const cls = { orange: "bg-orange-soft border-orange-line text-orange-ink", red: "bg-[#fdf2f2] border-[#f3c9c9] text-red-ink", green: "bg-[#eef6f1] border-[#cfe8da] text-green-ink" }[tone];
+  const cls = { orange: "bg-orange-soft border-orange-line text-orange-ink", red: "bg-red-note border-red-note-line text-red-ink", green: "bg-green-note border-green-note-line text-green-ink" }[tone];
   const Icon = tone === "red" ? TriangleAlert : Info;
   return (
     <div className={cn("flex items-start gap-2 rounded-[10px] border px-3 py-2 text-[12px] leading-relaxed", cls, className)}>
@@ -219,7 +219,7 @@ export function Modal({ open, onClose, title, children, footer, width = 420 }: {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,18,46,0.45)] p-4" onMouseDown={onClose}>
-      <div role="dialog" aria-modal className="max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" style={{ maxWidth: width }} onMouseDown={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal className="max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-surface p-6 shadow-xl" style={{ maxWidth: width }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           {title && <h3 className="text-[16px] font-bold text-navy">{title}</h3>}
           <button onClick={onClose} className="-mt-1 -mr-2 rounded-lg p-1 text-subtle hover:bg-canvas" aria-label="Đóng">
@@ -287,7 +287,7 @@ export function Photo({ tone, caption }: { tone: "blue" | "orange" | "green"; ca
   const bg = { blue: "from-[#cfe0f5] to-[#9db8e0]", orange: "from-[#fde1cc] to-[#f7b182]", green: "from-[#d3efdf] to-[#8ed2ae]" }[tone];
   return (
     <figure className={cn("flex aspect-[4/3] items-end rounded-[10px] bg-gradient-to-br p-2", bg)}>
-      {caption && <figcaption className="rounded bg-white/80 px-1.5 text-[10px] text-ink">{caption}</figcaption>}
+      {caption && <figcaption className="rounded bg-surface/80 px-1.5 text-[10px] text-ink">{caption}</figcaption>}
     </figure>
   );
 }

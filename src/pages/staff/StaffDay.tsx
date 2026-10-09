@@ -196,7 +196,7 @@ export function StaffElderly() {
       {isLoading ? <Loading /> : !data?.length ? <Card><EmptyState icon={Users} title="Chưa có cụ nào check-in" /></Card> : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {data.map((r) => (
-            <button key={r.elderly.id} onClick={() => nav(`/staff/elderly/${r.elderly.id}`)} className="rounded-xl bg-white p-4 text-left shadow-[0_2px_6px_rgba(18,35,89,0.06)] hover:ring-2 hover:ring-orange-line">
+            <button key={r.elderly.id} onClick={() => nav(`/staff/elderly/${r.elderly.id}`)} className="rounded-xl bg-surface p-4 text-left shadow-[0_2px_6px_rgba(18,35,89,0.06)] hover:ring-2 hover:ring-orange-line">
               <div className="flex items-start justify-between gap-2">
                 <ElderlyCell e={r.elderly} size={40} />
                 {r.alerts > 0 && <Badge tone="red"><HeartPulse size={11} />{r.alerts}</Badge>}

@@ -426,7 +426,7 @@ export function SchedulePage() {
         <Chip active={week === "next"} onClick={() => { setWeek("next"); setDay(WEEKS.next[0]); }}>Tuần sau 12–17/10</Chip>
         <Button className="ml-auto" size="sm" icon={CalendarPlus} onClick={() => setAct({ date: curDay, startTime: "14:00", endTime: "15:00", title: "", roomId: 3, tiers: [...TIERS] })}>Thêm hoạt động</Button>
       </div>
-      <div className="flex gap-1.5 overflow-x-auto">{dates.map((d) => <button key={d} onClick={() => setDay(d)} className={cn("min-w-24 rounded-xl border px-3 py-2 text-center text-[12px]", d === curDay ? "border-orange bg-orange-soft font-semibold text-orange" : "border-line bg-white text-muted")}>{weekday(d)}<span className="block text-[15px] font-bold">{dm(d)}</span>{data?.holidays.some((h) => h.date === d) && <Badge tone="red">Nghỉ lễ</Badge>}</button>)}</div>
+      <div className="flex gap-1.5 overflow-x-auto">{dates.map((d) => <button key={d} onClick={() => setDay(d)} className={cn("min-w-24 rounded-xl border px-3 py-2 text-center text-[12px]", d === curDay ? "border-orange bg-orange-soft font-semibold text-orange" : "border-line bg-surface text-muted")}>{weekday(d)}<span className="block text-[15px] font-bold">{dm(d)}</span>{data?.holidays.some((h) => h.date === d) && <Badge tone="red">Nghỉ lễ</Badge>}</button>)}</div>
       <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
         <Card title={`Lịch ${weekday(curDay)} ${dmy(curDay)}`}>
           {isLoading ? <Loading /> : (

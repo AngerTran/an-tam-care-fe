@@ -2,6 +2,7 @@
 // a sample day, FAQ, chatbot (BR-52) and visit booking.
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Bot, CalendarCheck, CircleCheck, Clock, Heart, Lock, MapPin, Phone, Send, ShieldCheck, Wallet, X } from "lucide-react";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { chatbot, publicSite } from "../../api";
@@ -17,8 +18,8 @@ export function PublicHome() {
   const [chat, setChat] = useState(false);
   const s = data?.settings;
   return (
-    <div className="min-h-full bg-white">
-      <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
+    <div className="min-h-full bg-surface">
+      <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
           <Link to="/" className="flex items-center gap-2 text-[17px] font-bold text-navy"><Heart size={18} className="text-orange" strokeWidth={2.4} /> An Tâm Care</Link>
           <nav className="hidden flex-1 gap-4 text-[12.5px] font-semibold text-muted md:flex">
@@ -29,7 +30,8 @@ export function PublicHome() {
             <a href="#quy-dinh" className="hover:text-orange">Quy định dịch vụ</a>
             <a href="#hoi-dap" className="hover:text-orange">Hỏi đáp</a>
           </nav>
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             {user ? <Button size="sm" to={HOME[user.role]}>Vào trang của tôi</Button> : <><Button size="sm" variant="neutral" to="/login">Đăng nhập</Button><Button size="sm" to="/dang-ky">Đăng ký gia đình</Button></>}
           </div>
         </div>
@@ -107,7 +109,7 @@ export function PublicHome() {
           <Note tone="red" className="mt-4"><b>Không nhận:</b> {NOT_ACCEPTED.join("; ")}. Các trường hợp này cần y tế 24/7, không hợp mô hình bán trú.</Note>
           <div className="mt-6 grid gap-2 md:grid-cols-5">
             {["Tạo tài khoản, thêm hồ sơ cụ, tự khai tình trạng", "Chọn thời hạn → đối tượng → hạng, tích hoạt động", "Cụ đến đánh giá đầu vào với điều dưỡng", "Điều dưỡng duyệt, hệ thống áp nhóm và phụ phí cố định", "Thanh toán online, cụ bắt đầu đi"].map((t, i) => (
-              <div key={t} className="flex gap-2 rounded-xl bg-white p-3 text-[12px]"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-orange text-[11px] font-bold text-white">{i + 1}</span>{t}</div>
+              <div key={t} className="flex gap-2 rounded-xl bg-surface p-3 text-[12px]"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-orange text-[11px] font-bold text-white">{i + 1}</span>{t}</div>
             ))}
           </div>
         </div>
@@ -208,7 +210,7 @@ export function ChatWidget({ onClose, inline }: { onClose?: () => void; inline?:
   const ask = useMutation({ mutationFn: (q: string) => chatbot.ask(q, user ?? undefined), onSuccess: (a) => setItems((x) => [...x, { me: false, text: a.answer, handed: a.handedOff }]) });
   const go = (q: string) => { if (!q.trim()) return; setItems((x) => [...x, { me: true, text: q }]); ask.mutate(q); setText(""); };
   return (
-    <div className={cn("flex flex-col overflow-hidden bg-white", inline ? "h-[560px] rounded-xl border border-line" : "fixed right-5 bottom-5 z-50 h-[520px] w-[360px] max-w-[calc(100vw-32px)] rounded-2xl shadow-2xl")}>
+    <div className={cn("flex flex-col overflow-hidden bg-surface", inline ? "h-[560px] rounded-xl border border-line" : "fixed right-5 bottom-5 z-50 h-[520px] w-[360px] max-w-[calc(100vw-32px)] rounded-2xl shadow-2xl")}>
       <div className="flex items-center gap-2.5 bg-teal px-4 py-3 text-white">
         <IconCircle icon={Bot} tone="teal" size={32} />
         <div className="flex-1"><div className="text-[13.5px] font-bold">Trợ lý tư vấn</div><div className="text-[10.5px] text-white/80">Trả lời từ thông tin Quản lý nhập · không trả lời được thì chuyển Quản lý</div></div>

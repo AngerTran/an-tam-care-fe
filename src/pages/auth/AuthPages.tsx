@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Heart, House, KeyRound, Mail } from "lucide-react";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -27,10 +28,11 @@ function Split({ children, family }: { children: ReactNode; family?: boolean }) 
           </ul>
         )}
       </aside>
-      <main className="relative flex flex-1 items-center justify-center bg-white p-6 pt-16">
+      <main className="relative flex flex-1 items-center justify-center bg-surface p-6 pt-16">
         <Link to="/" className="absolute top-5 left-6 flex items-center gap-1.5 rounded-[10px] border-[1.5px] border-input-line px-3 py-1.5 text-[12.5px] font-semibold text-navy transition hover:border-orange hover:text-orange">
           <House size={15} /> Trang chủ
         </Link>
+        <div className="absolute top-5 right-6"><ThemeToggle /></div>
         <div className="w-full max-w-[400px]">{children}</div>
       </main>
     </div>
@@ -80,7 +82,7 @@ export function LoginPage() {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {DEMO.map(([label, email]) => (
-            <button key={email} type="button" className="rounded-full bg-white px-3 py-1 text-[11.5px] font-semibold text-blue shadow-sm hover:text-orange" onClick={() => { setValue("email", email); setValue("password", "demo1234"); }}>
+            <button key={email} type="button" className="rounded-full bg-surface px-3 py-1 text-[11.5px] font-semibold text-blue shadow-sm hover:text-orange" onClick={() => { setValue("email", email); setValue("password", "demo1234"); }}>
               {label}
             </button>
           ))}
@@ -170,7 +172,7 @@ export function VerifyEmailPage() {
   };
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-[440px] rounded-2xl bg-white p-7 text-center shadow-sm">
+      <div className="w-full max-w-[440px] rounded-2xl bg-surface p-7 text-center shadow-sm">
         <IconCircle icon={Mail} tone="orange" size={72} />
         <h1 className="mt-3 text-[20px] font-bold text-navy">Xác thực email</h1>
         <p className="mb-4 text-[12.5px] text-muted">Nhập mã gồm 6 số vừa gửi tới {email}. (Demo: nhập 6 số bất kỳ)</p>
@@ -206,7 +208,7 @@ export function ForgotPasswordPage() {
   };
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-[460px] space-y-3 rounded-2xl bg-white p-7 text-center shadow-sm">
+      <div className="w-full max-w-[460px] space-y-3 rounded-2xl bg-surface p-7 text-center shadow-sm">
         <IconCircle icon={KeyRound} tone="orange" size={60} />
         <h1 className="text-[19px] font-bold text-navy">Đặt lại mật khẩu</h1>
         <p className="text-[12px] text-subtle">Dành cho mọi vai trò</p>

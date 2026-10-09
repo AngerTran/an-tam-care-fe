@@ -172,7 +172,7 @@ export function RegisterWizard() {
   return (
     <Page title="Đăng ký gói" sub="Thứ tự: Thời hạn → Đối tượng → Hạng và dịch vụ. Mỗi bước chỉ hiện lựa chọn phù hợp với bước trước.">
       <div className="flex flex-wrap gap-2">
-        {STEPS.map((s, i) => <span key={s} className={cn("flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold", i === step ? "bg-navy text-white" : i < step ? "bg-green-soft text-green-ink" : "bg-white text-subtle")}>{i < step ? <Check size={12} /> : <span>{i + 1}</span>}{s}</span>)}
+        {STEPS.map((s, i) => <span key={s} className={cn("flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold", i === step ? "bg-navy text-white" : i < step ? "bg-green-soft text-green-ink" : "bg-surface text-subtle")}>{i < step ? <Check size={12} /> : <span>{i + 1}</span>}{s}</span>)}
       </div>
       {step === 0 && (
         <Card title="1. Chọn cụ">

@@ -155,7 +155,7 @@ export function ShiftsPage() {
                                 {as.map((a) => {
                                   const s = name(a.staffId);
                                   return (
-                                    <div key={a.id} className={cn("rounded-lg border px-1.5 py-1", a.conflict ? "border-red-line bg-red-soft/40" : a.status === "APPROVED" ? "border-green-soft bg-green-soft/40" : "border-line bg-white")} title={a.reason}>
+                                    <div key={a.id} className={cn("rounded-lg border px-1.5 py-1", a.conflict ? "border-red-line bg-red-soft/40" : a.status === "APPROVED" ? "border-green-soft bg-green-soft/40" : "border-line bg-surface")} title={a.reason}>
                                       <div className="flex items-center gap-1"><span className="flex-1 truncate font-semibold text-navy">{s?.user.fullName.split(" ").slice(-2).join(" ")}</span>{a.conflict && <TriangleAlert size={11} className="text-red-ink" />}</div>
                                       <div className="flex items-center gap-1 text-[10px] text-subtle">{s ? POSITION_LABEL[s.position] : ""}{a.source === "AI" && a.status === "SUGGESTED" && <Badge tone="teal">AI</Badge>}</div>
                                       {a.status === "SUGGESTED" && <div className="mt-0.5 flex gap-1"><button className="text-[10px] font-semibold text-green-ink" onClick={() => review.mutate({ id: a.id, s: "APPROVED" })}>Duyệt</button><button className="text-[10px] font-semibold text-red-ink" onClick={() => review.mutate({ id: a.id, s: "REJECTED" })}>Bỏ</button></div>}

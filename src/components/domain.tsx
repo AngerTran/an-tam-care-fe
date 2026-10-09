@@ -48,7 +48,7 @@ export function Progress({ value, tone = "green" }: { value: number; tone?: "gre
 
 export function SearchBox({ value, onChange, placeholder, className }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string }) {
   return (
-    <label className={cn("flex h-9 items-center gap-2 rounded-[10px] border-[1.5px] border-input-line bg-white px-2.5", className ?? "w-64")}>
+    <label className={cn("flex h-9 items-center gap-2 rounded-[10px] border-[1.5px] border-input-line bg-surface px-2.5", className ?? "w-64")}>
       <Search size={14} className="text-subtle" />
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="min-w-0 flex-1 text-[12.5px] outline-none" />
     </label>
@@ -69,7 +69,7 @@ export function Timeline({ entries, showStaff, onEdit }: { entries: (CareLogEntr
         const [Icon, tone] = ENTRY_ICON[x.kind];
         return (
           <li key={x.id} className="relative flex gap-3">
-            <span className={cn("z-10 flex size-8 shrink-0 items-center justify-center rounded-full ring-4 ring-white", toneBg[tone])}><Icon size={14} /></span>
+            <span className={cn("z-10 flex size-8 shrink-0 items-center justify-center rounded-full ring-4 ring-surface", toneBg[tone])}><Icon size={14} /></span>
             <div className="min-w-0 flex-1 pt-0.5">
               <div className="flex flex-wrap items-center gap-x-2 text-[12.5px]">
                 <span className="font-semibold text-navy">{x.title}</span>
@@ -100,10 +100,10 @@ export function LineChart({ series, height = 180, min, max, bands, labels }: { s
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img">
-        {bands?.map((b) => <rect key={b.label} x={P} width={W - P * 2} y={y(Math.min(hi, b.to))} height={Math.max(0, y(Math.max(lo, b.from)) - y(Math.min(hi, b.to)))} fill="#fadcdc" opacity={0.5} />)}
+        {bands?.map((b) => <rect key={b.label} x={P} width={W - P * 2} y={y(Math.min(hi, b.to))} height={Math.max(0, y(Math.max(lo, b.from)) - y(Math.min(hi, b.to)))} fill="var(--color-red-soft)" opacity={0.5} />)}
         {[lo, (lo + hi) / 2, hi].map((v) => (
           <g key={v}>
-            <line x1={P} x2={W - P} y1={y(v)} y2={y(v)} stroke="#eef0f6" />
+            <line x1={P} x2={W - P} y1={y(v)} y2={y(v)} stroke="var(--color-line-soft)" />
             <text x={4} y={y(v) + 3} fontSize="9" fill="#8b95a9">{Math.round(v * 10) / 10}</text>
           </g>
         ))}
@@ -116,7 +116,7 @@ export function LineChart({ series, height = 180, min, max, bands, labels }: { s
             </g>
           );
         })}
-        {labels.map((l, i) => (i % Math.ceil(labels.length / 8) === 0 || i === labels.length - 1) && <text key={i} x={x(i)} y={H - 4} fontSize="9" textAnchor="middle" fill="#8b95a9">{l}</text>)}
+        {labels.map((l, i) => (i % Math.ceil(labels.length / 8) === 0 || i === labels.length - 1) && <text key={i} x={x(i)} y={H - 4} fontSize="9" textAnchor="middle" fill="var(--color-subtle)">{l}</text>)}
       </svg>
       <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-muted">
         {series.map((s) => <span key={s.name} className="flex items-center gap-1"><span className="inline-block h-0.5 w-3" style={{ background: s.color }} />{s.name}</span>)}

@@ -300,7 +300,7 @@ export function ForbiddenPage() {
   const { user } = useAuth();
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
-      <div className="max-w-md rounded-2xl bg-white p-8 text-center shadow-sm">
+      <div className="max-w-md rounded-2xl bg-surface p-8 text-center shadow-sm">
         <IconCircle icon={ShieldAlert} tone="red" size={88} />
         <h1 className="mt-3 text-[18px] font-bold text-navy">403 · Không có quyền truy cập</h1>
         <p className="mt-1 text-[12.5px] text-muted">Trang này không thuộc vai trò của bạn. Liên hệ quản lý nếu bạn cần quyền này.</p>
