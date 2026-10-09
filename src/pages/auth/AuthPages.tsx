@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Heart, KeyRound, Mail } from "lucide-react";
+import { Heart, House, KeyRound, Mail } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -26,7 +26,10 @@ function Split({ children, family }: { children: ReactNode; family?: boolean }) 
           </ul>
         )}
       </aside>
-      <main className="flex flex-1 items-center justify-center bg-white p-6">
+      <main className="relative flex flex-1 items-center justify-center bg-white p-6 pt-16">
+        <Link to="/" className="absolute top-5 left-6 flex items-center gap-1.5 rounded-[10px] border-[1.5px] border-input-line px-3 py-1.5 text-[12.5px] font-semibold text-navy transition hover:border-orange hover:text-orange">
+          <House size={15} /> Trang chủ
+        </Link>
         <div className="w-full max-w-[400px]">{children}</div>
       </main>
     </div>
