@@ -8,7 +8,7 @@ import { ALL_CYCLES, ALL_GROUPS, ALL_TIERS, CYCLE_LABEL, cycleDef, cycleMonths, 
 import { addDays, daysBetween } from "../lib/format";
 import {
   activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, entitlement, honor, invoicesOf, lookups, metricsOf, need,
-  nextId, notify, NOW, paymentOf, pkgName, priceOfPkg, scheduledOn, stamp, surchargeMonthly, fixedSurcharge, TODAY, usable, wait,
+  nextId, notify, notifyAdmins, NOW, paymentOf, requireRole, pkgName, priceOfPkg, scheduledOn, stamp, surchargeMonthly, fixedSurcharge, TODAY, usable, wait,
 } from "./core";
 
 const elderlyRow = (e: ElderlyMember) => {
@@ -316,12 +316,13 @@ export const manager = {
     const inv = invoicesOf(s.id).find((i) => i.status === "PAID");
     const pay = inv ? paymentOf(inv.id) : undefined;
     if (pay && q.refund) d.refunds.unshift({ id: nextId(d.refunds), subscriptionId: s.id, paymentId: pay.id, amount: q.refund, reason: `Ngừng nhận: cụ thuộc diện không nhận, khai sai (BR-80). Hoàn 95% ${q.firstDay ? "tổng tiền đã đóng" : "phần chưa dùng"}.`, status: "PENDING", createdAt: stamp(), processedBy: me.id });
+    if (pay && q.refund) notifyAdmins("PAYMENT", "Đề nghị hoàn tiền chờ duyệt", `Ngừng nhận (BR-80) · ${q.refund.toLocaleString("vi-VN")}đ`, "/admin/refunds");
     s.status = "TERMINATED";
     s.violationHandled = true;
     e.status = "TERMINATED";
     const a = d.assessments.find((x) => x.subscriptionId === subId && x.kind === "FIRST_DAY");
     if (a) Object.assign(a, { status: "APPROVED", approvedBy: me.id, approvedAt: stamp() });
-    notify(e.familyUserId, "PAYMENT", `Trung tâm ngừng nhận ${e.fullName}`, `Cụ thuộc diện trung tâm không nhận. Hoàn ${q.refund.toLocaleString("vi-VN")}đ qua cổng thanh toán.`, "/family/invoices");
+    notify(e.familyUserId, "PAYMENT", `Trung tâm ngừng nhận ${e.fullName}`, `Cụ thuộc diện trung tâm không nhận. Trung tâm hoàn ${q.refund.toLocaleString("vi-VN")}đ qua cổng thanh toán sau khi chủ trung tâm duyệt (1–3 ngày làm việc).`, "/family/invoices");
     audit(me.id, `Ngừng nhận ${e.fullName} (vi phạm cam kết), hoàn ${q.refund.toLocaleString("vi-VN")}đ`, "subscriptions", s.id);
     commit();
     return q.refund;
@@ -415,6 +416,7 @@ export const manager = {
       const inv = invoicesOf(s.id).find((i) => i.status === "PAID");
       const pay = inv ? paymentOf(inv.id) : undefined;
       if (pay && p.refundAmount) d.refunds.unshift({ id: nextId(d.refunds), subscriptionId: s.id, paymentId: pay.id, amount: p.refundAmount, reason: `Cụ qua đời. Hoàn phần chưa dùng của ${pkgName(s)}.`, status: "PENDING", createdAt: stamp(), processedBy: me.id });
+      if (pay && p.refundAmount) notifyAdmins("PAYMENT", "Đề nghị hoàn tiền chờ duyệt", `Chấm dứt do cụ qua đời · ${p.refundAmount.toLocaleString("vi-VN")}đ`, "/admin/refunds");
     }
     notify(p.requestedBy, "SYSTEM", approve ? (p.kind === "HOSPITAL" ? "Đã duyệt bảo lưu" : "Đã chấm dứt hợp đồng") : "Yêu cầu chưa được duyệt", e.fullName);
     audit(me.id, `${approve ? "Duyệt" : "Từ chối"} ${p.kind === "HOSPITAL" ? "bảo lưu" : "chấm dứt"} ${e.fullName}`, "subscription_pauses", p.id);
@@ -440,6 +442,7 @@ export const manager = {
   // ---- CRUD hạng / thời hạn / nhóm / quyền lợi (mục 4.1). Đã có người dùng → chỉ ngừng, không xóa.
   async saveTier(me: User, input: { id?: Tier; label: string; tone: TierDef["tone"]; highlight?: boolean; status: CatalogStatus; copyFrom?: Tier; monthlyPrice?: number }) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const d = db();
     const label = checkLabel(input.label, d.tierDefs.filter((x) => x.id !== input.id).map((x) => x.label), "Tên hạng");
     if (input.highlight) d.tierDefs.forEach((x) => (x.highlight = false));
@@ -471,6 +474,7 @@ export const manager = {
   },
   async moveTier(me: User, id: Tier, dir: -1 | 1) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const list = [...db().tierDefs].sort((a, b) => a.rank - b.rank);
     const i = list.findIndex((x) => x.id === id);
     const j = i + dir;
@@ -481,6 +485,7 @@ export const manager = {
   },
   async deleteTier(me: User, id: Tier) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const d = db();
     const t = need(tierDef(id));
     const why = catalogUse.tier(id);
@@ -497,6 +502,7 @@ export const manager = {
 
   async saveCycle(me: User, input: { id?: Cycle; label: string; desc: string; kind: CycleDef["kind"]; months: number; discount: number; weekdayOptions?: number[][]; status: CatalogStatus; reprice?: boolean }) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const d = db();
     const label = checkLabel(input.label, d.cycleDefs.filter((x) => x.id !== input.id).map((x) => x.label), "Tên thời hạn");
     if (input.kind === "PERIOD" && (!Number.isInteger(input.months) || input.months < 1 || input.months > 24)) throw new Error("Số tháng từ 1 đến 24");
@@ -532,6 +538,7 @@ export const manager = {
   },
   async deleteCycle(me: User, id: Cycle) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const d = db();
     const c = need(cycleDef(id));
     if (catalogUse.cycle(id)) throw new Error(`Không xóa được ${c.label}: ${catalogUse.cycle(id)}. Hãy chuyển sang "Ngừng bán".`);
@@ -545,6 +552,7 @@ export const manager = {
 
   async saveGroup(me: User, input: Omit<GroupDef, "id" | "rank"> & { id?: TargetGroup; monthly: number }) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const d = db();
     const label = checkLabel(input.label, d.groupDefs.filter((x) => x.id !== input.id).map((x) => x.label), "Tên nhóm");
     if (!tierDef(input.minTier)) throw new Error("Chọn hạng tối thiểu");
@@ -570,6 +578,7 @@ export const manager = {
   },
   async deleteGroup(me: User, id: TargetGroup) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const d = db();
     const g = need(groupDef(id));
     const why = catalogUse.group(id);
@@ -583,6 +592,7 @@ export const manager = {
 
   async savePerk(me: User, input: { id?: number; label: string; values: Record<Tier, string> }) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const d = db();
     const label = checkLabel(input.label, d.perks.filter((x) => x.id !== input.id).map((x) => x.label), "Tên quyền lợi");
     if (input.id) Object.assign(need(byId(d.perks, input.id)), { label, values: input.values });
@@ -592,6 +602,7 @@ export const manager = {
   },
   async deletePerk(me: User, id: number) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const d = db();
     const pk = need(byId(d.perks, id));
     d.perks = d.perks.filter((x) => x.id !== id);
@@ -600,6 +611,7 @@ export const manager = {
   },
   async savePrice(me: User, pkgId: number, price: number, status: "ACTIVE" | "HIDDEN") {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const p = need(lookups.pkg(pkgId));
     p.basePrice = price;
     p.status = status;
@@ -615,6 +627,7 @@ export const manager = {
   },
   async saveSurcharge(me: User, group: TargetGroup, monthly: number) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     const row = db().groupSurcharges.find((x) => x.group === group);
     if (row) row.monthly = monthly;
     else db().groupSurcharges.push({ group, monthly });
@@ -623,6 +636,7 @@ export const manager = {
   },
   async saveEntitlement(me: User, tier: Tier, patch: Partial<TierEntitlement>) {
     await wait();
+    requireRole(me, "ADMIN", "Đổi gói & giá");
     Object.assign(need(db().entitlements.find((x) => x.tier === tier)), patch);
     audit(me.id, `Sửa quyền lợi hạng ${TIER_LABEL[tier]}`, "package_entitlements");
     commit();
@@ -894,9 +908,20 @@ export const manager = {
       shiftsWeek: d.shiftAssignments.filter((a) => a.staffId === u.id && a.status === "APPROVED" && (byId(d.shifts, a.shiftId)?.date ?? "") >= "2026-10-05" && (byId(d.shifts, a.shiftId)?.date ?? "") <= "2026-10-10").length,
     }));
   },
-  async saveStaff(me: User, input: { id?: number; fullName: string; email: string; phone: string; position: "NURSE" | "CAREGIVER"; certificate: string; joinedAt: string; elderlyIds: number[] }) {
+  async saveStaff(me: User, input: { id?: number; fullName: string; email: string; phone: string; position: "NURSE" | "CAREGIVER"; certificate: string; joinedAt: string; elderlyIds?: number[] }) {
     await wait();
     const d = db();
+    if (me.role === "MANAGER") {
+      // Quản lý chỉ phân công cụ phụ trách; hồ sơ và tài khoản do Admin quản lý
+      if (!input.id) throw new Error("Thêm nhân viên mới: chỉ Admin (chủ doanh nghiệp) được làm");
+      const u = need(lookups.user(input.id));
+      const key = need(d.staffProfiles.find((x) => x.userId === u.id)).position === "NURSE" ? "nurseId" : "caregiverId";
+      for (const e of d.elderly) if ((input.elderlyIds ?? []).includes(e.id)) e[key] = u.id;
+      audit(me.id, `Phân công cụ cho ${u.fullName}`, "elderly", undefined);
+      commit();
+      return u.id;
+    }
+    requireRole(me, "ADMIN", "Sửa hồ sơ nhân viên");
     let u: User;
     if (input.id) {
       u = need(lookups.user(input.id));
@@ -910,7 +935,7 @@ export const manager = {
     }
     for (const e of d.elderly) {
       const key = input.position === "NURSE" ? "nurseId" : "caregiverId";
-      if (input.elderlyIds.includes(e.id)) e[key] = u.id;
+      if (input.elderlyIds?.includes(e.id)) e[key] = u.id;
     }
     audit(me.id, `${input.id ? "Sửa" : "Tạo"} tài khoản nhân viên ${u.fullName}`, "users", u.id);
     commit();
@@ -918,6 +943,7 @@ export const manager = {
   },
   async setStaffStatus(me: User, id: number, status: User["status"]) {
     await wait();
+    requireRole(me, "ADMIN", "Khóa / mở tài khoản nhân viên");
     need(lookups.user(id)).status = status;
     audit(me.id, `${status === "LOCKED" ? "Khóa" : "Mở"} tài khoản nhân viên`, "users", id);
     commit();
@@ -1021,6 +1047,7 @@ export const manager = {
   },
   async saveRoom(me: User, input: Omit<Room, "id"> & { id?: number }) {
     await wait();
+    requireRole(me, "ADMIN", "Thêm / sửa khu và phòng");
     const d = db();
     const { id, ...rest } = input;
     if (id) {
@@ -1084,6 +1111,7 @@ export const manager = {
   },
   async saveEquipment(me: User, input: Omit<Equipment, "id" | "broken" | "repairing"> & { id?: number }) {
     await wait();
+    requireRole(me, "ADMIN", "Thêm / sửa thiết bị");
     const d = db();
     const { id, ...rest } = input;
     if (id) Object.assign(need(byId(d.equipment, id)), rest);
@@ -1093,6 +1121,7 @@ export const manager = {
   },
   async importEquipment(me: User, rows: { name: string; category: Equipment["category"]; roomId: number; total: number; minStock: number }[]) {
     await wait(400);
+    requireRole(me, "ADMIN", "Nhập thiết bị");
     const d = db();
     rows.forEach((r) => d.equipment.push({ id: nextId(d.equipment), ...r, broken: 0, repairing: 0, concurrent: 1, note: "Nhập từ file Excel" }));
     commit();
@@ -1107,6 +1136,15 @@ export const manager = {
     await wait();
     const d = db();
     const r = need(byId(d.damageReports, id));
+    if (status === "DISPOSED" && me.role !== "ADMIN") {
+      r.disposeRequested = true;
+      const eq = lookups.equipment(r.equipmentId);
+      notifyAdmins("FACILITY", "Đề nghị thanh lý thiết bị", `${eq?.name ?? "Thiết bị"} × ${r.quantity}: ${r.description.slice(0, 60)}`, "/admin/equipment");
+      audit(me.id, `Đề nghị thanh lý ${eq?.name ?? ""} × ${r.quantity}`, "damage_reports", r.id);
+      commit();
+      return;
+    }
+    r.disposeRequested = false;
     const e = r.equipmentId ? need(lookups.equipment(r.equipmentId)) : undefined;
     const from = r.status;
     if (e) {
@@ -1186,12 +1224,16 @@ export const manager = {
   },
   async markRefundDone(me: User, id: number) {
     await wait();
+    requireRole(me, "ADMIN", "Duyệt hoàn tiền");
     const r = need(byId(db().refunds, id));
     r.status = "DONE";
     r.processedBy = me.id;
     const inv = byId(db().invoices, byId(db().payments, r.paymentId)?.invoiceId);
     if (inv) inv.status = "REFUNDED";
-    audit(me.id, "Hoàn tiền qua cổng thanh toán", "refunds", id);
+    const sub = byId(db().subscriptions, r.subscriptionId);
+    const el = lookups.elderly(sub?.elderlyId);
+    if (el) notify(el.familyUserId, "PAYMENT", "Trung tâm đã hoàn tiền", `${r.amount.toLocaleString("vi-VN")}đ qua cổng thanh toán`, "/family/invoices");
+    audit(me.id, `Duyệt hoàn tiền ${r.amount.toLocaleString("vi-VN")}đ`, "refunds", id);
     commit();
   },
   async suspendOverdue(me: User) {
@@ -1260,6 +1302,10 @@ export const manager = {
   },
   async saveSettings(me: User, input: Partial<CenterSettings>) {
     await wait();
+    const ops: (keyof CenterSettings)[] = ["thresholds", "absentAlertAt", "closeReminderAt", "managerCloseAt", "faqs"];
+    const keys = Object.keys(input) as (keyof CenterSettings)[];
+    if (me.role === "MANAGER" && keys.some((k) => !ops.includes(k))) throw new Error("Thông tin, giờ mở cửa và cổng thanh toán: chỉ Admin (chủ doanh nghiệp) được sửa");
+    if (me.role === "ADMIN" && keys.some((k) => ops.includes(k))) throw new Error("Ngưỡng chỉ số, giờ nhắc care log và FAQ do Quản lý trung tâm cấu hình");
     Object.assign(db().centerSettings, input);
     audit(me.id, "Cập nhật cài đặt trung tâm", "center_settings");
     commit();

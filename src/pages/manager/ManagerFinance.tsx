@@ -11,44 +11,47 @@ import { Badge, Button, Card, Chip, ErrorText, Field, KV, Loading, Note, Table, 
 import { CYCLE_LABEL, GROUP_LABEL, TIER_LABEL } from "../../domain/catalog";
 import { dmy, hm, millions, vnd } from "../../lib/format";
 import type { CenterSettings, Invoice } from "../../types/models";
+import { SystemSettingsBody } from "../admin/AdminPages";
 
 export const INV_STATUS: Record<Invoice["status"], ["green" | "orange" | "gray" | "red", string]> = { PAID: ["green", "Đã thanh toán"], UNPAID: ["orange", "Chưa thanh toán"], REFUNDED: ["gray", "Đã hoàn"], VOID: ["red", "Đã hủy"] };
 export const INV_KIND: Record<Invoice["kind"], string> = { NEW: "Đăng ký mới", RENEWAL: "Gia hạn", UPGRADE: "Nâng hạng", ADDON: "Dịch vụ mua thêm", DAY_BOOKING: "Đặt gói ngày", VIOLATION: "Phụ phí sau kiểm tra (BR-80)" };
 
-export function PaymentsPage() {
+export function PaymentsPage({ admin = false, initialTab = "inv" }: { admin?: boolean; initialTab?: "inv" | "pay" | "refund" | "credit" }) {
   const me = useMe();
   const qc = useQueryClient();
   const nav = useNavigate();
-  const [tab, setTab] = useState<"inv" | "pay" | "refund" | "credit">("inv");
+  const [tab, setTab] = useState<"inv" | "pay" | "refund" | "credit">(initialTab);
   const [f, setF] = useState<"ALL" | "UNPAID" | "PAID">("ALL");
   const [q, setQ] = useState("");
   const { data, isLoading } = useQuery({ queryKey: ["m-pay"], queryFn: () => manager.payments() });
-  const done = useMutation({ mutationFn: (id: number) => manager.markRefundDone(me, id), onSuccess: () => qc.invalidateQueries({ queryKey: ["m-pay"] }) });
+  const done = useMutation({ mutationFn: (id: number) => manager.markRefundDone(me, id), onSuccess: () => qc.invalidateQueries() });
+  const subCode = (id?: number) => `Hợp đồng #${String(id ?? 0).padStart(4, "0")}`;
+  const title = !admin ? "Hóa đơn & nhắc đóng tiền" : initialTab === "refund" ? "Duyệt hoàn tiền" : "Doanh thu & thanh toán";
   const susp = useMutation({ mutationFn: () => manager.suspendOverdue(me), onSuccess: () => qc.invalidateQueries() });
-  if (isLoading || !data) return <Page title="Thanh toán & hóa đơn"><Loading /></Page>;
+  if (isLoading || !data) return <Page title={title}><Loading /></Page>;
   const inv = data.invoices.filter((r) => (f === "ALL" || r.invoice.status === f) && (!q || `${r.elderly.fullName} ${r.invoice.number} ${r.family?.fullName}`.toLowerCase().includes(q.toLowerCase())));
   return (
-    <Page title="Thanh toán & hóa đơn" sub="Trả trước qua VNPay/MoMo, không tiền mặt, không đặt cọc. Không hoàn tiền khi cụ nghỉ hoặc gia đình dừng gói — trừ trường hợp qua đời (BR-20, BR-24).">
+    <Page title={title} sub={admin ? "Số liệu theo hợp đồng, không hiện hồ sơ cụ (BR-60). Hoàn tiền chỉ khi cụ qua đời hoặc trung tâm ngừng nhận (BR-80), Admin duyệt rồi mới gửi lệnh qua cổng." : "Trả trước qua VNPay/MoMo, không tiền mặt, không đặt cọc. Quản lý theo dõi hóa đơn và nhắc gia đình đóng tiền. Hoàn tiền do Admin duyệt."}>
       <div className="grid gap-3 sm:grid-cols-4">
         <Stat label="Đã thu tháng 10" value={millions(data.month)} tone="green" />
         <Stat label="Chưa thu" value={millions(data.unpaid)} tone="orange" />
         <Stat label="Giao dịch lỗi" value={data.payments.filter((p) => p.payment.status === "FAILED").length} tone="red" />
         <Stat label="Số dư gia đình (gói ngày)" value={vnd(data.credits.filter((c) => !c.credit.usedInvoiceId).reduce((s, c) => s + c.credit.amount, 0))} tone="purple" />
       </div>
-      <Tabs value={tab} onChange={setTab} items={[{ value: "inv", label: "Hóa đơn" }, { value: "pay", label: "Giao dịch cổng thanh toán" }, { value: "refund", label: "Hoàn tiền (qua đời)" }, { value: "credit", label: "Số dư gói ngày" }]} />
+      <Tabs value={tab} onChange={setTab} items={[{ value: "inv", label: "Hóa đơn" }, { value: "pay", label: "Giao dịch cổng thanh toán" }, { value: "refund", label: `Hoàn tiền${data.refunds.some((r) => r.refund.status === "PENDING") ? ` (${data.refunds.filter((r) => r.refund.status === "PENDING").length} chờ duyệt)` : ""}` }, { value: "credit", label: "Số dư gói ngày" }]} />
       {tab === "inv" && (
         <>
           <div className="flex flex-wrap items-center gap-2">
             <SearchBox value={q} onChange={setQ} placeholder="Tìm số HĐ, cụ, gia đình…" />
             {([["ALL", "Tất cả"], ["UNPAID", "Chưa thu"], ["PAID", "Đã thu"]] as const).map(([v, l]) => <Chip key={v} active={f === v} onClick={() => setF(v)}>{l}</Chip>)}
-            <Button className="ml-auto" size="sm" variant="danger" loading={susp.isPending} onClick={() => susp.mutate()}>Chạy kiểm tra hết hạn chưa đóng</Button>
+            {!admin && <Button className="ml-auto" size="sm" variant="danger" loading={susp.isPending} onClick={() => susp.mutate()}>Chạy kiểm tra hết hạn chưa đóng</Button>}
           </div>
           {susp.isSuccess && <Note>Đã chuyển {susp.data} gói sang Tạm ngưng (BR-23). Cụ tạm ngưng không check-in được.</Note>}
           <Card>
-            <Table rows={inv} rowKey={(r) => r.invoice.id} onRowClick={(r) => nav(`/manager/invoices/${r.invoice.id}`)} columns={[
+            <Table rows={inv} rowKey={(r) => r.invoice.id} onRowClick={admin ? undefined : (r) => nav(`/manager/invoices/${r.invoice.id}`)} columns={[
               { key: "n", header: "Số HĐ", render: (r) => <b className="text-navy">{r.invoice.number}</b> },
               { key: "k", header: "Loại", render: (r) => INV_KIND[r.invoice.kind] },
-              { key: "e", header: "Cụ", render: (r) => <ElderlyCell e={r.elderly} sub={r.family?.fullName} /> },
+              admin ? { key: "e", header: "Hợp đồng", render: (r) => subCode(r.sub.id) } : { key: "e", header: "Cụ", render: (r) => <ElderlyCell e={r.elderly} sub={r.family?.fullName} /> },
               { key: "p", header: "Gói", render: (r) => <span className="text-[12px]"><TierBadge tier={r.sub.tier} /> {CYCLE_LABEL[r.sub.cycle]}</span> },
               { key: "d", header: "Ngày", render: (r) => dmy(r.invoice.issueDate) },
               { key: "t", header: "Tổng", render: (r) => <b>{vnd(r.invoice.total)}</b> },
@@ -64,7 +67,7 @@ export function PaymentsPage() {
             { key: "t", header: "Lúc", render: (r) => `${dmy(r.payment.paidAt.slice(0, 10))} ${hm(r.payment.paidAt)}` },
             { key: "c", header: "Mã giao dịch", render: (r) => r.payment.transactionCode },
             { key: "i", header: "Hóa đơn", render: (r) => r.invoice?.number },
-            { key: "p", header: "Người trả", render: (r) => r.payer?.fullName },
+            ...(admin ? [] : [{ key: "p", header: "Người trả", render: (r: (typeof data.payments)[number]) => r.payer?.fullName }]),
             { key: "m", header: "Cổng", render: (r) => r.payment.method === "VNPAY" ? "VNPay" : "MoMo" },
             { key: "a", header: "Số tiền", render: (r) => vnd(r.payment.amount) },
             { key: "s", header: "Callback", render: (r) => r.payment.status === "SUCCESS" ? <Badge tone="green">Thành công</Badge> : <Badge tone="red">Thất bại</Badge> },
@@ -74,20 +77,21 @@ export function PaymentsPage() {
       {tab === "refund" && (
         <Card>
           <Table rows={data.refunds} rowKey={(r) => r.refund.id} empty="Chưa có hoàn tiền" columns={[
-            { key: "e", header: "Cụ", render: (r) => r.elderly?.fullName },
+            admin ? { key: "e", header: "Hợp đồng", render: (r) => subCode(r.sub?.id) } : { key: "e", header: "Cụ", render: (r) => r.elderly?.fullName },
             { key: "r", header: "Lý do", render: (r) => r.refund.reason },
             { key: "a", header: "Số tiền", render: (r) => vnd(r.refund.amount) },
             { key: "d", header: "Ngày", render: (r) => dmy(r.refund.createdAt.slice(0, 10)) },
-            { key: "s", header: "Trạng thái", render: (r) => r.refund.status === "DONE" ? <Badge tone="green">Đã hoàn qua cổng</Badge> : <Button size="sm" variant="success" loading={done.isPending} onClick={() => done.mutate(r.refund.id)}>Gửi lệnh hoàn</Button> },
+            { key: "s", header: "Trạng thái", render: (r) => r.refund.status === "DONE" ? <Badge tone="green">Đã hoàn qua cổng</Badge> : !admin ? <Badge tone="orange">Chờ Admin duyệt</Badge> : <Button size="sm" variant="success" loading={done.isPending && done.variables === r.refund.id} onClick={() => done.mutate(r.refund.id)}>Gửi lệnh hoàn</Button> },
           ]} />
-          <Note className="mt-3">Bảng refunds chỉ dùng khi cụ qua đời: hoàn phần chưa dùng của gói dài hạn. Dịch vụ lẻ đã dùng không hoàn (5.9).</Note>
+          <Note className="mt-3">Hoàn tiền chỉ có 2 trường hợp: cụ qua đời (hoàn phần chưa dùng của gói dài hạn, 5.9) và trung tâm ngừng nhận sau kiểm tra (hoàn 95%, BR-80). Dịch vụ lẻ đã dùng không hoàn. Quản lý/hệ thống tạo đề nghị, Admin duyệt rồi mới gửi lệnh qua cổng.</Note>
+          <ErrorText error={done.error} />
         </Card>
       )}
       {tab === "credit" && (
         <Card>
           <Table rows={data.credits} rowKey={(r) => r.credit.id} columns={[
-            { key: "f", header: "Gia đình", render: (r) => r.family?.fullName },
-            { key: "e", header: "Cụ", render: (r) => r.elderly?.fullName },
+            ...(admin ? [] : [{ key: "f", header: "Gia đình", render: (r: (typeof data.credits)[number]) => r.family?.fullName }]),
+            ...(admin ? [] : [{ key: "e", header: "Cụ", render: (r: (typeof data.credits)[number]) => r.elderly?.fullName }]),
             { key: "r", header: "Lý do", render: (r) => r.credit.reason },
             { key: "a", header: "Số dư", render: (r) => vnd(r.credit.amount) },
             { key: "s", header: "Trạng thái", render: (r) => r.credit.usedInvoiceId ? <Badge tone="gray">Đã trừ vào HĐ</Badge> : <Badge tone="green">Còn dùng được</Badge> },
@@ -164,21 +168,24 @@ export function ReportsPage() {
 }
 
 // ------------------------------------------------------------------ settings (incl. M4 care-log config)
-export function SettingsPage() {
+export function SettingsPage({ scope }: { scope: "manager" | "admin" }) {
   const me = useMe();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"info" | "hours" | "carelog" | "faq" | "pay">("info");
+  const isAdmin = scope === "admin";
+  const [tab, setTab] = useState<"info" | "hours" | "carelog" | "faq" | "pay" | "system">(isAdmin ? "info" : "carelog");
+  const pageTitle = isAdmin ? "Cấu hình trung tâm & hệ thống" : "Cài đặt vận hành";
   const { data, isLoading } = useQuery({ queryKey: ["m-settings"], queryFn: () => manager.settings() });
   const [f, setF] = useState<Partial<CenterSettings>>({});
   const save = useMutation({ mutationFn: () => manager.saveSettings(me, f), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-settings"] }); setF({}); } });
-  if (isLoading || !data) return <Page title="Cài đặt trung tâm"><Loading /></Page>;
+  if (isLoading || !data) return <Page title={pageTitle}><Loading /></Page>;
   const v = { ...data, ...f };
   const th = v.thresholds;
   const setTh = (k: keyof typeof th, n: number) => setF({ ...f, thresholds: { ...th, [k]: n } });
   return (
-    <Page title="Cài đặt trung tâm" sub="Một trung tâm duy nhất (BR-01): thông tin, giờ, cấu hình care log, FAQ cho chatbot, cổng thanh toán." actions={Object.keys(f).length > 0 && <Button size="sm" icon={CircleCheck} loading={save.isPending} onClick={() => save.mutate()}>Lưu thay đổi</Button>}>
+    <Page title={pageTitle} sub={isAdmin ? "Admin (chủ doanh nghiệp): thông tin trung tâm, giờ mở cửa và đón cụ, cổng thanh toán, AI, bảo mật. Ngưỡng chỉ số và FAQ do Quản lý cấu hình." : "Quản lý: ngưỡng chỉ số, giờ nhắc care log, FAQ cho chatbot. Thông tin, giờ mở cửa và cổng thanh toán do Admin cấu hình."} actions={Object.keys(f).length > 0 && <Button size="sm" icon={CircleCheck} loading={save.isPending} onClick={() => save.mutate()}>Lưu thay đổi</Button>}>
       {save.isSuccess && <Note tone="green">Đã lưu.</Note>}
-      <Tabs value={tab} onChange={setTab} items={[{ value: "info", label: "Thông tin" }, { value: "hours", label: "Giờ & đón cụ" }, { value: "carelog", label: "Cài đặt care log (M4)" }, { value: "faq", label: "FAQ cho chatbot" }, { value: "pay", label: "Thanh toán & AI" }]} />
+      <Tabs value={tab} onChange={setTab} items={isAdmin ? [{ value: "info", label: "Thông tin" }, { value: "hours", label: "Giờ & đón cụ" }, { value: "pay", label: "Thanh toán & AI" }, { value: "system", label: "Hệ thống" }] : [{ value: "carelog", label: "Cài đặt care log (M4)" }, { value: "faq", label: "FAQ cho chatbot" }]} />
+      {tab === "system" && <SystemSettingsBody />}
       {tab === "info" && (
         <Card><div className="grid gap-2 sm:grid-cols-2">
           <Field label="Tên trung tâm" value={v.name} onChange={(e) => setF({ ...f, name: e.target.value })} />

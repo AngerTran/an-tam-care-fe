@@ -1,6 +1,6 @@
 // Manager · staff (staff_profiles: NURSE / CAREGIVER) and AI shift planning with availability & leave (5.4).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleCheck, Lock, Plus, Sparkles, TriangleAlert, Unlock, UserPlus, X } from "lucide-react";
+import { CircleCheck, Plus, Sparkles, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { manager } from "../../api";
@@ -19,14 +19,13 @@ export function StaffPage() {
   const [q, setQ] = useState("");
   const [pos, setPos] = useState<Position | "ALL">("ALL");
   const { data, isLoading } = useQuery({ queryKey: ["m-staff"], queryFn: () => manager.staff() });
-  const lock = useMutation({ mutationFn: ({ id, s }: { id: number; s: "LOCKED" | "ACTIVE" }) => manager.setStaffStatus(me, id, s), onSuccess: () => qc.invalidateQueries({ queryKey: ["m-staff"] }) });
   const rows = (data ?? []).filter((r) => (pos === "ALL" || r.profile?.position === pos) && (!q || r.user.fullName.toLowerCase().includes(q.toLowerCase())));
   return (
-    <Page title="Nhân viên" sub="Hai chức vụ: điều dưỡng (chỉ số, thuốc, sự cố, đánh giá đầu vào) và hộ lý (ăn uống, vệ sinh, hoạt động, ảnh). Không có chức vụ trưởng ca.">
+    <Page title="Nhân viên & phân công" sub="Bấm một nhân viên để phân công cụ phụ trách. Thêm, sửa hồ sơ, khóa tài khoản do Admin (chủ doanh nghiệp) làm.">
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox value={q} onChange={setQ} placeholder="Tìm nhân viên…" />
         {([["ALL", "Tất cả"], ["NURSE", "Điều dưỡng"], ["CAREGIVER", "Hộ lý"]] as const).map(([v, l]) => <Chip key={v} active={pos === v} onClick={() => setPos(v)}>{l}</Chip>)}
-        <Button className="ml-auto" icon={UserPlus} to="/manager/staff/new">Thêm nhân viên</Button>
+
       </div>
       <Card>
         {isLoading ? <Loading /> : (
@@ -38,7 +37,7 @@ export function StaffPage() {
             { key: "a", header: "Cụ phụ trách", render: (r) => <span className="text-[11.5px]">{r.assigned.length} · {r.assigned.slice(0, 3).map((e) => e.fullName.split(" ").pop()).join(", ")}</span> },
             { key: "s", header: "Ca tuần này", render: (r) => r.shiftsWeek },
             { key: "st", header: "Tài khoản", render: (r) => <Badge tone={r.user.status === "ACTIVE" ? "green" : r.user.status === "INVITED" ? "orange" : "red"}>{({ ACTIVE: "Hoạt động", INVITED: "Đã mời", LOCKED: "Đã khóa" })[r.user.status]}</Badge> },
-            { key: "x", header: "", render: (r) => <Button size="sm" variant={r.user.status === "LOCKED" ? "outline" : "danger"} icon={r.user.status === "LOCKED" ? Unlock : Lock} onClick={(ev) => { ev.stopPropagation(); lock.mutate({ id: r.user.id, s: r.user.status === "LOCKED" ? "ACTIVE" : "LOCKED" }); }}>{r.user.status === "LOCKED" ? "Mở" : "Khóa"}</Button> },
+            { key: "x", header: "", render: (r) => r.user.status === "LOCKED" ? null : <Button size="sm" variant="neutral" onClick={(ev) => { ev.stopPropagation(); nav(`/manager/staff/${r.user.id}`); }}>Phân công</Button> },
           ]} />
         )}
       </Card>
@@ -46,36 +45,39 @@ export function StaffPage() {
   );
 }
 
-export function StaffFormPage() {
+export function StaffFormPage({ admin = false }: { admin?: boolean }) {
   const me = useMe();
   const nav = useNavigate();
   const qc = useQueryClient();
   const id = useParams().id ? Number(useParams().id) : undefined;
+  const back = admin ? "/admin/accounts?tab=staff" : "/manager/staff";
   const { data } = useQuery({ queryKey: ["m-staff"], queryFn: () => manager.staff() });
-  const members = useQuery({ queryKey: ["m-members"], queryFn: () => manager.members() });
+  const members = useQuery({ queryKey: ["m-members"], queryFn: () => manager.members(), enabled: !admin });
   const cur = data?.find((r) => r.user.id === id);
   const [f, setF] = useState<{ fullName?: string; email?: string; phone?: string; position?: Position; certificate?: string; joinedAt?: string; elderlyIds?: number[] }>({});
   const v = { fullName: f.fullName ?? cur?.user.fullName ?? "", email: f.email ?? cur?.user.email ?? "", phone: f.phone ?? cur?.user.phone ?? "", position: f.position ?? cur?.profile?.position ?? "CAREGIVER", certificate: f.certificate ?? cur?.profile?.certificate ?? "", joinedAt: f.joinedAt ?? cur?.profile?.joinedAt ?? "2026-10-12", elderlyIds: f.elderlyIds ?? cur?.assigned.map((e) => e.id) ?? [] };
-  const save = useMutation({ mutationFn: () => manager.saveStaff(me, { id, ...v }), onSuccess: () => { qc.invalidateQueries(); nav("/manager/staff"); } });
+  const save = useMutation({ mutationFn: () => manager.saveStaff(me, admin ? { id, ...v, elderlyIds: undefined } : { id, ...v }), onSuccess: () => { qc.invalidateQueries(); nav(back); } });
   if (id && !cur) return <Page title="Nhân viên"><Loading /></Page>;
   const active = (members.data ?? []).filter((r) => ["ACTIVE", "PAUSED"].includes(r.elderly.status));
   return (
-    <Page title={id ? `Sửa · ${cur?.user.fullName}` : "Thêm nhân viên"} back="/manager/staff">
-      <form className="grid gap-4 lg:grid-cols-[1fr_380px]" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-        <Card title="Hồ sơ nhân viên (staff_profiles)">
-          <div className="grid gap-2 sm:grid-cols-2">
+    <Page title={admin ? (id ? `Sửa · ${cur?.user.fullName}` : "Thêm nhân viên") : `Phân công · ${cur?.user.fullName}`} back={back}>
+      <form className={cn("grid gap-4", !admin && "lg:grid-cols-[1fr_380px]")} onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <Card title={admin ? "Hồ sơ nhân viên (staff_profiles)" : "Hồ sơ nhân viên (chỉ xem)"}>
+          <fieldset disabled={!admin} className="grid gap-2 sm:grid-cols-2">
             <Field label="Họ và tên" required value={v.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} />
             <SelectField label="Chức vụ" value={v.position} onChange={(e) => setF({ ...f, position: e.target.value as Position, elderlyIds: [] })}><option value="NURSE">Điều dưỡng</option><option value="CAREGIVER">Hộ lý</option></SelectField>
             <Field label="Email (đăng nhập)" type="email" required value={v.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
             <Field label="Số điện thoại" value={v.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
             <Field label="Chứng chỉ" value={v.certificate} onChange={(e) => setF({ ...f, certificate: e.target.value })} />
             <Field label="Ngày vào làm" type="date" value={v.joinedAt} onChange={(e) => setF({ ...f, joinedAt: e.target.value })} />
-          </div>
+          </fieldset>
           <Note className="mt-3">{v.position === "NURSE" ? "Điều dưỡng: đo chỉ số, cho uống thuốc, ghi sự cố và chuyển viện, đánh giá đầu vào, cho phép dịch vụ ⚠." : "Hộ lý: check-in/out, ghi ăn uống, vệ sinh, hoạt động, nghỉ trưa, tâm trạng, ảnh; hộ lý phụ trách chính chốt care log."} {!id && "Tài khoản mới nhận email mời, mật khẩu tạm demo1234."}</Note>
+          {!admin && <Note className="mt-2">Sửa hồ sơ hoặc khóa tài khoản: liên hệ Admin (chủ doanh nghiệp).</Note>}
+          {admin && <Note className="mt-2">Tài khoản mới ở trạng thái "Đã mời", nhân viên đặt mật khẩu qua email. Quản lý trung tâm phân công cụ phụ trách.</Note>}
           <ErrorText error={save.error} />
-          <Button type="submit" className="mt-3" loading={save.isPending}>Lưu</Button>
+          <Button type="submit" className="mt-3" loading={save.isPending}>{admin ? "Lưu" : "Lưu phân công"}</Button>
         </Card>
-        <Card title={`Cụ phụ trách (${v.elderlyIds.length})`} className="h-fit">
+        {!admin && <Card title={`Cụ phụ trách (${v.elderlyIds.length})`} className="h-fit">
           <div className="max-h-96 space-y-1 overflow-y-auto">
             {active.map((r) => {
               const owner = v.position === "NURSE" ? r.nurse : r.caregiver;
@@ -87,7 +89,7 @@ export function StaffFormPage() {
               );
             })}
           </div>
-        </Card>
+        </Card>}
       </form>
     </Page>
   );

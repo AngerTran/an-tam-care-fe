@@ -24,32 +24,29 @@ export const NAV: Record<Role, NavSection[]> = {
       { label: "Báo nghỉ", to: "/manager/absences", icon: CalendarDays },
       { label: "Bảo lưu & chấm dứt", to: "/manager/pauses", icon: PauseCircle },
     ] },
-    { title: "Gói & lịch", items: [
-      { label: "Gói & quyền lợi", to: "/manager/packages", icon: Package },
+    { title: "Dịch vụ & lịch", items: [
+      { label: "Gói & giá (xem)", to: "/manager/packages", icon: Package },
       { label: "Danh mục dịch vụ", to: "/manager/services", icon: ListChecks },
       { label: "Lịch hoạt động & thực đơn", to: "/manager/schedule", icon: CalendarRange },
       { label: "Lịch VLTL & massage", to: "/manager/therapy", icon: Dumbbell },
       { label: "Ngày lễ & thông báo", to: "/manager/calendar", icon: Bell },
     ] },
     { title: "Nhân sự", items: [
-      { label: "Nhân viên", to: "/manager/staff", icon: Users },
-      { label: "Xếp ca (AI)", to: "/manager/shifts", icon: CalendarClock },
+      { label: "Nhân viên & phân công", to: "/manager/staff", icon: Users },
+      { label: "Xếp ca (AI) & duyệt nghỉ", to: "/manager/shifts", icon: CalendarClock },
     ] },
     { title: "Cơ sở vật chất", items: [
-      { label: "Tổng quan CSVC", to: "/manager/facilities", icon: Building, end: true },
-      { label: "Khu và phòng", to: "/manager/facilities/rooms", icon: House },
       { label: "Giường nghỉ trưa", to: "/manager/facilities/beds", icon: BedDouble },
-      { label: "Thiết bị", to: "/manager/facilities/equipment", icon: Boxes },
-      { label: "Báo hỏng", to: "/manager/facilities/damage", icon: Wrench },
+      { label: "Báo hỏng & sửa chữa", to: "/manager/facilities/damage", icon: Wrench },
       { label: "Kiểm kê", to: "/manager/facilities/inventory", icon: ClipboardCheck },
     ] },
     { title: "Tài chính & báo cáo", items: [
-      { label: "Thanh toán & hóa đơn", to: "/manager/payments", icon: CreditCard },
+      { label: "Hóa đơn & nhắc đóng tiền", to: "/manager/payments", icon: CreditCard },
       { label: "Báo cáo gửi Admin", to: "/manager/reports", icon: FileBarChart },
     ] },
     { items: [
       { label: "Tin nhắn", to: "/manager/messages", icon: MessageCircle },
-      { label: "Cài đặt trung tâm", to: "/manager/settings", icon: Globe },
+      { label: "Cài đặt vận hành", to: "/manager/settings", icon: Globe },
     ] },
   ],
   STAFF: [
@@ -96,12 +93,25 @@ export const NAV: Record<Role, NavSection[]> = {
     ] },
   ],
   ADMIN: [
-    { items: [
+    { title: "Tổng quan", items: [
       { label: "Tổng quan doanh nghiệp", to: "/admin", icon: ChartColumn, end: true },
       { label: "Báo cáo từ Quản lý", to: "/admin/reports", icon: FileBarChart },
+    ] },
+    { title: "Kinh doanh", items: [
+      { label: "Gói & giá", to: "/admin/packages", icon: Package },
+      { label: "Doanh thu & thanh toán", to: "/admin/finance", icon: CreditCard },
+      { label: "Duyệt hoàn tiền", to: "/admin/refunds", icon: Receipt },
+    ] },
+    { title: "Nhân sự", items: [
+      { label: "Nhân viên & tài khoản", to: "/admin/accounts", icon: KeyRound },
+    ] },
+    { title: "Tài sản", items: [
       { label: "Cơ sở vật chất", to: "/admin/facilities", icon: Building },
-      { label: "Tài khoản", to: "/admin/accounts", icon: KeyRound },
-      { label: "Cấu hình hệ thống", to: "/admin/settings", icon: Globe },
+      { label: "Khu & phòng", to: "/admin/rooms", icon: House },
+      { label: "Thiết bị", to: "/admin/equipment", icon: Boxes },
+    ] },
+    { title: "Hệ thống", items: [
+      { label: "Cấu hình trung tâm & hệ thống", to: "/admin/settings", icon: Globe },
       { label: "Nhật ký hệ thống", to: "/admin/audit", icon: ShieldCheck },
     ] },
   ],

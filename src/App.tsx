@@ -9,7 +9,7 @@ import { AlertsPage, AttendancePage, CareLogDetailPage, CareLogsPage, IncidentsP
 import { AbsencesPage, MemberDetailPage, MemberEditPage, MembersPage, PausesPage, RegistrationsPage, WaitlistPage } from "./pages/manager/ManagerElderly";
 import { CalendarPage, PackagesPage, SchedulePage, ServicesPage, TherapyPage } from "./pages/manager/ManagerCatalog";
 import { ShiftsPage, StaffFormPage, StaffPage } from "./pages/manager/ManagerStaff";
-import { BedsPage, DamagePage, EquipmentPage, FacilitiesOverview, InventoryDetailPage, InventoryPage, RoomsPage } from "./pages/manager/ManagerFacilities";
+import { BedsPage, DamagePage, EquipmentPage, InventoryDetailPage, InventoryPage, RoomsPage } from "./pages/manager/ManagerFacilities";
 import { InvoiceDetail, PaymentsPage, ReportsPage, SettingsPage } from "./pages/manager/ManagerFinance";
 import { StaffCareLog, StaffCheckin, StaffElderly, StaffGroupLog, StaffToday } from "./pages/staff/StaffDay";
 import { StaffSchedule } from "./pages/staff/StaffSchedule";
@@ -17,7 +17,7 @@ import { StaffAlerts, StaffAssessments, StaffIncidents, StaffMeds, StaffVitals }
 import { StaffBelongings, StaffDamage, StaffShifts } from "./pages/staff/StaffOther";
 import { FamilyAccountExtras, FamilyAlerts, FamilyBelongings, FamilyChat, FamilyHealth, FamilyHome, FamilyMeds, FamilySchedule, FamilySummary } from "./pages/family/FamilyTrack";
 import { CheckoutPage, FamilyAbsencePage, FamilyInvoicesPage, MyPackagesPage, RegisterWizard, RelativeFormPage, RelativesPage } from "./pages/family/FamilyPackages";
-import { AccountsPage, AdminDashboard, AdminFacilities, AdminReports, AuditPage, SystemSettingsPage } from "./pages/admin/AdminPages";
+import { AccountsPage, AdminDashboard, AdminFacilities, AdminReports, AuditPage } from "./pages/admin/AdminPages";
 
 /** Route guard: not signed in → /login, wrong role → 403 (data scoping is enforced again in the API). */
 function RequireRole({ role }: { role: Role }) {
@@ -51,19 +51,16 @@ export default function App() {
         <Route path="waitlist" element={<WaitlistPage />} />
         <Route path="absences" element={<AbsencesPage />} />
         <Route path="pauses" element={<PausesPage />} />
-        <Route path="packages" element={<PackagesPage />} />
+        <Route path="packages" element={<PackagesPage readOnly />} />
         <Route path="services" element={<ServicesPage />} />
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="therapy" element={<TherapyPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="staff" element={<StaffPage />} />
-        <Route path="staff/new" element={<StaffFormPage />} />
         <Route path="staff/:id" element={<StaffFormPage />} />
         <Route path="shifts" element={<ShiftsPage />} />
-        <Route path="facilities" element={<FacilitiesOverview />} />
-        <Route path="facilities/rooms" element={<RoomsPage />} />
+        <Route path="facilities" element={<Navigate to="/manager/facilities/beds" replace />} />
         <Route path="facilities/beds" element={<BedsPage />} />
-        <Route path="facilities/equipment" element={<EquipmentPage />} />
         <Route path="facilities/damage" element={<DamagePage />} />
         <Route path="facilities/inventory" element={<InventoryPage />} />
         <Route path="facilities/inventory/:id" element={<InventoryDetailPage />} />
@@ -71,7 +68,7 @@ export default function App() {
         <Route path="invoices/:id" element={<InvoiceDetail back="/manager/payments" />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="messages" element={<MessagesPage />} />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings" element={<SettingsPage scope="manager" />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
@@ -123,8 +120,15 @@ export default function App() {
         <Route index element={<AdminDashboard />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="facilities" element={<AdminFacilities />} />
+        <Route path="packages" element={<PackagesPage />} />
+        <Route path="finance" element={<PaymentsPage key="fin" admin />} />
+        <Route path="refunds" element={<PaymentsPage key="ref" admin initialTab="refund" />} />
         <Route path="accounts" element={<AccountsPage />} />
-        <Route path="settings" element={<SystemSettingsPage />} />
+        <Route path="staff/new" element={<StaffFormPage admin />} />
+        <Route path="staff/:id" element={<StaffFormPage admin />} />
+        <Route path="rooms" element={<RoomsPage />} />
+        <Route path="equipment" element={<EquipmentPage />} />
+        <Route path="settings" element={<SettingsPage scope="admin" />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="notifications" element={<NotificationsPage />} />

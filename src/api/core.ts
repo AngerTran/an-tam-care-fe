@@ -33,6 +33,11 @@ export function notify(userId: number, type: Notification["type"], title: string
 }
 export const managers = () => db().users.filter((u) => u.role === "MANAGER" && u.status !== "LOCKED");
 export const notifyManagers = (type: Notification["type"], title: string, message: string, link?: string) => managers().forEach((m) => notify(m.id, type, title, message, link));
+export const notifyAdmins = (type: Notification["type"], title: string, message: string, link?: string) => db().users.filter((u) => u.role === "ADMIN" && u.status === "ACTIVE").forEach((a) => notify(a.id, type, title, message, link));
+/** Phân quyền Admin (chủ DN) / Quản lý: giá, nhân sự, tài sản, hoàn tiền thuộc Admin; vận hành hằng ngày thuộc Quản lý. */
+export function requireRole(me: User, role: User["role"], what: string) {
+  if (me.role !== role) throw new Error(`${what}: chỉ ${role === "ADMIN" ? "Admin (chủ doanh nghiệp)" : "Quản lý trung tâm"} được làm`);
+}
 
 export const lookups = {
   user: (id?: number) => byId(db().users, id),
