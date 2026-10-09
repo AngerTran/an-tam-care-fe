@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Design tokens lấy từ Figma "An Tâm Care" (file QvWs8Ya8umXc7CxJxGmp8X, Page 2 + Components).
  * Component chỉ dùng token, không dùng mã hex trực tiếp.
@@ -28,6 +30,13 @@
   --color-canvas: #f6f7fb;
   --color-page: #e9ecf4;
   --color-bubble: #f1f3f8;
+  --color-surface: #ffffff;
+  --color-blue-chip: #cdd7ec;
+  --color-switch-off: #c9d0df;
+  --color-red-note: #fdf2f2;
+  --color-red-note-line: #f3c9c9;
+  --color-green-note: #eef6f1;
+  --color-green-note-line: #cfe8da;
 
   /* tones dùng cho Badge / trạng thái */
   --color-green: #2e9e6a;
@@ -50,6 +59,55 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* Giao diện tối: chỉ đổi giá trị token, component giữ nguyên class. */
+html.dark {
+  --color-blue: #7fa3d6;
+  --color-orange-soft: #33241c;
+  --color-orange-line: #5a3a26;
+  --color-orange-ink: #f6b48a;
+
+  --color-ink: #e6eaf5;
+  --color-body: #cfd6e8;
+  --color-muted: #9aa6c0;
+  --color-subtle: #7c88a3;
+  --color-faint: #5e6a85;
+
+  --color-line: #2a3350;
+  --color-line-soft: #222a43;
+  --color-input-line: #34405f;
+  --color-canvas: #0f1526;
+  --color-page: #0b101e;
+  --color-bubble: #1e2740;
+  --color-surface: #182036;
+  --color-blue-chip: #24345a;
+  --color-switch-off: #3a4562;
+  --color-red-note: #2f1a1f;
+  --color-red-note-line: #5c2b31;
+  --color-green-note: #15291f;
+  --color-green-note-line: #2a5a40;
+
+  --color-green-soft: #173d2c;
+  --color-green-ink: #7fd6a8;
+  --color-amber-soft: #3d2a1c;
+  --color-amber-ink: #f3a774;
+  --color-red-soft: #3f2026;
+  --color-red-ink: #f19a9a;
+  --color-red-line: #6b3238;
+  --color-blue-soft: #1f2a45;
+  --color-teal-soft: #123a3a;
+  --color-teal-ink: #6fd6d1;
+  --color-purple-soft: #2f2448;
+  --color-purple-ink: #c4a8f2;
+}
+/* navy vừa là màu nền (menu, nút) vừa là màu tiêu đề: ở nền tối chỉ làm sáng chữ. */
+html.dark .text-navy,
+html.dark .hover\:text-navy:hover {
+  color: #dbe4ff;
+}
+html.dark ::placeholder {
+  color: var(--color-faint);
 }
 
 body {

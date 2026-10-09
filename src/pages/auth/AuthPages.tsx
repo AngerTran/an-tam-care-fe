@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Heart, KeyRound, Mail } from "lucide-react";
+import { Heart, House, KeyRound, Mail } from "lucide-react";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -8,6 +9,7 @@ import { auth } from "../../api";
 import { resetDb } from "../../mock/db";
 import { HOME, useAuth } from "../../auth/AuthContext";
 import { Button, ErrorText, Field, IconCircle, Tabs } from "../../components/ui";
+import { GROUPS, TIERS } from "../../domain/catalog";
 
 function Split({ children, family }: { children: ReactNode; family?: boolean }) {
   return (
@@ -16,17 +18,21 @@ function Split({ children, family }: { children: ReactNode; family?: boolean }) 
         <Heart size={44} className={family ? "text-white" : "text-orange"} strokeWidth={2.2} />
         <div className="text-[32px] leading-tight font-bold">{family ? "An Tâm Care cho gia đình" : "An Tâm Care"}</div>
         <p className="max-w-md text-[15px] leading-relaxed text-white/85">
-          {family ? "Một tài khoản, nhiều người thân. Xem gói dịch vụ, đăng ký và thanh toán online, theo dõi nhật ký chăm sóc mỗi ngày." : "Nền tảng quản lý trung tâm chăm sóc ban ngày cho người cao tuổi."}
+          {family ? "Một tài khoản, nhiều người thân. Đăng ký gói, thanh toán online, xem care log, ảnh và chỉ số sức khỏe của cụ mỗi ngày." : "Trung tâm chăm sóc ban ngày (bán trú) cho người cao tuổi · 7h–16h30, Thứ 2 – Thứ 7."}
         </p>
         {!family && (
           <ul className="space-y-1 text-[13px] text-white/75">
-            <li>• Quản lý điểm danh, nhật ký, thanh toán</li>
-            <li>• Gợi ý xếp ca bằng AI — quản lý duyệt</li>
-            <li>• Báo cáo cho từng trung tâm</li>
+            <li>• {TIERS.length} hạng gói · {GROUPS.length} nhóm đối tượng · thanh toán VNPay/MoMo</li>
+            <li>• Care log theo thời gian thực cho gia đình</li>
+            <li>• AI gợi ý xếp ca, thực đơn, cảnh báo sức khỏe — người duyệt quyết định</li>
           </ul>
         )}
       </aside>
-      <main className="flex flex-1 items-center justify-center bg-white p-6">
+      <main className="relative flex flex-1 items-center justify-center bg-surface p-6 pt-16">
+        <Link to="/" className="absolute top-5 left-6 flex items-center gap-1.5 rounded-[10px] border-[1.5px] border-input-line px-3 py-1.5 text-[12.5px] font-semibold text-navy transition hover:border-orange hover:text-orange">
+          <House size={15} /> Trang chủ
+        </Link>
+        <div className="absolute top-5 right-6"><ThemeToggle /></div>
         <div className="w-full max-w-[400px]">{children}</div>
       </main>
     </div>
@@ -35,7 +41,7 @@ function Split({ children, family }: { children: ReactNode; family?: boolean }) 
 
 const loginSchema = z.object({ email: z.string().email("Email không hợp lệ"), password: z.string().min(1, "Nhập mật khẩu") });
 const DEMO = [
-  ["Quản lý trung tâm", "mai.tran@hoasen.vn"], ["Nhân viên", "hanh.le@hoasen.vn"], ["Gia đình", "lan.nguyen@gmail.com"], ["Admin", "admin@antamcare.vn"],
+  ["Quản lý trung tâm", "mai.tran@antamcare.vn"], ["Điều dưỡng", "hanh.le@antamcare.vn"], ["Hộ lý", "bao.pham@antamcare.vn"], ["Gia đình", "lan.nguyen@gmail.com"], ["Admin (chủ DN)", "admin@antamcare.vn"],
 ] as const;
 
 export function LoginPage() {
@@ -67,7 +73,7 @@ export function LoginPage() {
         <Button type="submit" size="lg" block loading={formState.isSubmitting}>Đăng nhập</Button>
       </form>
       <div className="mt-4 text-center text-[12.5px] text-muted">
-        Gia đình chưa có tài khoản? <Link to="/dang-ky" className="font-semibold text-orange">Đăng ký</Link>
+        Gia đình chưa có tài khoản? <Link to="/dang-ky" className="font-semibold text-orange">Đăng ký</Link> · <Link to="/" className="font-semibold text-blue">Xem gói & giá</Link>
       </div>
       <div className="mt-6 rounded-xl bg-canvas p-3">
         <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-subtle">
@@ -76,7 +82,7 @@ export function LoginPage() {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {DEMO.map(([label, email]) => (
-            <button key={email} type="button" className="rounded-full bg-white px-3 py-1 text-[11.5px] font-semibold text-blue shadow-sm hover:text-orange" onClick={() => { setValue("email", email); setValue("password", "demo1234"); }}>
+            <button key={email} type="button" className="rounded-full bg-surface px-3 py-1 text-[11.5px] font-semibold text-blue shadow-sm hover:text-orange" onClick={() => { setValue("email", email); setValue("password", "demo1234"); }}>
               {label}
             </button>
           ))}
@@ -166,7 +172,7 @@ export function VerifyEmailPage() {
   };
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-[440px] rounded-2xl bg-white p-7 text-center shadow-sm">
+      <div className="w-full max-w-[440px] rounded-2xl bg-surface p-7 text-center shadow-sm">
         <IconCircle icon={Mail} tone="orange" size={72} />
         <h1 className="mt-3 text-[20px] font-bold text-navy">Xác thực email</h1>
         <p className="mb-4 text-[12.5px] text-muted">Nhập mã gồm 6 số vừa gửi tới {email}. (Demo: nhập 6 số bất kỳ)</p>
@@ -202,7 +208,7 @@ export function ForgotPasswordPage() {
   };
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-[460px] space-y-3 rounded-2xl bg-white p-7 text-center shadow-sm">
+      <div className="w-full max-w-[460px] space-y-3 rounded-2xl bg-surface p-7 text-center shadow-sm">
         <IconCircle icon={KeyRound} tone="orange" size={60} />
         <h1 className="text-[19px] font-bold text-navy">Đặt lại mật khẩu</h1>
         <p className="text-[12px] text-subtle">Dành cho mọi vai trò</p>

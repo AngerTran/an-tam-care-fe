@@ -1,40 +1,209 @@
+// Manager · daily operation: M1 dashboard, attendance & pickup, care log M2/M5, health alerts, incidents (M3).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, CalendarPlus, CircleCheck, MessageCircle, Phone, Plus, RefreshCw, Settings2, TriangleAlert, Undo2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlarmClock, BedDouble, BookOpen, CircleCheck, ClipboardList, Eye, HeartPulse, Lock, Phone, Pill, Siren, Wrench } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { manager, TODAY } from "../../api";
+import { manager, NOW, TODAY } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
-import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, Kpi, KV, Loading, Note, Photo, SelectField, Table, TextArea, Toggle, cn } from "../../components/ui";
-import { addDays, dm, dmy, weekday } from "../../lib/format";
-import { attBadge } from "./ManagerCore";
+import { AttBadge, ElderlyCell, GroupBadge, Progress, SearchBox, Stat, TierBadge, Timeline } from "../../components/domain";
+import { Badge, Button, Card, Chip, ErrorText, Field, Kpi, KV, Loading, Modal, Note, SelectField, Table, Tabs, TextArea, type Tone } from "../../components/ui";
+import { dm, dmy, hm, millions, weekday } from "../../lib/format";
+import type { CareLogEntry, HealthAlert, Incident } from "../../types/models";
 
-const weekOf = (start: string, n = 6) => Array.from({ length: n }, (_, i) => addDays(start, i));
-export const CUR_WEEK = "2026-09-28";
-export const NEXT_WEEK = "2026-10-05";
+export const LEVEL: Record<HealthAlert["level"], [Tone, string]> = { URGENT: ["red", "Khẩn cấp"], WARNING: ["orange", "Cảnh báo"], INFO: ["blue", "Thông tin"] };
+export const SOURCE: Record<HealthAlert["source"], string> = { THRESHOLD: "Vượt ngưỡng", AI: "AI phát hiện xu hướng", RULE: "Quy tắc hệ thống" };
+export const INC_TYPE: Record<Incident["type"], string> = { FALL: "Té ngã", HEALTH: "Sức khỏe", BEHAVIOR: "Hành vi", LATE_PICKUP: "Đón trễ", FACILITY: "Cơ sở vật chất", OTHER: "Khác" };
+export const SEVERITY: Record<Incident["severity"], [Tone, string]> = { HIGH: ["red", "Nặng"], MEDIUM: ["orange", "Vừa"], LOW: ["blue", "Nhẹ"] };
 
-// ------------------------------------------------------------------ CM-05 attendance
-export function AttendancePage() {
-  const me = useMe();
-  const { data, isLoading } = useQuery({ queryKey: ["m-att"], queryFn: () => manager.attendance(me) });
-  const rows = data ?? [];
-  const count = (s: string) => rows.filter((r) => r.a?.status === s).length;
+// ------------------------------------------------------------------ M1 Vận hành trong ngày
+export function ManagerDashboard() {
+  const { data, isLoading } = useQuery({ queryKey: ["m-dash"], queryFn: () => manager.dashboard() });
+  if (isLoading || !data) return <Page title="Vận hành trong ngày"><Loading /></Page>;
+  const c = data.counts;
+  const todo: [number, Tone, string, string][] = [
+    [data.todo.assessToday, "blue", "Lịch đánh giá / kiểm tra ngày đầu hôm nay (điều dưỡng duyệt)", "/manager/registrations"],
+    [data.todo.awaitingPay, "blue", "Chờ gia đình thanh toán", "/manager/registrations"],
+    [data.todo.absences, "purple", "Báo nghỉ chờ duyệt", "/manager/absences"],
+    [data.todo.pauses, "purple", "Bảo lưu / chấm dứt chờ duyệt", "/manager/pauses"],
+    [data.todo.leaves, "teal", "Xin nghỉ / đổi ca của nhân viên", "/manager/shifts?tab=leave"],
+    [data.todo.aiShifts, "teal", "Lịch ca AI gợi ý tuần sau", "/manager/shifts"],
+    [data.todo.aiMenus, "teal", "Thực đơn AI gợi ý tuần sau", "/manager/schedule"],
+    [data.todo.damage, "orange", "Báo hỏng mới", "/manager/facilities/damage"],
+    [data.todo.waitlist, "gray", "Gia đình trong danh sách chờ", "/manager/waitlist"],
+    [data.todo.visits, "blue", "Lịch tham quan mới", "/manager/registrations?tab=visits"],
+    [data.todo.handoffs, "purple", "Câu hỏi chatbot chuyển tới", "/manager/messages"],
+    [data.todo.report, "gray", "Báo cáo tuần chưa gửi Admin", "/manager/reports"],
+  ];
   return (
-    <Page title={`Điểm danh · ${dmy(TODAY)}`}>
+    <Page title={`Vận hành trong ngày · ${weekday(TODAY)}, ${dmy(TODAY)}`} sub={`Cập nhật lúc ${NOW} · giờ chăm sóc 07:00–16:30, đóng cửa 19:30`}>
       <div className="flex flex-wrap gap-3">
-        <Kpi label="Có mặt" value={count("PRESENT")} sub="đang ở trung tâm" color="green" />
-        <Kpi label="Chưa đến" value={count("EXPECTED")} sub="dự kiến hôm nay" color="orange" />
-        <Kpi label="Đã về" value={count("LEFT")} sub="đã check-out" />
-        <Kpi label="Báo nghỉ" value={count("ABSENT")} sub={<Link to="/manager/absences" className="text-orange">Xem yêu cầu báo nghỉ</Link>} color="gray" />
+        <Kpi label="Có mặt" value={`${c.present}/${c.expected}`} sub="cụ có lịch hôm nay" />
+        <Kpi label="Chưa đến" value={c.notArrived} sub={NOW >= "08:30" ? "quá 8:30, chưa báo nghỉ" : "trước 8:30"} color="orange" />
+        <Kpi label="Báo nghỉ" value={c.reported} sub="gia đình đã báo" color="gray" />
+        <Kpi label="Đã về" value={c.left} sub="đã giao người đón" color="green" />
+        <Kpi label="Chờ đón sau 16:30" value={c.waiting} sub="1 staff trực sảnh" color="teal" />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+        <div className="space-y-4">
+          <Card title={<span className="flex items-center gap-2"><HeartPulse size={16} className="text-red-ink" />Cảnh báo chưa xử lý ({data.alerts.length})</span>} actions={<Button size="sm" variant="outline" to="/manager/alerts">Tất cả cảnh báo</Button>}>
+            {data.alerts.length === 0 ? <div className="py-4 text-center text-[12.5px] text-subtle">Không có cảnh báo</div> : (
+              <ul className="divide-y divide-line-soft">
+                {data.alerts.map(({ alert: a, elderly, handler }) => (
+                  <li key={a.id} className="flex items-start gap-3 py-2.5">
+                    <Badge tone={LEVEL[a.level][0]}>{LEVEL[a.level][1]}</Badge>
+                    <div className="min-w-0 flex-1 text-[12.5px]">
+                      <div className="font-semibold text-navy">{elderly?.fullName} · {a.title}</div>
+                      <div className="text-muted">{a.detail}</div>
+                      <div className="text-[11px] text-subtle">{hm(a.at)} · {SOURCE[a.source]}{handler ? ` · ${handler.fullName} đang xử lý` : " · chưa ai nhận"}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card title={<span className="flex items-center gap-2"><AlarmClock size={16} className="text-orange" />Chưa đến sau 8:30</span>}>
+              {data.notArrived.length === 0 ? <div className="text-[12.5px] text-subtle">Tất cả đã đến</div> : data.notArrived.map(({ elderly, family }) => (
+                <div key={elderly.id} className="flex items-center justify-between gap-2 py-1.5">
+                  <ElderlyCell e={elderly} sub={`Gia đình: ${family?.fullName} · ${family?.phone}`} />
+                  <Button size="sm" variant="neutral" icon={Phone}>Gọi</Button>
+                </div>
+              ))}
+            </Card>
+            <Card title={<span className="flex items-center gap-2"><Pill size={16} className="text-purple-ink" />Thuốc quá giờ 30 phút</span>}>
+              {data.overdueMeds.length === 0 ? <div className="text-[12.5px] text-subtle">Không có</div> : data.overdueMeds.map(({ dose, plan, elderly }) => (
+                <div key={dose.id} className="flex items-center justify-between py-1.5 text-[12.5px]">
+                  <span><b className="text-navy">{elderly?.fullName}</b> · {plan?.name}</span>
+                  <Badge tone="red">{dose.time}</Badge>
+                </div>
+              ))}
+            </Card>
+            <Card title={<span className="flex items-center gap-2"><Siren size={16} className="text-red-ink" />Sự cố đang mở</span>} actions={<Link to="/manager/incidents" className="text-[11.5px] font-semibold text-orange">Xem</Link>}>
+              {data.incidents.length === 0 ? <div className="text-[12.5px] text-subtle">Không có</div> : data.incidents.map(({ incident: i, elderly }) => (
+                <div key={i.id} className="py-1.5 text-[12.5px]"><Badge tone={SEVERITY[i.severity][0]}>{INC_TYPE[i.type]}</Badge> <b className="text-navy">{elderly?.fullName}</b> · {i.description}</div>
+              ))}
+            </Card>
+            <Card title={<span className="flex items-center gap-2"><BookOpen size={16} className="text-green" />Care log chưa chốt</span>} actions={<Link to="/manager/care-logs" className="text-[11.5px] font-semibold text-orange">M5</Link>}>
+              <div className="text-[12.5px] text-muted">Hôm nay: {data.openLogs - data.openLogsPast.length} cụ đang mở (bình thường trong giờ chăm sóc).</div>
+              {data.openLogsPast.map((d) => <div key={`${d.elderlyId}${d.date}`} className="mt-1 text-[12.5px]"><Badge tone="red">Quá hạn</Badge> {d.elderly?.fullName} · {dm(d.date)} — cần chốt thay</div>)}
+            </Card>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <Card title="Việc chờ duyệt">
+            <ul className="space-y-2 text-[12.5px]">
+              {todo.filter(([n]) => n > 0).map(([n, tone, label, to]) => (
+                <li key={label}><Link to={to} className="flex items-center gap-2 hover:text-orange"><Badge tone={tone}>{n}</Badge>{label}</Link></li>
+              ))}
+            </ul>
+          </Card>
+          <Card title={<span className="flex items-center gap-2"><BedDouble size={16} />Sức chứa theo hạng</span>} actions={<Link to="/manager/facilities/beds" className="text-[11.5px] font-semibold text-orange">Giường</Link>}>
+            <div className="space-y-2.5">
+              {data.capacity.map((x) => (
+                <div key={x.tier}>
+                  <div className="flex items-center justify-between text-[12px]"><TierBadge tier={x.tier} /><span className="text-muted">{x.held}/{x.beds} chỗ{x.waiting ? ` · chờ ${x.waiting}` : ""}{x.todayDay ? ` · gói ngày hôm nay ${x.todayDay}` : ""}</span></div>
+                  <div className="mt-1"><Progress value={(x.held / Math.max(1, x.beds)) * 100} tone={x.full ? "red" : "green"} /></div>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card title={<span className="flex items-center gap-2"><Wrench size={16} />Cơ sở vật chất</span>}>
+            {data.lowEquip.map((e) => <div key={e.id} className="text-[12.5px]"><Badge tone="red">Dưới định mức</Badge> {e.name}: dùng được {e.total - e.broken - e.repairing}/{e.total} (tối thiểu {e.minStock})</div>)}
+            {data.closedRooms.map((r) => <div key={r.id} className="mt-1 text-[12.5px]"><Badge tone="orange">Tạm đóng</Badge> {r.name} — {r.closedReason}</div>)}
+          </Card>
+          <Card><Stat label="Đã thu tháng 10 (VNPay/MoMo)" value={millions(data.revenue)} tone="green" /></Card>
+        </div>
+      </div>
+    </Page>
+  );
+}
+
+// ------------------------------------------------------------------ Điểm danh & đón cụ
+export function AttendancePage() {
+  const [f, setF] = useState<"ALL" | "EXPECTED" | "PRESENT" | "LEFT" | "ABSENT">("ALL");
+  const { data, isLoading } = useQuery({ queryKey: ["m-att"], queryFn: () => manager.attendance() });
+  const rows = (data?.rows ?? []).filter((r) => {
+    const st = r.absence ? "ABSENT" : r.a?.status ?? "EXPECTED";
+    return f === "ALL" || st === f;
+  });
+  const s = data?.settings;
+  return (
+    <Page title={`Điểm danh & đón cụ · ${dmy(TODAY)}`} sub="Quản lý chỉ xem. Hộ lý và điều dưỡng check-in/out trên app (quét QR).">
+      <div className="flex flex-wrap gap-1.5">
+        {([["ALL", "Tất cả"], ["EXPECTED", "Chưa đến"], ["PRESENT", "Đang ở"], ["LEFT", "Đã về"], ["ABSENT", "Báo nghỉ / vắng"]] as const).map(([v, l]) => <Chip key={v} active={f === v} onClick={() => setF(v)}>{l}</Chip>)}
       </div>
       <Card>
         {isLoading ? <Loading /> : (
           <Table rows={rows} rowKey={(r) => r.elderly.id} columns={[
-            { key: "n", header: "Họ tên", render: (r) => <Link to={`/manager/members/${r.elderly.id}`} className="flex items-center gap-2 hover:text-orange"><Avatar name={r.elderly.fullName} size={26} />{r.elderly.fullName}</Link> },
-            { key: "i", header: "Giờ đến", render: (r) => r.a?.checkIn ?? "—" },
-            { key: "o", header: "Giờ về", render: (r) => r.a?.checkOut ?? "—" },
-            { key: "s", header: "Nhân viên phụ trách", render: (r) => r.staff?.fullName ?? "—" },
-            { key: "t", header: "Trạng thái", render: (r) => { const [t, l] = attBadge(r.a); return r.a?.status === "ABSENT" ? <Link to="/manager/absences"><Badge tone="purple">Báo nghỉ</Badge></Link> : <Badge tone={t}>{l}</Badge>; } },
+            { key: "e", header: "Cụ", render: (r) => <ElderlyCell e={r.elderly} /> },
+            { key: "t", header: "Hạng · nhóm", render: (r) => <span className="flex gap-1"><TierBadge tier={r.sub?.tier} /><GroupBadge group={r.elderly.targetGroup} /></span> },
+            { key: "s", header: "Trạng thái", render: (r) => <AttBadge a={r.a} absent={!!r.absence} /> },
+            { key: "i", header: "Đến", render: (r) => r.a?.checkIn ?? "—" },
+            { key: "o", header: "Về", render: (r) => r.a?.checkOut ?? "—" },
+            { key: "p", header: "Người đón", render: (r) => r.pickup ? `${r.pickup.fullName} (${r.pickup.relationship})` : "—" },
+            { key: "c", header: "Hộ lý", render: (r) => r.caregiver?.fullName },
+            { key: "n", header: "Ghi chú", render: (r) => r.a?.manualReason ? <Badge tone="gray">Check-in hộ: {r.a.manualReason}</Badge> : r.absence ? r.absence.reason : "" },
+          ]} />
+        )}
+      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="Quy trình chờ đón (mục 4.3)">
+          <ol className="space-y-2 text-[12.5px]">
+            <li className="flex gap-2"><Badge tone="green">{s?.careEnd}</Badge>Hết giờ chăm sóc. Hệ thống báo gia đình "cụ đã sẵn sàng về".</li>
+            <li className="flex gap-2"><Badge tone="orange">{s?.pickupReminders[1]}</Badge>Nhắc lần 1 cho gia đình chưa đón.</li>
+            <li className="flex gap-2"><Badge tone="orange">{s?.pickupReminders[2]}</Badge>Nhắc lần 2 và gọi người liên hệ chính.</li>
+            <li className="flex gap-2"><Badge tone="red">{s?.closingTime}</Badge>Đóng cửa. Staff gọi tất cả người được phép đón, ghi sự cố đón trễ, báo Quản lý, ở lại tới khi giao được cụ.</li>
+          </ol>
+          <Note className="mt-3">16:30–19:30 miễn phí, không có hoạt động và không ăn uống (BR-34).</Note>
+        </Card>
+        <Card title="Sự cố đón trễ gần đây">
+          {data?.lateIncidents.length ? data.lateIncidents.map(({ incident: i, elderly }) => (
+            <div key={i.id} className="border-b border-line-soft py-2 text-[12.5px] last:border-0">
+              <div className="font-semibold text-navy">{elderly?.fullName} · {dmy(i.at.slice(0, 10))} {hm(i.at)}</div>
+              <div className="text-muted">{i.description} {i.action}</div>
+            </div>
+          )) : <div className="text-[12.5px] text-subtle">Không có</div>}
+        </Card>
+      </div>
+    </Page>
+  );
+}
+
+// ------------------------------------------------------------------ M5 Care log trong ngày + M2 xem care log
+export function CareLogsPage() {
+  const me = useMe();
+  const qc = useQueryClient();
+  const nav = useNavigate();
+  const [date, setDate] = useState(TODAY);
+  const [q, setQ] = useState("");
+  const dates = useQuery({ queryKey: ["m-cl-dates"], queryFn: () => manager.careLogDates() });
+  const { data, isLoading } = useQuery({ queryKey: ["m-cl-day", date], queryFn: () => manager.careLogDay(date) });
+  const close = useMutation({ mutationFn: (id: number) => manager.closeOnBehalf(me, id, date), onSuccess: () => qc.invalidateQueries({ queryKey: ["m-cl-day"] }) });
+  const rows = (data ?? []).filter((r) => !q || `${r.elderly.fullName} ${r.caregiver?.fullName}`.toLowerCase().includes(q.toLowerCase()));
+  const open = rows.filter((r) => r.day.status === "OPEN").length;
+  return (
+    <Page title="Care log" sub="M5 · theo dõi trong ngày, chốt thay khi staff quên, sửa care log đã chốt (bắt buộc lý do)">
+      <div className="flex flex-wrap items-center gap-2">
+        <SelectField label="Ngày" value={date} onChange={(e) => setDate(e.target.value)} className="w-44">
+          {dates.data?.map((d) => <option key={d} value={d}>{weekday(d)} {dmy(d)}{d === TODAY ? " (hôm nay)" : ""}</option>)}
+        </SelectField>
+        <SearchBox value={q} onChange={setQ} placeholder="Lọc theo cụ, hộ lý…" />
+        <span className="ml-auto flex gap-2"><Badge tone="orange">{open} đang mở</Badge><Badge tone="green">{rows.length - open} đã chốt</Badge></span>
+      </div>
+      {date === TODAY && <Note>Hệ thống nhắc staff chốt lúc 18:00; 20:00 vẫn chưa chốt thì Quản lý chốt thay (CL-11). Hộ lý phụ trách chính chốt sau khi điều dưỡng ghi xong chỉ số và thuốc (CL-06).</Note>}
+      <Card>
+        {isLoading ? <Loading /> : (
+          <Table rows={rows} rowKey={(r) => r.elderly.id} onRowClick={(r) => nav(`/manager/care-logs/${r.elderly.id}/${date}`)} columns={[
+            { key: "e", header: "Cụ", render: (r) => <ElderlyCell e={r.elderly} sub={<span className="flex gap-1"><TierBadge tier={r.sub?.tier} /><GroupBadge group={r.elderly.targetGroup} /></span>} /> },
+            { key: "a", header: "Điểm danh", render: (r) => <AttBadge a={r.att} /> },
+            { key: "c", header: "Hộ lý phụ trách", render: (r) => r.caregiver?.fullName },
+            { key: "p", header: "Việc đã xong", render: (r) => <span className="block w-28"><span className="text-[11px] text-subtle">{r.done}/{r.total}</span><Progress value={(r.done / Math.max(1, r.total)) * 100} /></span> },
+            { key: "n", header: "Điều dưỡng", render: (r) => r.nursePending ? <Badge tone="orange">Còn {r.nursePending} việc</Badge> : <Badge tone="green">Xong</Badge> },
+            { key: "i", header: "Lưu ý", render: (r) => r.important.length ? <Badge tone="red">{r.important.length} lưu ý</Badge> : "—" },
+            { key: "ph", header: "Ảnh", render: (r) => r.photos },
+            { key: "s", header: "Trạng thái", render: (r) => r.day.status === "CLOSED" ? <span className="text-[11.5px]"><Badge tone="green">Đã chốt</Badge><span className="block text-subtle">{r.closer?.fullName}{r.day.closedByManager ? " (chốt thay)" : ""} · {hm(r.day.closedAt)}</span></span> : <Badge tone="orange">Đang mở</Badge> },
+            { key: "x", header: "", render: (r) => r.day.status === "OPEN" && (date < TODAY || r.att?.status === "LEFT") ? <Button size="sm" variant="outline" icon={Lock} loading={close.isPending && close.variables === r.elderly.id} onClick={(ev) => { ev.stopPropagation(); close.mutate(r.elderly.id); }}>Chốt thay</Button> : <Button size="sm" variant="neutral" icon={Eye}>Xem</Button> },
           ]} />
         )}
       </Card>
@@ -42,373 +211,171 @@ export function AttendancePage() {
   );
 }
 
-// ------------------------------------------------------------------ CM-21 absences
-export function AbsencesPage() {
+export function CareLogDetailPage() {
   const me = useMe();
   const qc = useQueryClient();
-  const [f, setF] = useState<"PENDING" | "APPROVED" | "REJECTED">("PENDING");
-  const [sel, setSel] = useState<number>();
-  const [refund, setRefund] = useState(true);
-  const { data, isLoading } = useQuery({ queryKey: ["m-absences"], queryFn: () => manager.absences(me) });
-  const rows = (data ?? []).filter((r) => r.absence.status === f);
-  const cur = rows.find((r) => r.absence.id === sel) ?? rows[0];
-  const review = useMutation({ mutationFn: (approve: boolean) => manager.reviewAbsence(me, cur!.absence.id, approve, refund && cur!.refund > 0), onSuccess: () => qc.invalidateQueries() });
+  const { id, date = TODAY } = useParams();
+  const eid = Number(id);
+  const [tab, setTab] = useState<"timeline" | "tasks" | "summary" | "edits">("timeline");
+  const [edit, setEdit] = useState<CareLogEntry>();
+  const [detail, setDetail] = useState("");
+  const [reason, setReason] = useState("");
+  const { data, isLoading } = useQuery({ queryKey: ["m-cl", eid, date], queryFn: () => manager.careLog(eid, date) });
+  const save = useMutation({ mutationFn: () => manager.editEntry(me, edit!.id, detail, reason), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-cl", eid, date] }); setEdit(undefined); } });
+  const close = useMutation({ mutationFn: () => manager.closeOnBehalf(me, eid, date), onSuccess: () => qc.invalidateQueries({ queryKey: ["m-cl", eid, date] }) });
+  if (isLoading || !data) return <Page title="Care log" back="/manager/care-logs"><Loading /></Page>;
+  const closed = data.day?.status === "CLOSED";
+  const by = (k: CareLogEntry["kind"]) => data.entries.filter((x) => x.kind === k);
   return (
-    <Page title="Báo nghỉ từ gia đình" back="/manager/attendance">
-      <div className="flex gap-1.5">
-        {(["PENDING", "APPROVED", "REJECTED"] as const).map((s) => <Chip key={s} active={f === s} onClick={() => setF(s)}>{{ PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Từ chối" }[s]} ({data?.filter((r) => r.absence.status === s).length ?? 0})</Chip>)}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+    <Page title={`Care log · ${data.elderly.fullName}`} sub={`${weekday(date)} ${dmy(date)}`} back="/manager/care-logs">
+      <Card>
+        <div className="flex flex-wrap items-center gap-3">
+          <ElderlyCell e={data.elderly} size={40} />
+          <TierBadge tier={data.sub?.tier} /><GroupBadge group={data.elderly.targetGroup} />
+          <span className="ml-auto flex items-center gap-2">
+            {closed ? <Badge tone="green">Đã chốt · {data.closer?.fullName}{data.day?.closedByManager ? " (chốt thay)" : ""} · {hm(data.day?.closedAt)}</Badge> : <Badge tone="orange">Đang mở</Badge>}
+            {!closed && <Button size="sm" variant="outline" icon={Lock} loading={close.isPending} onClick={() => close.mutate()}>Chốt thay</Button>}
+          </span>
+        </div>
+        {closed && <Note className="mt-3">Care log đã chốt. Bấm "Sửa" ở từng mục để sửa — bắt buộc ghi lý do, hệ thống lưu ai sửa, lúc nào, từ gì thành gì (CL-06).</Note>}
+      </Card>
+      <Tabs value={tab} onChange={setTab} items={[{ value: "timeline", label: "Dòng thời gian" }, { value: "tasks", label: `Việc trong ngày (${data.tasks.length})` }, { value: "summary", label: "Tổng kết ngày" }, { value: "edits", label: `Lịch sử sửa (${data.edits.length})` }]} />
+      {tab === "timeline" && <Card><Timeline entries={data.entries} showStaff onEdit={closed ? (x) => { setEdit(x); setDetail(x.detail); setReason(""); } : undefined} /></Card>}
+      {tab === "tasks" && (
         <Card>
-          {isLoading ? <Loading /> : (
-            <Table rows={rows} rowKey={(r) => r.absence.id} onRowClick={(r) => setSel(r.absence.id)} columns={[
-              { key: "n", header: "Người cao tuổi", render: (r) => <span className={cn("flex items-center gap-2", cur?.absence.id === r.absence.id && "font-semibold text-orange")}><Avatar name={r.elderly.fullName} size={24} />{r.elderly.fullName}</span> },
-              { key: "d", header: "Ngày nghỉ", render: (r) => r.absence.fromDate === r.absence.toDate ? dm(r.absence.fromDate) : `${dm(r.absence.fromDate)} – ${dm(r.absence.toDate)}` },
-              { key: "r", header: "Lý do", render: (r) => r.absence.reason },
-              { key: "s", header: "Trạng thái", render: (r) => <Badge tone={{ PENDING: "orange", APPROVED: "green", REJECTED: "red" }[r.absence.status] as "orange"}>{{ PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Từ chối" }[r.absence.status]}</Badge> },
-            ]} />
-          )}
+          <Table rows={data.tasks} rowKey={(t) => t.id} columns={[
+            { key: "t", header: "Giờ", render: (t) => t.time },
+            { key: "n", header: "Việc", render: (t) => t.title },
+            { key: "o", header: "Người làm", render: (t) => t.owner === "NURSE" ? <Badge tone="teal">Điều dưỡng</Badge> : <Badge tone="blue">Hộ lý</Badge> },
+            { key: "s", header: "Trạng thái", render: (t) => t.status === "DONE" ? <Badge tone="green">Đã làm {t.doneAt}</Badge> : t.status === "SKIPPED" ? <Badge tone="orange">Bỏ qua</Badge> : <Badge tone="gray">Chưa làm</Badge> },
+            { key: "r", header: "Lý do / người ghi", render: (t) => <span className="text-[11.5px] text-muted">{t.skipReason ?? t.by?.fullName ?? ""}</span> },
+          ]} />
         </Card>
-        {cur && (
-          <Card title="Chi tiết yêu cầu" className="h-fit">
-            <KV label="Người gửi" w={95}>{cur.requester?.fullName}</KV>
-            <KV label="Người cao tuổi" w={95}>{cur.elderly.fullName}</KV>
-            <KV label="Ngày nghỉ" w={95}>{dmy(cur.absence.fromDate)} – {dmy(cur.absence.toDate)} ({cur.days} ngày)</KV>
-            <KV label="Lý do" w={95}>{cur.absence.note || cur.absence.reason}</KV>
-            {cur.pkg && <div className="mt-2 border-t border-line-soft pt-2 text-[12px] font-semibold text-navy">Theo chính sách gói {cur.pkg.name}</div>}
-            <KV label="Hoàn phí" w={95}>{cur.refund ? `250.000đ × ${cur.days} ngày = ${cur.refund.toLocaleString("vi-VN")}đ` : "Gói theo ngày: không thu phí ngày nghỉ"}</KV>
-            {cur.absence.status === "PENDING" && (
-              <>
-                {cur.refund > 0 && <div className="mt-2"><Toggle checked={refund} onChange={setRefund} label="Tạo yêu cầu hoàn tiền" sub="Chuyển sang Thanh toán & hoàn tiền" /></div>}
-                <div className="mt-3 flex gap-2">
-                  <Button variant="success" icon={CircleCheck} loading={review.isPending} onClick={() => review.mutate(true)}>Duyệt</Button>
-                  <Button variant="danger" onClick={() => review.mutate(false)}>Từ chối</Button>
-                </div>
-              </>
-            )}
-          </Card>
-        )}
-      </div>
+      )}
+      {tab === "summary" && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card title="Ăn uống">{by("MEAL").map((x) => <KV key={x.id} label={`${x.time} ${x.title}`} w={140}>{x.detail}</KV>)}</Card>
+          <Card title="Hoạt động">{by("ACTIVITY").map((x) => <KV key={x.id} label={`${x.time} ${x.title}`} w={180}>{x.detail}</KV>)}</Card>
+          <Card title="Chỉ số">{data.metrics.map((m) => <KV key={m.id} label={hm(m.at)} w={60}>{[m.sys && `HA ${m.sys}/${m.dia}`, m.pulse && `mạch ${m.pulse}`, m.temp && `${m.temp}°C`, m.spo2 && `SpO₂ ${m.spo2}%`, m.glucose && `ĐH ${m.glucose}`].filter(Boolean).join(" · ")}</KV>)}</Card>
+          <Card title="Thuốc">{data.doses.map((m) => <KV key={m.id} label={`${m.time} ${m.plan?.name}`} w={200}><Badge tone={m.status === "GIVEN" ? "green" : m.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: "Đã uống", REFUSED: "Từ chối", MISSING: "Chưa có thuốc", PENDING: "Chưa đến giờ" })[m.status]}</Badge> {m.reason}</KV>)}</Card>
+          <Card title="Tâm trạng & lưu ý" className="md:col-span-2">{[...by("MOOD"), ...data.entries.filter((x) => x.important && x.kind !== "MOOD")].map((x) => <KV key={x.id} label={`${x.time} ${x.title}`} w={180}>{x.detail}</KV>)}</Card>
+        </div>
+      )}
+      {tab === "edits" && (
+        <Card>
+          <Table rows={data.edits} rowKey={(x) => x.id} empty="Chưa có lần sửa nào" columns={[
+            { key: "w", header: "Lúc", render: (x) => `${dmy(x.editedAt.slice(0, 10))} ${hm(x.editedAt)}` },
+            { key: "b", header: "Người sửa", render: (x) => x.editor?.fullName },
+            { key: "f", header: "Từ", render: (x) => <span className="text-red-ink line-through">{x.before}</span> },
+            { key: "t", header: "Thành", render: (x) => <span className="text-green-ink">{x.after}</span> },
+            { key: "r", header: "Lý do", render: (x) => x.reason },
+          ]} />
+        </Card>
+      )}
+      <Modal open={!!edit} onClose={() => setEdit(undefined)} title={`Sửa: ${edit?.title} (${edit?.time})`} width={480} footer={<><Button variant="neutral" onClick={() => setEdit(undefined)}>Hủy</Button><Button loading={save.isPending} onClick={() => save.mutate()}>Lưu & ghi lịch sử</Button></>}>
+        <div className="space-y-2">
+          <Field label="Giá trị cũ" value={edit?.detail ?? ""} readOnly />
+          <TextArea label="Giá trị mới" value={detail} onChange={(e) => setDetail(e.target.value)} />
+          <TextArea label="Lý do sửa (bắt buộc)" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <ErrorText error={save.error} />
+        </div>
+      </Modal>
     </Page>
   );
 }
 
-// ------------------------------------------------------------------ CM-06 schedule & menu
-export function SchedulePage() {
+// ------------------------------------------------------------------ Cảnh báo sức khỏe
+export function AlertsPage() {
   const me = useMe();
-  const dates = weekOf(CUR_WEEK);
-  const [day, setDay] = useState(TODAY);
-  const { data, isLoading } = useQuery({ queryKey: ["m-schedule", CUR_WEEK], queryFn: () => manager.schedule(me, dates) });
-  const times = [...new Set((data?.items ?? []).map((i) => i.startTime))].sort();
-  const menu = data?.menus.find((m) => m.date === day);
-  const tone = (t: string) => (t < "10:00" ? "bg-green-soft text-green-ink" : t < "12:00" ? "bg-amber-soft text-amber-ink" : "bg-[#dbe5f5] text-blue");
+  const qc = useQueryClient();
+  const [f, setF] = useState<"OPEN" | "CLOSED" | "ALL">("OPEN");
+  const [cur, setCur] = useState<number>();
+  const [result, setResult] = useState("");
+  const { data, isLoading } = useQuery({ queryKey: ["m-alerts"], queryFn: () => manager.alerts() });
+  const handle = useMutation({ mutationFn: (s: "IN_PROGRESS" | "CLOSED") => manager.handleAlert(me, cur!, s, result), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-alerts"] }); setCur(undefined); } });
+  const rows = (data ?? []).filter((r) => f === "ALL" || (f === "OPEN" ? r.alert.status !== "CLOSED" : r.alert.status === "CLOSED"));
+  const sel = data?.find((r) => r.alert.id === cur);
   return (
-    <Page title={`Lịch hoạt động & thực đơn · Tuần ${dm(dates[0])} – ${dm(dates[5])}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <Chip active>Tuần</Chip>
-        <Button className="ml-auto" icon={Plus} to="/manager/schedule/new">Thêm hoạt động</Button>
-        <Button variant="outline" icon={CalendarPlus} to={`/manager/schedule/new?menu=${day}`}>Sửa thực đơn</Button>
-      </div>
+    <Page title="Cảnh báo sức khỏe" sub="Từ ngưỡng chỉ số, AI phát hiện xu hướng, và quy tắc CL-07. Mức khẩn cấp luôn gửi gia đình (CL-08).">
+      <div className="flex gap-1.5">{([["OPEN", "Chưa đóng"], ["CLOSED", "Đã đóng"], ["ALL", "Tất cả"]] as const).map(([v, l]) => <Chip key={v} active={f === v} onClick={() => setF(v)}>{l}</Chip>)}</div>
       <Card>
         {isLoading ? <Loading /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-[11.5px]">
-              <thead>
-                <tr><th className="w-14" />{dates.map((d) => <th key={d} className={cn("px-1 py-2 text-[10.5px] font-semibold uppercase", d === day ? "text-orange" : "text-subtle")}><button onClick={() => setDay(d)}>{weekday(d)} {dm(d)}</button></th>)}</tr>
-              </thead>
-              <tbody>
-                {times.map((t) => (
-                  <tr key={t}>
-                    <td className="py-1 text-[10.5px] text-subtle">{t}</td>
-                    {dates.map((d) => {
-                      const it = data!.items.filter((i) => i.date === d && i.startTime === t);
-                      return <td key={d} className="p-1">{it.map((i) => <div key={i.id} className={cn("rounded-lg px-2 py-1 text-center font-semibold", tone(t))} title={`${i.location} · ${i.staff?.fullName ?? ""}`}>{i.service.name}</div>)}</td>;
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table rows={rows} rowKey={(r) => r.alert.id} onRowClick={(r) => { setCur(r.alert.id); setResult(r.alert.result ?? ""); }} columns={[
+            { key: "l", header: "Mức", render: (r) => <Badge tone={LEVEL[r.alert.level][0]}>{LEVEL[r.alert.level][1]}</Badge> },
+            { key: "t", header: "Lúc", render: (r) => `${dm(r.alert.at.slice(0, 10))} ${hm(r.alert.at)}` },
+            { key: "e", header: "Cụ", render: (r) => <ElderlyCell e={r.elderly} sub={<GroupBadge group={r.elderly.targetGroup} />} /> },
+            { key: "n", header: "Cảnh báo", render: (r) => <span><b className="text-navy">{r.alert.title}</b><span className="block text-[11.5px] text-muted">{r.alert.detail}</span></span> },
+            { key: "s", header: "Nguồn", render: (r) => <Badge tone={r.alert.source === "AI" ? "teal" : "gray"}>{SOURCE[r.alert.source]}</Badge> },
+            { key: "h", header: "Xử lý", render: (r) => r.alert.status === "CLOSED" ? <Badge tone="green">Đã đóng</Badge> : r.alert.status === "IN_PROGRESS" ? <Badge tone="orange">{r.handler?.fullName}</Badge> : <Badge tone="red">Chưa nhận</Badge> },
+          ]} />
         )}
       </Card>
-      <Card title={`Thực đơn · ${weekday(day)} ${dm(day)}`} actions={<span className="text-[11px] text-subtle">Ghi chú ăn kiêng gắn với hồ sơ từng người</span>}>
-        {menu ? (
-          <div className="grid gap-2 sm:grid-cols-3">
-            {([["Bữa sáng", menu.breakfast], ["Bữa trưa", menu.lunch], ["Bữa xế", menu.snack]] as const).map(([l, v]) => <div key={l} className="rounded-xl bg-canvas p-3"><div className="text-[12.5px] font-bold text-navy">{l}</div><div className="text-[12px] text-muted">{v}</div></div>)}
-          </div>
-        ) : <div className="text-[12.5px] text-subtle">Chưa có thực đơn. <Link className="text-orange" to={`/manager/schedule/new?menu=${day}`}>Thêm thực đơn</Link></div>}
-        {menu?.note && <Note className="mt-3">{menu.note}</Note>}
-      </Card>
-    </Page>
-  );
-}
-
-// ------------------------------------------------------------------ CM-18 add activity + menu
-export function ScheduleFormPage() {
-  const me = useMe();
-  const qc = useQueryClient();
-  const nav = useNavigate();
-  const [sp] = useSearchParams();
-  const menuDate = sp.get("menu") ?? "2026-10-08";
-  const services = useQuery({ queryKey: ["m-services"], queryFn: () => manager.services(me) });
-  const staffQ = useQuery({ queryKey: ["m-staff"], queryFn: () => manager.staff(me) });
-  const sched = useQuery({ queryKey: ["m-schedule-menu", menuDate], queryFn: () => manager.schedule(me, [menuDate]) });
-  const [a, setA] = useState({ serviceId: 2, date: "2026-10-08", startTime: "10:00", endTime: "11:00", location: "Phòng sinh hoạt", staffId: 7, repeat: "WEEKLY" });
-  const existing = sched.data?.menus[0];
-  const [m, setM] = useState<Record<string, string>>({});
-  const mv = (k: "breakfast" | "lunch" | "snack" | "dinner" | "note") => m[k] ?? existing?.[k] ?? "";
-  const act = useMutation({ mutationFn: () => manager.createSchedule(me, { serviceId: a.serviceId, date: a.date, startTime: a.startTime, endTime: a.endTime, location: a.location, staffId: a.staffId, repeatWeeks: a.repeat === "WEEKLY" ? 4 : 1 }), onSuccess: () => { qc.invalidateQueries(); nav("/manager/schedule"); } });
-  const menu = useMutation({ mutationFn: () => manager.saveMenu(me, { date: menuDate, breakfast: mv("breakfast"), lunch: mv("lunch"), snack: mv("snack"), dinner: mv("dinner"), note: mv("note") }), onSuccess: () => { qc.invalidateQueries(); nav("/manager/schedule"); } });
-  const pkgList = useQuery({ queryKey: ["m-packages"], queryFn: () => manager.packages(me) });
-  return (
-    <Page title="Thêm hoạt động & thực đơn" back="/manager/schedule">
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <Card title="Hoạt động">
-          <div className="grid gap-2 sm:grid-cols-3">
-            <SelectField label="Dịch vụ / hoạt động" className="sm:col-span-3" value={a.serviceId} onChange={(e) => setA({ ...a, serviceId: Number(e.target.value) })}>
-              {services.data?.filter((s) => s.service.type === "ACTIVITY" && s.service.status === "ACTIVE").map((s) => <option key={s.service.id} value={s.service.id}>{s.service.name}</option>)}
-            </SelectField>
-            <Field label="Ngày" type="date" value={a.date} onChange={(e) => setA({ ...a, date: e.target.value })} />
-            <Field label="Bắt đầu" type="time" value={a.startTime} onChange={(e) => setA({ ...a, startTime: e.target.value })} />
-            <Field label="Kết thúc" type="time" value={a.endTime} onChange={(e) => setA({ ...a, endTime: e.target.value })} />
-            <Field label="Địa điểm" className="sm:col-span-2" value={a.location} onChange={(e) => setA({ ...a, location: e.target.value })} />
-            <SelectField label="Nhân viên phụ trách" value={a.staffId} onChange={(e) => setA({ ...a, staffId: Number(e.target.value) })}>
-              {staffQ.data?.map((s) => <option key={s.user.id} value={s.user.id}>{s.user.fullName}</option>)}
-            </SelectField>
-          </div>
-          <div className="mt-3 text-[12px] font-semibold text-navy">Lặp lại</div>
-          <div className="mt-1.5 flex gap-1.5">{([["ONCE", "Không"], ["WEEKLY", "Hằng tuần (4 tuần)"]] as const).map(([v, l]) => <Chip key={v} active={a.repeat === v} onClick={() => setA({ ...a, repeat: v })}>{l}</Chip>)}</div>
-          <div className="mt-3 text-[12px] font-semibold text-navy">Có trong gói</div>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">{pkgList.data?.map((p) => <Badge key={p.pkg.id} tone={p.services.some((s) => s.id === a.serviceId) ? "green" : "gray"}>{p.pkg.name}</Badge>)}</div>
-          <ErrorText error={act.error} />
-          <div className="mt-4 flex gap-2"><Button icon={CircleCheck} loading={act.isPending} onClick={() => act.mutate()}>Lưu hoạt động</Button><Button variant="neutral" onClick={() => nav(-1)}>Huỷ</Button></div>
-        </Card>
-        <Card title={`Thực đơn · ${dmy(menuDate)}`} className="h-fit">
+      <Modal open={!!sel} onClose={() => setCur(undefined)} title={sel?.alert.title} width={480} footer={sel?.alert.status !== "CLOSED" && <><Button variant="neutral" loading={handle.isPending} onClick={() => handle.mutate("IN_PROGRESS")}>Nhận xử lý</Button><Button variant="success" icon={CircleCheck} loading={handle.isPending} onClick={() => handle.mutate("CLOSED")}>Đóng cảnh báo</Button></>}>
+        {sel && (
           <div className="space-y-2">
-            {([["breakfast", "Bữa sáng"], ["lunch", "Bữa trưa"], ["snack", "Bữa xế"], ["dinner", "Bữa tối"], ["note", "Ghi chú"]] as const).map(([k, l]) => <Field key={k} label={l} value={mv(k)} placeholder={k === "dinner" ? "Chưa có" : ""} onChange={(e) => setM({ ...m, [k]: e.target.value })} />)}
-            <Note>Gia đình thấy lịch và thực đơn ngay sau khi lưu.</Note>
-            <Button loading={menu.isPending} onClick={() => menu.mutate()}>Lưu thực đơn</Button>
+            <KV label="Cụ">{sel.elderly.fullName}</KV>
+            <KV label="Chi tiết">{sel.alert.detail}</KV>
+            <KV label="Nguồn">{SOURCE[sel.alert.source]}</KV>
+            {sel.alert.source === "AI" && <Note>AI chỉ gợi ý. Điều dưỡng/Quản lý quyết định cách xử lý (BR-50).</Note>}
+            <TextArea label="Kết quả xử lý" value={result} onChange={(e) => setResult(e.target.value)} readOnly={sel.alert.status === "CLOSED"} />
+            <Button size="sm" variant="outline" icon={Siren} to={`/manager/incidents?new=${sel.elderly.id}`}>Tạo sự cố / chuyển viện</Button>
           </div>
-        </Card>
-      </div>
-    </Page>
-  );
-}
-
-// ------------------------------------------------------------------ CM-07 care logs needing attention
-export function CareLogsPage() {
-  const me = useMe();
-  const qc = useQueryClient();
-  const [f, setF] = useState<"NEW" | "IN_PROGRESS" | "RESOLVED">("NEW");
-  const [sel, setSel] = useState<number>();
-  const [noteText, setNote] = useState<string>();
-  const { data, isLoading } = useQuery({ queryKey: ["m-carelogs"], queryFn: () => manager.careLogs(me) });
-  const rows = (data ?? []).filter((r) => r.log.issueStatus === f);
-  const cur = rows.find((r) => r.log.id === sel) ?? rows[0];
-  const upd = useMutation({ mutationFn: (s: "IN_PROGRESS" | "RESOLVED") => manager.updateIssue(me, cur!.log.id, s, noteText ?? cur!.log.managerNote ?? ""), onSuccess: () => { setNote(undefined); qc.invalidateQueries(); } });
-  return (
-    <Page title="Nhật ký chăm sóc · mục cần lưu ý">
-      <div className="flex gap-1.5">
-        {(["NEW", "IN_PROGRESS", "RESOLVED"] as const).map((s) => <Chip key={s} active={f === s} onClick={() => setF(s)}>{{ NEW: "Cần xử lý", IN_PROGRESS: "Đang theo dõi", RESOLVED: "Đã xử lý" }[s]} ({data?.filter((r) => r.log.issueStatus === s).length ?? 0})</Chip>)}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
-        <Card>
-          {isLoading ? <Loading /> : rows.length === 0 ? <EmptyState icon={CircleCheck} title="Không có mục nào cần xử lý" desc="Nhật ký có lưu ý do nhân viên đánh dấu sẽ hiện ở đây." /> : (
-            <Table rows={rows} rowKey={(r) => r.log.id} onRowClick={(r) => { setSel(r.log.id); setNote(undefined); }} columns={[
-              { key: "n", header: "Người cao tuổi", render: (r) => <span className={cn("flex items-center gap-2", cur?.log.id === r.log.id && "font-semibold text-orange")}><Avatar name={r.elderly.fullName} size={24} />{r.elderly.fullName}</span> },
-              { key: "d", header: "Ngày", render: (r) => dm(r.log.date) },
-              { key: "i", header: "Lưu ý", render: (r) => r.log.issueNote },
-              { key: "s", header: "Nhân viên", render: (r) => r.staff?.fullName },
-              { key: "t", header: "Mức độ", render: (r) => <Badge tone={r.log.issueSeverity === "HIGH" ? "red" : "orange"}>{r.log.issueSeverity === "HIGH" ? "Cao" : "Thấp"}</Badge> },
-            ]} />
-          )}
-        </Card>
-        {cur && (
-          <Card title={`${cur.elderly.fullName} · ${dm(cur.log.date)}`} className="h-fit">
-            {cur.photos.length > 0 && <div className="mb-2 grid grid-cols-3 gap-1.5">{cur.photos.map((p) => <Photo key={p.id} tone={p.tone} />)}</div>}
-            <KV label="Huyết áp" w={80}>{cur.log.bloodPressure ?? "—"}</KV>
-            <div className="mt-1 rounded-[10px] border-[1.5px] border-input-line px-3 py-2 text-[12.5px]"><div className="text-[10px] text-subtle">Ghi chú của nhân viên</div>{cur.log.note}</div>
-            <TextArea className="mt-2" label="Hướng xử lý của quản lý" value={noteText ?? cur.log.managerNote ?? ""} onChange={(e) => setNote(e.target.value)} />
-            <div className="mt-3 flex flex-col gap-2">
-              <Button icon={Phone} to={`/manager/messages?to=${cur.elderly.familyUserId}`}>Liên hệ gia đình</Button>
-              {cur.log.issueStatus === "NEW" && <Button variant="outline" loading={upd.isPending} onClick={() => upd.mutate("IN_PROGRESS")}>Đánh dấu đang theo dõi</Button>}
-              {cur.log.issueStatus !== "RESOLVED" && <Button variant="neutral" loading={upd.isPending} onClick={() => upd.mutate("RESOLVED")}>Đánh dấu đã xử lý</Button>}
-            </div>
-          </Card>
         )}
-      </div>
+      </Modal>
     </Page>
   );
 }
 
-// ------------------------------------------------------------------ CM-08 AI shift roster
-export function ShiftsPage() {
+// ------------------------------------------------------------------ M3 Sự cố & chuyển viện
+export function IncidentsPage() {
   const me = useMe();
   const qc = useQueryClient();
-  const nav = useNavigate();
-  const dates = weekOf(NEXT_WEEK);
-  const { data, isLoading } = useQuery({ queryKey: ["m-shifts", NEXT_WEEK], queryFn: () => manager.shiftWeek(me, dates) });
-  const gen = useMutation({ mutationFn: () => manager.generateAi(me, dates), onSuccess: () => qc.invalidateQueries({ queryKey: ["m-shifts"] }) });
-  const all = useMutation({ mutationFn: () => manager.approveAll(me, dates), onSuccess: () => qc.invalidateQueries() });
-  const stats = useMemo(() => {
-    if (!data) return null;
-    const short = data.shifts.filter((s) => data.suggestions.filter((x) => x.shiftId === s.id && x.status !== "REJECTED" && !x.conflict).length < s.requiredStaff);
-    return { pending: data.suggestions.filter((s) => s.status === "PENDING").length, approved: data.suggestions.filter((s) => s.status === "APPROVED").length, conflicts: data.suggestions.filter((s) => s.conflict && s.status === "PENDING").length, short };
-  }, [data]);
+  const [sp] = useSearchParams();
+  const [f, setF] = useState<"ALL" | "OPEN" | "HIGH" | "TRANSFER">("ALL");
+  const [cur, setCur] = useState<number>();
+  const [action, setAction] = useState("");
+  const { data, isLoading } = useQuery({ queryKey: ["m-inc"], queryFn: () => manager.incidents() });
+  const upd = useMutation({ mutationFn: (status: "OPEN" | "RESOLVED") => manager.updateIncident(me, cur!, { status, action }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-inc"] }); setCur(undefined); } });
+  const rows = (data ?? []).filter((r) => f === "ALL" || (f === "OPEN" ? r.incident.status === "OPEN" : f === "HIGH" ? r.incident.severity === "HIGH" : !!r.incident.transfer));
+  const sel = data?.find((r) => r.incident.id === cur);
+  const month = (data ?? []).filter((r) => r.incident.at >= "2026-09-10");
   return (
-    <Page title={`Xếp ca · Tuần ${dm(dates[0])} – ${dm(dates[5])}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="teal"><Bot size={12} /> AI đã gợi ý {data?.suggestions.length ?? 0} ca</Badge>
-        <span className="text-[12px] text-muted">dựa trên dự báo có mặt, lịch rảnh và nhu cầu chăm sóc</span>
-        <Button className="ml-auto" variant="outline" icon={Settings2} to="/manager/shifts/setup">Thiết lập ca</Button>
-        <Button variant="ai" icon={RefreshCw} loading={gen.isPending} onClick={() => gen.mutate()}>Gợi ý lại</Button>
+    <Page title="Sự cố & chuyển viện" sub="Điều dưỡng ghi sự cố trên app (hộ lý báo nhanh). Quản lý theo dõi, xử lý sự cố nặng và xem báo cáo tháng.">
+      {sp.get("new") && <Note>Sự cố được tạo bởi điều dưỡng trên app staff (S9). Quản lý cập nhật xử lý tại đây.</Note>}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Stat label="30 ngày qua" value={month.length} />
+        <Stat label="Té ngã" value={month.filter((r) => r.incident.type === "FALL").length} tone="orange" />
+        <Stat label="Chuyển viện" value={month.filter((r) => r.incident.transfer).length} tone="red" />
+        <Stat label="Đón trễ" value={month.filter((r) => r.incident.type === "LATE_PICKUP").length} tone="purple" />
       </div>
-      <div className="grid gap-4 xl:grid-cols-[1fr_260px]">
-        <Card>
-          {isLoading || !data ? <Loading /> : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-[11.5px]">
-                <thead><tr><th className="px-2 py-2 text-left text-[10.5px] font-semibold text-subtle uppercase">Nhân viên</th>{dates.map((d) => <th key={d} className="px-1 py-2 text-[10.5px] font-semibold text-subtle uppercase">{weekday(d)} {dm(d)}</th>)}</tr></thead>
-                <tbody>
-                  {data.staff.map((s) => (
-                    <tr key={s.id} className="border-t border-line-soft">
-                      <td className="px-2 py-2"><span className="flex items-center gap-2"><Avatar name={s.fullName} size={24} />{s.fullName}</span></td>
-                      {dates.map((d) => {
-                        const items = data.suggestions.filter((x) => x.staffId === s.id && data.shifts.find((sh) => sh.id === x.shiftId)?.date === d && x.status !== "REJECTED");
-                        return (
-                          <td key={d} className="p-1 text-center">
-                            {items.length === 0 ? <span className="text-faint">—</span> : items.map((x) => {
-                              const sh = data.shifts.find((y) => y.id === x.shiftId)!;
-                              return (
-                                <button key={x.id} onClick={() => nav(`/manager/shifts/${sh.id}`)} title={x.reason} className={cn("w-full rounded-lg px-1.5 py-1 font-semibold", x.conflict ? "border-[1.5px] border-[#e05a5a] bg-[#fdeaea] text-red-ink" : x.status === "APPROVED" ? "bg-[#dbe5f5] text-blue" : "border-[1.5px] border-dashed border-teal bg-[#e6f6f5] text-teal-ink")}>
-                                  {sh.label}{x.conflict && " ⚠"}
-                                </button>
-                              );
-                            })}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                <span className="rounded-md border-[1.5px] border-dashed border-teal bg-[#e6f6f5] px-2 py-0.5 font-semibold text-teal-ink">AI đề xuất</span>
-                <span className="rounded-md bg-[#dbe5f5] px-2 py-0.5 font-semibold text-blue">Đã duyệt</span>
-                <span className="rounded-md border-[1.5px] border-[#e05a5a] bg-[#fdeaea] px-2 py-0.5 font-semibold text-red-ink">Xung đột</span>
-              </div>
-            </div>
-          )}
-        </Card>
-        <Card title="Tóm tắt đề xuất" className="h-fit">
-          {stats && (
-            <ul className="space-y-1 text-[12px] text-muted">
-              <li>• {stats.pending} ca chờ duyệt · {stats.approved} ca đã duyệt</li>
-              <li>• {stats.conflicts} xung đột cần chỉnh</li>
-              <li>• {stats.short.length ? `Thiếu người ${stats.short.length} ca (vd. ${stats.short[0].label.toLowerCase()} ${weekday(stats.short[0].date)})` : "Đủ người cho mọi ca"}</li>
-              <li>• Không ai quá 5 ca/tuần</li>
-            </ul>
-          )}
-          <Note className="mt-3">AI chỉ gợi ý. Quản lý duyệt thì ca mới có hiệu lực và được gửi cho nhân viên.</Note>
-          <Button className="mt-3" variant="success" icon={CircleCheck} block loading={all.isPending} onClick={() => all.mutate()}>Duyệt & gửi nhân viên</Button>
-          <p className="mt-2 text-[11px] text-subtle">Ca xung đột không được duyệt tự động — bấm vào ô để xem chi tiết.</p>
-        </Card>
-      </div>
-    </Page>
-  );
-}
-
-// ------------------------------------------------------------------ CM-19 shift setup
-export function ShiftSetupPage() {
-  const me = useMe();
-  const qc = useQueryClient();
-  const nav = useNavigate();
-  const dates = weekOf(NEXT_WEEK);
-  const { data } = useQuery({ queryKey: ["m-shifts", NEXT_WEEK], queryFn: () => manager.shiftWeek(me, dates) });
-  const setReq = useMutation({ mutationFn: ({ id, n }: { id: number; n: number }) => manager.setRequired(me, id, n), onSuccess: () => qc.invalidateQueries({ queryKey: ["m-shifts"] }) });
-  const gen = useMutation({ mutationFn: () => manager.generateAi(me, dates), onSuccess: () => { qc.invalidateQueries(); nav("/manager/shifts"); } });
-  const labels = ["Sáng", "Chiều", "Cả ngày"] as const;
-  return (
-    <Page title={`Thiết lập ca · Tuần ${dm(dates[0])} – ${dm(dates[5])}`} back="/manager/shifts">
-      <Card title="Ca làm & số nhân viên cần">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] text-[12px]">
-            <thead><tr className="text-[10.5px] text-subtle uppercase"><th className="py-2 text-left">Ca</th><th className="text-left">Giờ</th>{dates.map((d) => <th key={d}>{weekday(d)}</th>)}</tr></thead>
-            <tbody>
-              {labels.map((l) => {
-                const row = data?.shifts.filter((s) => s.label === l) ?? [];
-                return (
-                  <tr key={l} className="border-t border-line-soft">
-                    <td className="py-2 font-semibold">Ca {l.toLowerCase()}</td>
-                    <td>{row[0] ? `${row[0].startTime}–${row[0].endTime}` : ""}</td>
-                    {dates.map((d) => {
-                      const s = row.find((x) => x.date === d);
-                      return <td key={d} className="px-1 text-center">{s && <input type="number" min={0} max={6} defaultValue={s.requiredStaff} onBlur={(e) => setReq.mutate({ id: s.id, n: Number(e.target.value) })} className="h-8 w-14 rounded-lg border-[1.5px] border-input-line text-center outline-none focus:border-orange" aria-label={`Số nhân viên ca ${l} ${d}`} />}</td>;
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-      <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-        <Card title="Đầu vào cho AI">
-          <KV label="Dự báo có mặt" w={150}>T2 22 · T3 21 · T4 23 · T5 22 · T6 24 · T7 15</KV>
-          <KV label="Nhân viên sẵn sàng" w={150}>{data?.staff.length ?? 0} người đang làm</KV>
-          <KV label="Tỷ lệ yêu cầu" w={150}>1 nhân viên / 5 người cao tuổi</KV>
-          <KV label="Giới hạn" w={150}>Tối đa 5 ca / người / tuần</KV>
-        </Card>
-        <Card title="Tạo gợi ý" className="h-fit">
-          <p className="text-[12px] text-muted">AI đề xuất phân công dựa trên thông số bên trái. Quản lý xem lại và duyệt trước khi gửi nhân viên.</p>
-          <Button className="mt-3" variant="ai" icon={Bot} block loading={gen.isPending} onClick={() => gen.mutate()}>Tạo gợi ý bằng AI</Button>
-        </Card>
-      </div>
-    </Page>
-  );
-}
-
-// ------------------------------------------------------------------ CM-20 AI suggestion detail
-export function ShiftDetailPage() {
-  const me = useMe();
-  const qc = useQueryClient();
-  const shiftId = Number(useParams().shiftId);
-  const dates = weekOf(NEXT_WEEK);
-  const { data, isLoading } = useQuery({ queryKey: ["m-shifts", NEXT_WEEK], queryFn: () => manager.shiftWeek(me, dates) });
-  const [noteText, setNote] = useState("");
-  const review = useMutation({ mutationFn: ({ id, s }: { id: number; s: "APPROVED" | "REJECTED" | "PENDING" }) => manager.reviewSuggestion(me, id, s, noteText || undefined), onSuccess: () => qc.invalidateQueries() });
-  if (isLoading || !data) return <Page title="Gợi ý AI" back="/manager/shifts"><Loading /></Page>;
-  const sh = data.shifts.find((s) => s.id === shiftId);
-  if (!sh) return <Page title="Gợi ý AI" back="/manager/shifts"><ErrorText error="Không tìm thấy ca" /></Page>;
-  const sugg = data.suggestions.filter((s) => s.shiftId === shiftId);
-  const approved = sugg.filter((s) => s.status === "APPROVED").length;
-  return (
-    <Page title={`Gợi ý AI · Ca ${sh.label.toLowerCase()} ${weekday(sh.date)} ${dm(sh.date)}`} back="/manager/shifts">
+      <div className="flex gap-1.5">{([["ALL", "Tất cả"], ["OPEN", "Đang mở"], ["HIGH", "Mức nặng"], ["TRANSFER", "Có chuyển viện"]] as const).map(([v, l]) => <Chip key={v} active={f === v} onClick={() => setF(v)}>{l}</Chip>)}</div>
       <Card>
-        <div className="flex flex-wrap items-center gap-8">
-          {([["Giờ", `${sh.startTime} – ${sh.endTime}`], ["Cần", `${sh.requiredStaff} nhân viên`], ["Đã duyệt", `${approved} / ${sh.requiredStaff}`]] as const).map(([l, v]) => <div key={l}><div className="text-[10.5px] text-subtle">{l}</div><div className="text-[14px] font-bold text-navy">{v}</div></div>)}
-          <Badge tone="teal">AI tạo lúc 06/10 08:00</Badge>
-        </div>
+        {isLoading ? <Loading /> : (
+          <Table rows={rows} rowKey={(r) => r.incident.id} onRowClick={(r) => { setCur(r.incident.id); setAction(r.incident.action); }} columns={[
+            { key: "t", header: "Lúc", render: (r) => `${dmy(r.incident.at.slice(0, 10))} ${hm(r.incident.at)}` },
+            { key: "e", header: "Cụ", render: (r) => <ElderlyCell e={r.elderly} /> },
+            { key: "k", header: "Loại", render: (r) => INC_TYPE[r.incident.type] },
+            { key: "s", header: "Mức độ", render: (r) => <Badge tone={SEVERITY[r.incident.severity][0]}>{SEVERITY[r.incident.severity][1]}</Badge> },
+            { key: "d", header: "Mô tả", render: (r) => <span className="text-[12px]">{r.incident.description}</span> },
+            { key: "tr", header: "Chuyển viện", render: (r) => r.incident.transfer ? <Badge tone="red">{r.incident.transfer.hospital}</Badge> : "—" },
+            { key: "f", header: "Báo GĐ", render: (r) => r.incident.familyNotified ? <Badge tone="green">Đã báo</Badge> : <Badge tone="red">Chưa</Badge> },
+            { key: "st", header: "Trạng thái", render: (r) => r.incident.status === "OPEN" ? <Badge tone="orange">Đang mở</Badge> : <Badge tone="green">Đã xử lý</Badge> },
+          ]} />
+        )}
       </Card>
-      <Card title="Đề xuất phân công">
-        <Table rows={sugg} rowKey={(s) => s.id} empty="Chưa có đề xuất — bấm Gợi ý lại" columns={[
-          { key: "n", header: "Nhân viên", render: (s) => { const u = data.staff.find((x) => x.id === s.staffId); return <span className="flex items-center gap-2"><Avatar name={u?.fullName ?? "?"} size={24} />{u?.fullName}</span>; } },
-          { key: "r", header: "Lý do AI đưa ra", render: (s) => <span className={cn(s.conflict && "text-red-ink")}>{s.conflict && <TriangleAlert size={12} className="mr-1 inline" />}{s.reason}</span> },
-          { key: "s", header: "Trạng thái", render: (s) => s.status === "APPROVED" ? <Badge tone="green">Đã duyệt</Badge> : s.status === "REJECTED" ? <Badge tone="gray">Từ chối</Badge> : s.conflict ? <Badge tone="red">Xung đột</Badge> : <Badge tone="orange">Chờ duyệt</Badge> },
-          { key: "a", header: "Thao tác", render: (s) => s.status === "PENDING" ? <span className="flex gap-1.5"><Button size="sm" variant="success" onClick={() => review.mutate({ id: s.id, s: "APPROVED" })}>Duyệt</Button><Button size="sm" variant="danger" onClick={() => review.mutate({ id: s.id, s: "REJECTED" })}>Từ chối</Button></span> : <Button size="sm" variant="neutral" icon={Undo2} onClick={() => review.mutate({ id: s.id, s: "PENDING" })}>Bỏ {s.status === "APPROVED" ? "duyệt" : "từ chối"}</Button> },
-        ]} />
-      </Card>
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-        <Card title="Ghi chú của quản lý"><TextArea value={noteText} onChange={(e) => setNote(e.target.value)} placeholder="Vd: Ưu tiên Châu ca chiều; cần thêm 1 hộ lý ca sáng T6." /></Card>
-        <Card className="h-fit">
-          <Note>AI chỉ gợi ý. Ca chỉ có hiệu lực khi quản lý duyệt.</Note>
-          <div className="mt-3 flex gap-2">
-            <Button variant="success" icon={CircleCheck} onClick={() => sugg.filter((s) => s.status === "PENDING" && !s.conflict).forEach((s) => review.mutate({ id: s.id, s: "APPROVED" }))}>Duyệt tất cả</Button>
-            <Button variant="neutral" icon={RefreshCw} to="/manager/shifts/setup">Gợi ý lại</Button>
+      <Modal open={!!sel} onClose={() => setCur(undefined)} title={sel ? `${INC_TYPE[sel.incident.type]} · ${sel.elderly.fullName}` : ""} width={520} footer={<><Button variant="neutral" loading={upd.isPending} onClick={() => upd.mutate("OPEN")}>Lưu, vẫn mở</Button><Button variant="success" loading={upd.isPending} onClick={() => upd.mutate("RESOLVED")}>Đánh dấu đã xử lý</Button></>}>
+        {sel && (
+          <div className="space-y-1.5">
+            <KV label="Lúc">{dmy(sel.incident.at.slice(0, 10))} {hm(sel.incident.at)}</KV>
+            <KV label="Người ghi">{sel.reporter?.fullName}</KV>
+            <KV label="Mức độ"><Badge tone={SEVERITY[sel.incident.severity][0]}>{SEVERITY[sel.incident.severity][1]}</Badge></KV>
+            <KV label="Mô tả">{sel.incident.description}</KV>
+            {sel.incident.transfer && <Note tone="red">Chuyển viện {sel.incident.transfer.hospital} lúc {sel.incident.transfer.time} · người đi kèm: {sel.incident.transfer.escort}</Note>}
+            <TextArea label="Cách xử lý" value={action} onChange={(e) => setAction(e.target.value)} />
+            {sel.incident.transfer && <Button size="sm" variant="outline" icon={ClipboardList} to="/manager/pauses">Xem bảo lưu nếu cụ nhập viện</Button>}
           </div>
-          <Button className="mt-2" variant="outline" size="sm" icon={MessageCircle} to="/manager/messages">Nhắn nhân viên</Button>
-        </Card>
-      </div>
+        )}
+      </Modal>
     </Page>
   );
 }
