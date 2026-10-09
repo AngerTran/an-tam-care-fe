@@ -49,7 +49,7 @@ export const manager = {
       capacity: capacity(),
       revenue,
       todo: {
-        assessDone: d.assessments.filter((a) => a.status === "DONE").length,
+        assessToday: d.assessments.filter((a) => a.status === "SCHEDULED" && a.scheduledAt.startsWith(TODAY)).length,
         awaitingPay: d.subscriptions.filter((s) => s.status === "AWAITING_PAYMENT").length,
         absences: d.absences.filter((a) => a.status === "PENDING").length,
         pauses: d.pauses.filter((p) => p.status === "PENDING").length,
@@ -88,7 +88,7 @@ export const manager = {
       choices: sub ? choicesOf(sub.id).map((sid) => need(lookups.service(sid))) : [],
       addOns: sub ? addOnsOf(sub.id) : [],
       permissions: d.servicePermissions.filter((p) => p.elderlyId === id).map((p) => ({ ...p, service: lookups.service(p.serviceId), nurse: lookups.user(p.nurseId) })),
-      assessments: d.assessments.filter((a) => a.elderlyId === id).sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt)).map((a) => ({ ...a, nurse: lookups.user(a.nurseId) })),
+      assessments: d.assessments.filter((a) => a.elderlyId === id).sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt)).map((a) => ({ ...a, nurse: lookups.user(a.nurseId), approver: lookups.user(a.approvedBy) })),
       subs: d.subscriptions.filter((s) => s.elderlyId === id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       invoices: d.subscriptions.filter((s) => s.elderlyId === id).flatMap((s) => invoicesOf(s.id)).sort((a, b) => b.issueDate.localeCompare(a.issueDate)),
       attendance: days.map((date) => ({ date, a: attendanceOn(id, date), scheduled: scheduledOn(id, date) })),
@@ -123,16 +123,38 @@ export const manager = {
   async registrations() {
     await wait();
     const d = db();
+    // BR-80: violation invoice unpaid after 3 days → system suspends the package (no Manager action needed)
+    for (const s of d.subscriptions.filter((x) => x.violation === "WRONG_GROUP" && x.status === "ACTIVE")) {
+      const vi = invoicesOf(s.id).find((i) => i.kind === "VIOLATION" && i.status === "UNPAID");
+      if (vi && vi.dueDate < TODAY) {
+        s.status = "SUSPENDED";
+        need(lookups.elderly(s.elderlyId)).status = "SUSPENDED";
+        audit(null, `Tự tạm ngưng: quá hạn trả phụ phí sau kiểm tra (${vi.number})`, "subscriptions", s.id);
+        commit();
+      }
+    }
     const rows = d.subscriptions
-      .filter((s) => ["PENDING_ASSESSMENT", "AWAITING_PAYMENT", "REJECTED"].includes(s.status) || (s.status === "ACTIVE" && s.createdAt >= "2026-10-01") || (!!s.violation && s.status !== "TERMINATED" && (!s.violationHandled || invoicesOf(s.id).some((i) => i.kind === "VIOLATION" && i.status === "UNPAID"))))
+      .filter((s) => ["PENDING_ASSESSMENT", "AWAITING_PAYMENT", "REJECTED"].includes(s.status) || (s.createdAt >= "2026-10-01" && ["ACTIVE", "SUSPENDED"].includes(s.status)) || !!s.violation)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map((s) => {
         const e = need(lookups.elderly(s.elderlyId));
         const assessment = d.assessments.filter((a) => a.subscriptionId === s.id).sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0];
-        const invoice = invoicesOf(s.id).find((i) => i.kind !== "ADDON");
+        const invoice = invoicesOf(s.id).find((i) => i.kind !== "ADDON" && i.kind !== "VIOLATION");
         const vinv = invoicesOf(s.id).find((i) => i.kind === "VIOLATION");
-        const stage = s.violation && s.status !== "TERMINATED" && (!s.violationHandled || vinv?.status === "UNPAID") ? "VIOLATION" : s.status === "PENDING_ASSESSMENT" ? (assessment?.status === "DONE" ? "APPROVE" : "ASSESS") : s.status === "AWAITING_PAYMENT" ? (s.familyConfirmedAt ? "PAY" : "CONFIRM") : s.status === "ACTIVE" ? "DONE" : "REJECTED";
-        return { violationInvoice: invoicesOf(s.id).find((i) => i.kind === "VIOLATION"), refund: d.refunds.find((r) => r.subscriptionId === s.id), sub: s, elderly: e, family: lookups.user(e.familyUserId), assessment: assessment && { ...assessment, nurse: lookups.user(assessment.nurseId) }, invoice, payment: invoice ? paymentOf(invoice.id) : undefined, failed: invoice ? d.payments.filter((p) => p.invoiceId === invoice.id && p.status === "FAILED") : [], choices: choicesOf(s.id).map((id) => need(lookups.service(id))), stage, pickups: d.pickups.filter((p) => p.elderlyId === e.id) };
+        const stage =
+          s.status === "REJECTED" || s.status === "TERMINATED" ? "REJECTED"
+          : s.violation === "WRONG_GROUP" && vinv?.status === "UNPAID" ? "VIOLATION"
+          : s.status === "PENDING_ASSESSMENT" ? (assessment?.status === "APPROVED" ? "WAIT" : "ASSESS")
+          : s.status === "AWAITING_PAYMENT" ? "PAY"
+          : "DONE";
+        const approver = lookups.user(assessment?.approvedBy);
+        const pos = lookups.position(assessment?.approvedBy);
+        return {
+          violationInvoice: vinv, refund: d.refunds.find((r) => r.subscriptionId === s.id), sub: s, elderly: e, family: lookups.user(e.familyUserId),
+          assessment: assessment && { ...assessment, nurse: lookups.user(assessment.nurseId) }, approver, approverPosition: pos === "NURSE" ? "Điều dưỡng" : approver?.role === "MANAGER" ? "Quản lý" : undefined,
+          invoice, payment: invoice ? paymentOf(invoice.id) : undefined, failed: invoice ? d.payments.filter((p) => p.invoiceId === invoice.id && p.status === "FAILED") : [],
+          choices: choicesOf(s.id).map((id) => need(lookups.service(id))), stage, pickups: d.pickups.filter((p) => p.elderlyId === e.id),
+        };
       });
     return { rows, visits: d.visits, capacity: capacity(), nurses: d.users.filter((u) => lookups.position(u.id) === "NURSE") };
   },
@@ -169,8 +191,6 @@ export const manager = {
     s.familyConfirmedAt = undefined;
     d.serviceChoices = d.serviceChoices.filter((c) => !(c.subscriptionId === s.id && input.dropServiceIds.includes(c.serviceId)));
     e.targetGroup = input.group;
-    const a = d.assessments.find((x) => x.subscriptionId === s.id && x.status === "DONE");
-    if (a) Object.assign(a, { status: "APPROVED", approvedBy: me.id, approvedAt: stamp() });
     const lines = [{ label: `${pkgName(s)} (${s.startDate.slice(8)}/${s.startDate.slice(5, 7)}–${s.endDate.slice(8)}/${s.endDate.slice(5, 7)})`, amount: s.basePrice }];
     if (s.surchargeAmount) lines.push({ label: `Phụ phí nhóm ${GROUP_LABEL[s.targetGroup]}`, amount: s.surchargeAmount });
     for (const ad of addOnsOf(s.id)) lines.push({ label: `${ad.service?.name} × ${ad.quantity}`, amount: ad.price });

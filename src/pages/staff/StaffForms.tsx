@@ -5,6 +5,7 @@ import { staff, TODAY } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Badge, Button, Chip, ErrorText, Field, Modal, Note, SelectField, TextArea, Toggle, cn } from "../../components/ui";
 import { MEAL_AMOUNTS, MOODS, PARTICIPATION } from "../../domain/catalog";
+import { validateVitals } from "../../lib/validate";
 import type { CareLogEntry, DailyTask, ElderlyMember, Incident, Thresholds } from "../../types/models";
 
 export type EntryKindUI = "MEAL" | "HYGIENE" | "ACTIVITY" | "NAP" | "MOOD" | "PHOTO" | "NOTE";
@@ -99,9 +100,10 @@ export function VitalsModal({ elderly, open, onClose, thresholds, diabetic }: { 
     if (v === undefined) return false;
     return (k === "sys" && (v > thresholds.sysMax || v < thresholds.sysMin)) || (k === "dia" && v > thresholds.diaMax) || (k === "pulse" && (v < thresholds.pulseMin || v > thresholds.pulseMax)) || (k === "temp" && v > thresholds.tempMax) || (k === "spo2" && v < thresholds.spo2Min) || (k === "glucose" && v > thresholds.glucoseMax);
   };
-  const F = (k: string, label: string, hint: string, step = 1) => <Field label={`${label} · ${hint}`} type="number" step={step} value={m[k] ?? ""} onChange={(e) => setM({ ...m, [k]: e.target.value })} error={bad(k) ? "Vượt ngưỡng — sẽ tạo cảnh báo" : undefined} />;
+  const vErrs = validateVitals({ sys: n("sys"), dia: n("dia"), pulse: n("pulse"), temp: n("temp"), spo2: n("spo2"), glucose: n("glucose"), weight: n("weight") });
+  const F = (k: string, label: string, hint: string, step = 1) => <Field label={`${label} · ${hint}`} type="number" step={step} value={m[k] ?? ""} onChange={(e) => setM({ ...m, [k]: e.target.value })} error={(m[k] || ((k === "sys" || k === "dia") && (m.sys || m.dia))) && vErrs[k] ? vErrs[k] : bad(k) ? "Vượt ngưỡng — sẽ tạo cảnh báo" : undefined} />;
   return (
-    <Modal open={open && !!elderly} onClose={onClose} title={`Đo chỉ số · ${elderly?.fullName ?? ""}`} width={520} footer={<><Button variant="neutral" onClick={onClose}>Hủy</Button><Button loading={save.isPending} onClick={() => save.mutate()}>Lưu chỉ số</Button></>}>
+    <Modal open={open && !!elderly} onClose={onClose} title={`Đo chỉ số · ${elderly?.fullName ?? ""}`} width={520} footer={<><Button variant="neutral" onClick={onClose}>Hủy</Button><Button disabled={Object.keys(vErrs).length > 0} loading={save.isPending} onClick={() => save.mutate()}>Lưu chỉ số</Button></>}>
       <div className="grid gap-2 sm:grid-cols-2">
         {F("sys", "HA tâm thu", `ngưỡng ${thresholds.sysMin}–${thresholds.sysMax}`)}
         {F("dia", "HA tâm trương", `≤ ${thresholds.diaMax}`)}

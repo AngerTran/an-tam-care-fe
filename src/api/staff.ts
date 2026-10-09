@@ -1,9 +1,11 @@
 // Staff API (điều dưỡng + hộ lý). Screens S1–S10 of mục 5.11, plus assessment, shifts,
 // damage reports and personal belongings. Staff only see their assigned elderly (BR-33).
-import type { CareLogEntry, DailyTask, HealthMetric, Incident, LeaveRequest, TargetGroup, User } from "../types/models";
-import { GROUP_LABEL, POSITION_LABEL } from "../domain/catalog";
+import type { CareLogEntry, DailyTask, HealthMetric, Incident, LeaveRequest, TargetGroup, Tier, User } from "../types/models";
+import { GROUP_LABEL, minTierFor, POSITION_LABEL, TIER_LABEL, tierRank } from "../domain/catalog";
+import { assertValid, validateVitals } from "../lib/validate";
+import { manager } from "./manager";
 import {
-  activeSub, attendanceOn, byId, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, isNurse, lookups, metricsOf,
+  activeSub, attendanceOn, byId, capacity, fixedSurcharge, surchargeMonthly, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, isNurse, lookups, metricsOf,
   need, nextId, notify, notifyManagers, NOW, outOfRange, scheduledOn, stamp, staffOf, TODAY, usable, wait,
 } from "./core";
 
@@ -233,6 +235,7 @@ export const staff = {
     const d = db();
     const e = guard(me, elderlyId);
     if (attendanceOn(elderlyId)?.status !== "PRESENT") throw new Error("Cụ chưa check-in (CL-01)");
+    assertValid(validateVitals({ sys: m.sys, dia: m.dia, pulse: m.pulse, temp: m.temp, spo2: m.spo2, glucose: m.glucose, weight: m.weight }));
     d.healthMetrics.push({ id: nextId(d.healthMetrics), elderlyId, at: stamp(), by: me.id, ...m });
     const parts = [m.sys && `HA ${m.sys}/${m.dia}`, m.pulse && `mạch ${m.pulse}`, m.temp && `${m.temp}°C`, m.spo2 && `SpO₂ ${m.spo2}%`, m.glucose && `ĐH ${m.glucose} mmol/L`, m.weight && `${m.weight}kg`].filter(Boolean).join(" · ");
     const bad = outOfRange(m);
@@ -306,33 +309,68 @@ export const staff = {
     return d.assessments.filter((a) => a.nurseId === me.id).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt)).map((a) => {
       const e = need(lookups.elderly(a.elderlyId));
       const s = a.subscriptionId ? byId(d.subscriptions, a.subscriptionId) : currentSub(e.id);
-      return { assessment: a, elderly: e, sub: s, family: lookups.user(e.familyUserId), choices: s ? choicesOf(s.id).map((id) => lookups.service(id)!) : [], permissions: d.servicePermissions.filter((p) => p.elderlyId === e.id) };
+      return { assessment: a, approver: lookups.user(a.approvedBy), elderly: e, sub: s, family: lookups.user(e.familyUserId), choices: s ? choicesOf(s.id).map((id) => lookups.service(id)!) : [], permissions: d.servicePermissions.filter((p) => p.elderlyId === e.id) };
     });
   },
+  /** Điều dưỡng duyệt là xong (BR-10 bản mới): hệ thống tự áp nhóm, hạng, phụ phí cố định, xử lý khai sai. Quản lý chỉ xem. */
   async submitAssessment(me: User, id: number, input: { barthel: number; group: TargetGroup; baseline: string; docs: string; note: string; notAccepted?: boolean; permissions: { serviceId: number; allowed: boolean; reason: string }[] }) {
     await wait();
-    if (!isNurse(me)) throw new Error("Chỉ điều dưỡng đánh giá đầu vào (BR-10)");
+    if (!isNurse(me)) throw new Error("Chỉ điều dưỡng đánh giá và duyệt (BR-10)");
     const d = db();
     const a = need(byId(d.assessments, id));
+    if (a.status === "APPROVED" && a.kind !== "PERIODIC") throw new Error(`Đã duyệt bởi ${lookups.user(a.approvedBy)?.fullName ?? "—"}, không sửa được`);
     const notAccepted = !!input.notAccepted || input.barthel < 20;
-    if (notAccepted && a.kind !== "FIRST_DAY") throw new Error("Thuộc diện không nhận (BR-18). Báo Quản lý từ chối.");
-    Object.assign(a, { barthel: input.barthel, proposedGroup: input.group, baseline: input.baseline, diagnosisDocs: input.docs, nurseNote: input.note, notAccepted, doneAt: stamp(), status: a.kind === "PERIODIC" ? "APPROVED" : "DONE" });
-    // BR-80: first-day check of an online registration — matching declaration is approved right away
-    if (a.kind === "FIRST_DAY") {
-      const sub = need(byId(d.subscriptions, a.subscriptionId));
-      const el = need(lookups.elderly(a.elderlyId));
-      if (notAccepted) sub.violation = "NOT_ACCEPTED";
-      else if (input.group !== el.declaredGroup) sub.violation = "WRONG_GROUP";
-      else { a.status = "APPROVED"; el.targetGroup = input.group; }
-      if (sub.violation) notifyManagers("SYSTEM", `Vi phạm cam kết: ${el.fullName}`, notAccepted ? "Cụ thuộc diện không nhận — ngừng nhận, hoàn 95%" : `Khai ${GROUP_LABEL[el.declaredGroup]}, thực tế ${GROUP_LABEL[input.group]}`, "/manager/registrations");
-    }
+    Object.assign(a, { barthel: input.barthel, proposedGroup: input.group, baseline: input.baseline, diagnosisDocs: input.docs, nurseNote: input.note, notAccepted, doneAt: stamp(), status: "APPROVED", approvedBy: me.id, approvedAt: stamp() });
     for (const p of input.permissions) {
       d.servicePermissions = d.servicePermissions.filter((x) => !(x.elderlyId === a.elderlyId && x.serviceId === p.serviceId));
       d.servicePermissions.push({ elderlyId: a.elderlyId, serviceId: p.serviceId, allowed: p.allowed, reason: p.reason, nurseId: me.id, date: TODAY });
     }
     const e = need(lookups.elderly(a.elderlyId));
-    notifyManagers("SYSTEM", `Đánh giá xong: ${e.fullName}`, `Barthel ${input.barthel} · đề xuất ${GROUP_LABEL[input.group]}${e.declaredGroup !== input.group ? ` (gia đình khai ${GROUP_LABEL[e.declaredGroup]})` : ""}`, "/manager/registrations");
-    commit();
+    const sub = a.subscriptionId ? byId(d.subscriptions, a.subscriptionId) : undefined;
+    let outcome = "";
+    if (a.kind === "PERIODIC") {
+      if (e.targetGroup !== input.group) outcome = `Đổi nhóm ${GROUP_LABEL[e.targetGroup ?? e.declaredGroup]} → ${GROUP_LABEL[input.group]}, áp dụng từ kỳ sau (BR-12)`;
+      e.targetGroup = input.group;
+      commit();
+    } else if (a.kind === "FIRST_DAY" && sub) {
+      if (notAccepted) {
+        sub.violation = "NOT_ACCEPTED";
+        const refund = await manager.stopNotAccepted(me, sub.id);
+        outcome = `Thuộc diện không nhận: ngừng nhận, hoàn ${refund.toLocaleString("vi-VN")}đ`;
+      } else if (input.group !== e.declaredGroup) {
+        sub.violation = "WRONG_GROUP";
+        await manager.chargeWrongGroup(me, sub.id, input.group, surchargeMonthly(input.group), input.note);
+        outcome = `Khai sai nhóm: đã gửi hóa đơn phụ phí + chênh lệch, hạn 3 ngày`;
+      } else {
+        e.targetGroup = input.group;
+        outcome = "Khai đúng";
+        commit();
+      }
+    } else if (sub && sub.status === "PENDING_ASSESSMENT") {
+      if (notAccepted) {
+        await manager.rejectRegistration(me, sub.id, `Thuộc diện không nhận (BR-18). ${input.note}`);
+        outcome = "Không tiếp nhận";
+      } else {
+        const tier: Tier = tierRank(sub.tier) < tierRank(minTierFor(input.group)) ? minTierFor(input.group) : sub.tier;
+        const full = sub.cycle !== "DAY" && capacity().find((c) => c.tier === tier)!.full;
+        if (full) {
+          Object.assign(sub, { targetGroup: input.group, tier });
+          e.targetGroup = input.group;
+          if (!d.waitlist.some((w) => w.elderlyId === e.id && w.tier === tier && ["WAITING", "HOLDING"].includes(w.status))) d.waitlist.push({ id: nextId(d.waitlist), elderlyId: e.id, tier, requestedAt: stamp(), reason: "FULL", status: "WAITING" });
+          notify(e.familyUserId, "SYSTEM", `Đã có kết quả đánh giá: ${e.fullName}`, `Hạng ${TIER_LABEL[tier]} đang hết chỗ, cụ được đưa vào danh sách chờ.`, "/family/packages");
+          outcome = `Hạng ${TIER_LABEL[tier]} hết chỗ → danh sách chờ`;
+          commit();
+        } else {
+          const drop = input.permissions.filter((p) => !p.allowed).map((p) => p.serviceId);
+          await manager.approveRegistration(me, sub.id, { group: input.group, tier, surcharge: fixedSurcharge(input.group, sub.cycle, sub.dayDates?.length ?? 1), note: `Phụ phí cố định nhóm ${GROUP_LABEL[input.group]}`, dropServiceIds: drop });
+          sub.familyConfirmedAt = stamp();
+          outcome = `Đã duyệt ${GROUP_LABEL[input.group]} · ${TIER_LABEL[tier]}, gửi gia đình thanh toán`;
+          commit();
+        }
+      }
+    } else commit();
+    notifyManagers("SYSTEM", `${me.fullName} đã duyệt: ${e.fullName}`, `Barthel ${input.barthel} · ${GROUP_LABEL[input.group]}${outcome ? ` · ${outcome}` : ""}`, "/manager/registrations");
+    return outcome;
   },
   async setPermission(me: User, elderlyId: number, serviceId: number, allowed: boolean, reason: string) {
     await wait();

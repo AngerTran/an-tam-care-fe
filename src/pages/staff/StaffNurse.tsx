@@ -150,10 +150,11 @@ export function StaffAssessments() {
   const me = useMe();
   const qc = useQueryClient();
   const [cur, setCur] = useState<number>();
+  const [done, setDone] = useState<{ name: string; outcome: string }>();
   const [f, setF] = useState({ barthel: "", group: "MOBILE" as TargetGroup, baseline: "", docs: "", note: "", notAccepted: false });
   const [perm, setPerm] = useState<Record<number, { allowed: boolean; reason: string }>>({});
   const { data, isLoading } = useQuery({ queryKey: ["s-assess", me.id], queryFn: () => staff.assessments(me) });
-  const submit = useMutation({ mutationFn: () => staff.submitAssessment(me, cur!, { barthel: Number(f.barthel), group: f.group, baseline: f.baseline, docs: f.docs, note: f.note, notAccepted: f.notAccepted, permissions: Object.entries(perm).map(([k, v]) => ({ serviceId: Number(k), ...v })) }), onSuccess: () => { qc.invalidateQueries(); setCur(undefined); } });
+  const submit = useMutation({ mutationFn: () => staff.submitAssessment(me, cur!, { barthel: Number(f.barthel), group: f.group, baseline: f.baseline, docs: f.docs, note: f.note, notAccepted: f.notAccepted, permissions: Object.entries(perm).map(([k, v]) => ({ serviceId: Number(k), ...v })) }), onSuccess: (outcome) => { qc.invalidateQueries(); setDone({ name: sel?.elderly.fullName ?? "", outcome: outcome || "Đã lưu kết quả" }); setCur(undefined); } });
   const sel = data?.find((r) => r.assessment.id === cur);
   const b = Number(f.barthel);
   const band = !f.barthel ? "" : b >= 91 ? "Phụ thuộc nhẹ / tự lập" : b >= 61 ? "Phụ thuộc vừa" : b >= 21 ? "Phụ thuộc nặng" : "Phụ thuộc hoàn toàn — không nhận (BR-18)";
@@ -164,7 +165,8 @@ export function StaffAssessments() {
     setPerm(Object.fromEntries(r.permissions.map((p) => [p.serviceId, { allowed: p.allowed, reason: p.reason }])));
   };
   return (
-    <Page title="Đánh giá đầu vào" sub="Chỉ điều dưỡng đánh giá (BR-10). Chấm Barthel + giấy tờ khám để đề xuất nhóm; Quản lý chốt nhóm và phụ phí.">
+    <Page title="Đánh giá đầu vào" sub="Điều dưỡng đánh giá và duyệt (BR-10). Duyệt xong hệ thống tự áp nhóm, hạng, phụ phí cố định; Quản lý chỉ xem lại.">
+      {done && <Note tone="green" className="mb-3">Đã duyệt {done.name}: {done.outcome}. <button className="ml-1 underline" onClick={() => setDone(undefined)}>Ẩn</button></Note>}
       <Card>
         {isLoading ? <Loading /> : !data?.length ? <EmptyState icon={Stethoscope} title="Không có lịch đánh giá" /> : (
           <Table rows={data} rowKey={(r) => r.assessment.id} onRowClick={(r) => open(r.assessment.id)} columns={[
@@ -173,13 +175,17 @@ export function StaffAssessments() {
             { key: "e", header: "Cụ", render: (r) => <ElderlyCell e={r.elderly} /> },
             { key: "g", header: "Gia đình khai", render: (r) => <GroupBadge group={r.elderly.declaredGroup} /> },
             { key: "p", header: "Gói chọn", render: (r) => r.sub ? `${CYCLE_LABEL[r.sub.cycle]} · ${TIER_LABEL[r.sub.tier]}` : "—" },
-            { key: "s", header: "Trạng thái", render: (r) => <Badge tone={r.assessment.status === "SCHEDULED" ? "blue" : r.assessment.status === "DONE" ? "orange" : "green"}>{(r.assessment.kind === "FIRST_DAY" ? { SCHEDULED: "Chờ kiểm tra", DONE: "Vi phạm · chờ Quản lý xử lý", APPROVED: "Khai đúng" } : { SCHEDULED: "Chờ đánh giá", DONE: "Chờ Quản lý duyệt", APPROVED: "Đã duyệt" })[r.assessment.status]}</Badge> },
+            { key: "s", header: "Trạng thái", render: (r) => r.assessment.status === "APPROVED"
+              ? <Badge tone={r.sub?.violation ? "red" : "green"}>{r.sub?.violation === "NOT_ACCEPTED" ? "Đã duyệt · không nhận" : r.sub?.violation === "WRONG_GROUP" ? "Đã duyệt · khai sai nhóm" : "Đã duyệt"}</Badge>
+              : <Badge tone="blue">{r.assessment.kind === "FIRST_DAY" ? "Chờ kiểm tra" : "Chờ đánh giá"}</Badge> },
+            { key: "a", header: "Người duyệt", render: (r) => r.approver ? <span className="text-[12px]">{r.approver.fullName}<span className="block text-[10.5px] text-subtle">{r.assessment.approvedAt && `${dmy(r.assessment.approvedAt.slice(0, 10))} ${hm(r.assessment.approvedAt)}`}</span></span> : <span className="text-subtle">—</span> },
           ]} />
         )}
       </Card>
-      <Modal open={!!sel} onClose={() => setCur(undefined)} title={sel ? `Đánh giá · ${sel.elderly.fullName}` : ""} width={680} footer={sel?.assessment.status === "SCHEDULED" || sel?.assessment.status === "DONE" ? <><Button variant="neutral" onClick={() => setCur(undefined)}>Hủy</Button><Button loading={submit.isPending} onClick={() => submit.mutate()}>Gửi kết quả cho Quản lý</Button></> : undefined}>
+      <Modal open={!!sel} onClose={() => setCur(undefined)} title={sel ? `Đánh giá · ${sel.elderly.fullName}` : ""} width={680} footer={sel && (sel.assessment.status !== "APPROVED" || sel.assessment.kind === "PERIODIC") ? <><Button variant="neutral" onClick={() => setCur(undefined)}>Hủy</Button><Button icon={CircleCheck} disabled={!f.barthel} loading={submit.isPending} onClick={() => submit.mutate()}>Duyệt kết quả</Button></> : undefined}>
         {sel && (
           <div className="space-y-3">
+            {sel.assessment.status === "APPROVED" && <Note tone="green">Đã duyệt bởi <b>{sel.approver?.fullName ?? "—"}</b>{sel.assessment.approvedAt && ` lúc ${hm(sel.assessment.approvedAt)} ${dmy(sel.assessment.approvedAt.slice(0, 10))}`}. {sel.assessment.kind !== "PERIODIC" && "Kết quả đã áp dụng, không sửa được."}</Note>}
             <div className="grid gap-x-6 rounded-xl bg-canvas p-3 text-[12px] sm:grid-cols-2">
               <KV label="Bệnh nền khai" w={100}>{sel.elderly.conditions.join(", ") || "Không"}</KV>
               <KV label="Gia đình khai" w={100}>{GROUP_LABEL[sel.elderly.declaredGroup]}</KV>
@@ -187,22 +193,22 @@ export function StaffAssessments() {
               <KV label="Hoạt động tích" w={100}>{sel.choices.map((c) => c.name).join(", ")}</KV>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Field label="Điểm Barthel (0–100)" type="number" min={0} max={100} value={f.barthel} onChange={(e) => { const v = e.target.value; setF({ ...f, barthel: v, notAccepted: sel.assessment.kind === "FIRST_DAY" && Number(v) > 0 && Number(v) < 20 ? true : f.notAccepted }); }} error={b > 0 && b < 20 ? "Không nhận" : undefined} />
+              <Field label="Điểm Barthel (0–100)" type="number" min={0} max={100} value={f.barthel} onChange={(e) => { const v = e.target.value; setF({ ...f, barthel: v, notAccepted: sel.assessment.kind !== "PERIODIC" && v !== "" && Number(v) < 20 ? true : f.notAccepted }); }} error={b > 0 && b < 20 ? "Không nhận" : undefined} />
               <div className="self-center text-[12px] text-muted">{band}</div>
               <SelectField label="Đề xuất nhóm chính (BR-16)" value={f.group} onChange={(e) => setF({ ...f, group: e.target.value as TargetGroup })}>{GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]} (từ hạng {TIER_LABEL[minTierFor(g)]})</option>)}</SelectField>
               <Field label="Chỉ số nền (HA, cân nặng, …)" value={f.baseline} onChange={(e) => setF({ ...f, baseline: e.target.value })} />
               <Field label="Giấy tờ (giấy ra viện, sổ khám)" className="sm:col-span-2" value={f.docs} onChange={(e) => setF({ ...f, docs: e.target.value })} />
               <TextArea label="Nhận xét" className="sm:col-span-2" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
             </div>
-            {sel.assessment.kind === "FIRST_DAY" && <Note>Gia đình đăng ký online, đã tích cam kết khai đúng và đã thanh toán (BR-79). Kết quả khớp khai báo thì duyệt luôn; khác khai báo thì chuyển Quản lý xử lý vi phạm (BR-80).</Note>}
-            {sel.assessment.kind === "FIRST_DAY" && (
+            {sel.assessment.kind === "FIRST_DAY" && <Note>Gia đình đăng ký online, đã tích cam kết khai đúng và đã thanh toán (BR-79). Bấm Duyệt: khớp khai báo thì xong; khác khai báo hệ thống tự gửi hóa đơn phụ phí (BR-80).</Note>}
+            {sel.assessment.kind !== "PERIODIC" && (
               <label className={cn("flex items-start gap-2 rounded-xl border-[1.5px] p-2.5 text-[12.5px]", f.notAccepted ? "border-red-line bg-red-soft/40" : "border-line")}>
                 <input type="checkbox" checked={f.notAccepted} onChange={(e) => setF({ ...f, notAccepted: e.target.checked })} className="mt-0.5" />
-                <span><b className="text-red-ink">Cụ thuộc diện không nhận</b> (liệt giường, sa sút trí tuệ nặng, cần chăm sóc tích cực). Trung tâm ngừng nhận và hoàn 95% tổng tiền đã đóng.</span>
+                <span><b className="text-red-ink">Cụ thuộc diện không nhận</b> (liệt giường, sa sút trí tuệ nặng, cần chăm sóc tích cực). {sel.assessment.kind === "FIRST_DAY" ? "Trung tâm ngừng nhận và tự hoàn 95% tổng tiền đã đóng." : "Hồ sơ bị từ chối, gia đình được báo lý do."}</span>
               </label>
             )}
             {sel.assessment.kind === "FIRST_DAY" && !f.notAccepted && f.group !== sel.elderly.declaredGroup && <Note tone="red">Khác khai báo ({GROUP_LABEL[sel.elderly.declaredGroup]} → {GROUP_LABEL[f.group]}): vi phạm cam kết. Gia đình trả phụ phí nhóm và chênh lệch nâng hạng cho số ngày còn lại trong 3 ngày.</Note>}
-            {sel.assessment.kind !== "FIRST_DAY" && f.group !== sel.elderly.declaredGroup && <Note tone="orange">Khác với gia đình khai. Áp phụ phí cố định của nhóm; nếu đang chọn Cơ bản mà thuộc nhóm bệnh thì buộc nâng lên Tiêu chuẩn.</Note>}
+            {sel.assessment.kind !== "FIRST_DAY" && f.group !== sel.elderly.declaredGroup && <Note tone="orange">Khác với gia đình khai. Khi duyệt, hệ thống áp phụ phí cố định của nhóm; đang chọn Cơ bản mà thuộc nhóm bệnh thì tự nâng lên Tiêu chuẩn.</Note>}
             {GROUP_INFO[f.group].limits !== "—" && <Note>Hạn chế nhóm {GROUP_LABEL[f.group]}: {GROUP_INFO[f.group].limits}</Note>}
             <div>
               <div className="mb-1 text-[12px] font-semibold text-navy">Cho phép dịch vụ ⚠ (BR-15)</div>

@@ -13,6 +13,7 @@ import { CYCLE_DESC, CYCLE_LABEL, CYCLES, DISEASE_GROUPS, GROUP_INFO, GROUP_LABE
 import { addDays, age, dm, dmy, hm, vnd, weekday } from "../../lib/format";
 import type { Cycle, PaymentMethod, Service, TargetGroup, Tier } from "../../types/models";
 import { INV_KIND, INV_STATUS } from "../manager/ManagerFinance";
+import { dobMax, dobMin, MIN_AGE, validateAbsence, validatePause, validatePickup, validateRelative, validateStartDate } from "../../lib/validate";
 
 // ------------------------------------------------------------------ relatives
 export function RelativesPage() {
@@ -50,11 +51,17 @@ export function RelativeFormPage() {
   const [f, setF] = useState<Record<string, string>>({});
   const [pk, setPk] = useState<{ id?: number; fullName: string; relationship: string; phone: string; idLast4: string; isPrimary: boolean } | null>(null);
   const v = (k: string, d = "") => f[k] ?? d;
+  const [tried, setTried] = useState(false);
+  const [pkTried, setPkTried] = useState(false);
+  const errs = validateRelative({ fullName: v("fullName", e?.fullName), dateOfBirth: v("dob", e?.dateOfBirth), address: v("address", e?.address), phone: v("phone", e?.phone ?? "") });
+  const err = (k: string) => (tried ? errs[k] : undefined);
+  const pkErrs = pk ? validatePickup(pk) : {};
+  const pkErr = (k: string) => (pkTried ? pkErrs[k] : undefined);
   const save = useMutation({
     mutationFn: () => family.saveRelative(me, { id, fullName: v("fullName", e?.fullName), dateOfBirth: v("dob", e?.dateOfBirth), gender: v("gender", e?.gender ?? "Nữ") as "Nam", address: v("address", e?.address), phone: v("phone", e?.phone ?? ""), declaredGroup: v("group", e?.declaredGroup ?? "MOBILE") as TargetGroup, conditions: v("cond", e?.conditions.join(", ")).split(",").map((x) => x.trim()).filter(Boolean), allergies: v("all", e?.allergies.join(", ")).split(",").map((x) => x.trim()).filter(Boolean), diet: v("diet", e?.diet), hobbies: v("hob", e?.hobbies), careNote: v("note", e?.careNote) }),
     onSuccess: (nid) => { qc.invalidateQueries(); nav(id ? "/family/relatives" : `/family/register?e=${nid}`); },
   });
-  const savePk = useMutation({ mutationFn: () => family.savePickup(me, { ...pk!, elderlyId: id! }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["f-rel", id] }); setPk(null); } });
+  const savePk = useMutation({ mutationFn: () => family.savePickup(me, { ...pk!, elderlyId: id! }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["f-rel", id] }); setPk(null); setPkTried(false); } });
   const rmPk = useMutation({ mutationFn: (pid: number) => family.removePickup(me, pid), onSuccess: () => qc.invalidateQueries({ queryKey: ["f-rel", id] }) });
   if (id && !e) return <Page title="Người thân"><Loading /></Page>;
   const locked = !!e?.targetGroup;
@@ -62,12 +69,12 @@ export function RelativeFormPage() {
     <Page title={id ? `Hồ sơ · ${e?.fullName}` : "Thêm người thân"} back="/family/relatives">
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <Card title="Thông tin cụ">
-          <form className="grid gap-2 sm:grid-cols-2" onSubmit={(ev) => { ev.preventDefault(); save.mutate(); }}>
-            <Field label="Họ và tên" required defaultValue={e?.fullName} onChange={(ev) => setF({ ...f, fullName: ev.target.value })} />
-            <Field label="Ngày sinh" type="date" required defaultValue={e?.dateOfBirth} onChange={(ev) => setF({ ...f, dob: ev.target.value })} />
+          <form noValidate className="grid gap-2 sm:grid-cols-2" onSubmit={(ev) => { ev.preventDefault(); setTried(true); if (!Object.keys(errs).length) save.mutate(); }}>
+            <Field label="Họ và tên" required defaultValue={e?.fullName} onChange={(ev) => setF({ ...f, fullName: ev.target.value })} error={err("fullName")} />
+            <Field label={`Ngày sinh (từ đủ ${MIN_AGE} tuổi)`} type="date" required min={dobMin()} max={dobMax()} defaultValue={e?.dateOfBirth} onChange={(ev) => setF({ ...f, dob: ev.target.value })} error={err("dateOfBirth")} />
             <SelectField label="Giới tính" defaultValue={e?.gender ?? "Nữ"} onChange={(ev) => setF({ ...f, gender: ev.target.value })}><option>Nữ</option><option>Nam</option></SelectField>
-            <Field label="Số điện thoại cụ (nếu có)" defaultValue={e?.phone} onChange={(ev) => setF({ ...f, phone: ev.target.value })} />
-            <Field label="Địa chỉ" className="sm:col-span-2" required defaultValue={e?.address} onChange={(ev) => setF({ ...f, address: ev.target.value })} />
+            <Field label="Số điện thoại cụ (nếu có)" inputMode="tel" defaultValue={e?.phone} onChange={(ev) => setF({ ...f, phone: ev.target.value })} error={err("phone")} />
+            <Field label="Địa chỉ" className="sm:col-span-2" required defaultValue={e?.address} onChange={(ev) => setF({ ...f, address: ev.target.value })} error={err("address")} />
             <SelectField label={locked ? "Đối tượng (đã đánh giá — khóa)" : "Tự khai mức độ"} className="sm:col-span-2" disabled={locked} defaultValue={e?.targetGroup ?? e?.declaredGroup ?? "MOBILE"} onChange={(ev) => setF({ ...f, group: ev.target.value })}>{GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]} — {GROUP_INFO[g].who}</option>)}</SelectField>
             <Field label="Bệnh nền (phẩy)" defaultValue={e?.conditions.join(", ")} onChange={(ev) => setF({ ...f, cond: ev.target.value })} />
             <Field label="Dị ứng (phẩy)" defaultValue={e?.allergies.join(", ")} onChange={(ev) => setF({ ...f, all: ev.target.value })} />
@@ -94,13 +101,14 @@ export function RelativeFormPage() {
           </Card>
         )}
       </div>
-      <Modal open={!!pk} onClose={() => setPk(null)} title={pk?.id ? "Sửa người đón" : "Thêm người được phép đón"} footer={<><Button variant="neutral" onClick={() => setPk(null)}>Hủy</Button><Button loading={savePk.isPending} onClick={() => savePk.mutate()}>Lưu</Button></>}>
+      <Modal open={!!pk} onClose={() => setPk(null)} title={pk?.id ? "Sửa người đón" : "Thêm người được phép đón"} footer={<><Button variant="neutral" onClick={() => setPk(null)}>Hủy</Button><Button loading={savePk.isPending} onClick={() => { setPkTried(true); if (!Object.keys(pkErrs).length) savePk.mutate(); }}>Lưu</Button></>}>
         {pk && (
           <div className="grid gap-2 sm:grid-cols-2">
-            <Field label="Họ tên" value={pk.fullName} onChange={(ev) => setPk({ ...pk, fullName: ev.target.value })} />
-            <Field label="Quan hệ" value={pk.relationship} onChange={(ev) => setPk({ ...pk, relationship: ev.target.value })} />
-            <Field label="Số điện thoại" value={pk.phone} onChange={(ev) => setPk({ ...pk, phone: ev.target.value })} />
-            <Field label="4 số cuối CCCD" maxLength={4} value={pk.idLast4} onChange={(ev) => setPk({ ...pk, idLast4: ev.target.value })} />
+            <Field label="Họ tên" value={pk.fullName} onChange={(ev) => setPk({ ...pk, fullName: ev.target.value })} error={pkErr("fullName")} />
+            <Field label="Quan hệ" value={pk.relationship} onChange={(ev) => setPk({ ...pk, relationship: ev.target.value })} error={pkErr("relationship")} />
+            <Field label="Số điện thoại" inputMode="tel" value={pk.phone} onChange={(ev) => setPk({ ...pk, phone: ev.target.value })} error={pkErr("phone")} />
+            <Field label="4 số cuối CCCD" maxLength={4} inputMode="numeric" value={pk.idLast4} onChange={(ev) => setPk({ ...pk, idLast4: ev.target.value.replace(/\D/g, "") })} error={pkErr("idLast4")} />
+            <div className="sm:col-span-2"><ErrorText error={savePk.error} /></div>
             <Button variant="neutral" size="sm" className="sm:col-span-2">+ Tải ảnh chân dung</Button>
             <div className="sm:col-span-2"><Toggle checked={pk.isPrimary} onChange={(x) => setPk({ ...pk, isPrimary: x })} label="Người liên hệ chính" /></div>
           </div>
@@ -145,7 +153,7 @@ export function RegisterWizard() {
   const monthlyOf = (x: TargetGroup) => data.surcharges.find((s) => s.group === x)?.monthly ?? 0;
   const surcharge = !monthlyOf(g) ? 0 : cycle === "DAY" ? Math.round(monthlyOf(g) / 26 / 1000) * 1000 * Math.max(1, dayDates.length) : monthlyOf(g) * (cycle === "Q" ? 3 : cycle === "Y" ? 12 : 1);
   const addonTotal = Object.entries(addons).reduce((s, [k, q]) => s + (data.services.find((x) => x.id === Number(k))?.addonPrice ?? 0) * q, 0);
-  const canNext = [!!eid && !(el?.sub && ["PENDING_ASSESSMENT", "AWAITING_PAYMENT"].includes(el.sub.status)), cycle !== "DAY" || dayDates.length > 0, ack || !!el?.elderly.targetGroup, tierRank(tier) >= tierRank(minTierFor(g)) && choices.length <= ent.optionalMax, true][step];
+  const canNext = [!!eid && !(el?.sub && ["PENDING_ASSESSMENT", "AWAITING_PAYMENT"].includes(el.sub.status)), cycle === "DAY" ? dayDates.length > 0 : !validateStartDate(start), ack || !!el?.elderly.targetGroup, tierRank(tier) >= tierRank(minTierFor(g)) && choices.length <= ent.optionalMax, true][step];
   const fullErr = submit.error instanceof Error && submit.error.message.startsWith("FULL:");
   if (submit.isSuccess && !submit.data.invoiceId) {
     return (
@@ -195,7 +203,7 @@ export function RegisterWizard() {
               <div className="flex flex-wrap gap-1.5">{dayOptions().map((d) => <Chip key={d} active={dayDates.includes(d)} onClick={() => setDayDates(dayDates.includes(d) ? dayDates.filter((x) => x !== d) : [...dayDates, d])}>{weekday(d)} {dm(d)}</Chip>)}</div>
               <Note className="mt-2">Báo nghỉ trước 17h hôm trước: không mất tiền, tiền giữ thành số dư (BR-21). {data.credit > 0 && `Bạn đang có số dư ${vnd(data.credit)}.`}</Note>
             </div>
-          ) : <Field className="mt-3 w-56" label="Ngày bắt đầu" type="date" value={start} onChange={(e) => setStart(e.target.value)} />}
+          ) : <Field className="mt-3 w-72" label="Ngày bắt đầu" type="date" min={TODAY} max={addDays(TODAY, 60)} value={start} onChange={(e) => setStart(e.target.value)} error={validateStartDate(start) || undefined} />}
           {cycle !== "DAY" && <Note className="mt-2">Gói tháng/quý/năm: nghỉ vẫn tính tiền; giá tháng cố định, ngày lễ được cộng bù.</Note>}
         </Card>
       )}
@@ -319,6 +327,8 @@ export function MyPackagesPage() {
   const change = useMutation({ mutationFn: () => family.changeChoices(me, choose!.subId, choose!.ids), onSuccess: () => { inv(); setChoose(null); } });
   const buy = useMutation({ mutationFn: () => family.buyAddOn(me, addon!.subId, addon!.serviceId!, addon!.qty), onSuccess: (iid) => nav(`/family/checkout/${iid}`) });
   const upgrade = useMutation({ mutationFn: () => family.upgrade(me, up!.subId, up!.to!), onSuccess: (r) => { inv(); if (!r.waitlisted) nav(`/family/checkout/${r.invoiceId}`); } });
+  const [pauseTried, setPauseTried] = useState(false);
+  const pauseErrs = pause ? validatePause(pause, 30) : ({} as Record<string, string>);
   const sendPause = useMutation({ mutationFn: () => family.requestPause(me, { subId: pause!.subId, kind: pause!.kind, fromDate: pause!.fromDate, toDate: pause!.kind === "HOSPITAL" ? pause!.toDate : undefined, document: pause!.document, note: pause!.note }), onSuccess: () => { inv(); setPause(null); } });
   if (isLoading || !data) return <Page title="Gói của tôi"><Loading /></Page>;
   const svcs = regOpts.data?.services ?? [];
@@ -424,12 +434,12 @@ export function MyPackagesPage() {
           </div>
         )}
       </Modal>
-      <Modal open={!!pause} onClose={() => setPause(null)} title={pause?.kind === "HOSPITAL" ? "Bảo lưu khi nhập viện" : "Báo cụ qua đời"} width={480} footer={<><Button variant="neutral" onClick={() => setPause(null)}>Hủy</Button><Button loading={sendPause.isPending} onClick={() => sendPause.mutate()}>Gửi Quản lý</Button></>}>
+      <Modal open={!!pause} onClose={() => setPause(null)} title={pause?.kind === "HOSPITAL" ? "Bảo lưu khi nhập viện" : "Báo cụ qua đời"} width={480} footer={<><Button variant="neutral" onClick={() => setPause(null)}>Hủy</Button><Button loading={sendPause.isPending} onClick={() => { setPauseTried(true); if (!Object.keys(pauseErrs).length) sendPause.mutate(); }}>Gửi Quản lý</Button></>}>
         {pause && (
           <div className="grid gap-2 sm:grid-cols-2">
-            <Field label={pause.kind === "HOSPITAL" ? "Từ ngày" : "Ngày mất"} type="date" value={pause.fromDate} onChange={(e) => setPause({ ...pause, fromDate: e.target.value })} />
-            {pause.kind === "HOSPITAL" && <Field label="Đến ngày (tối đa 30 ngày)" type="date" value={pause.toDate} onChange={(e) => setPause({ ...pause, toDate: e.target.value })} />}
-            <Field label={pause.kind === "HOSPITAL" ? "Giấy nhập viện (tên file)" : "Giấy chứng tử (tên file)"} className="sm:col-span-2" value={pause.document} onChange={(e) => setPause({ ...pause, document: e.target.value })} placeholder="giay-nhap-vien.pdf" />
+            <Field label={pause.kind === "HOSPITAL" ? "Từ ngày" : "Ngày mất"} type="date" max={pause.kind === "DEATH" ? TODAY : undefined} value={pause.fromDate} onChange={(e) => setPause({ ...pause, fromDate: e.target.value })} error={pauseErrs.fromDate} />
+            {pause.kind === "HOSPITAL" && <Field label="Đến ngày (tối đa 30 ngày)" type="date" min={pause.fromDate} value={pause.toDate} onChange={(e) => setPause({ ...pause, toDate: e.target.value })} error={pauseErrs.toDate} />}
+            <Field label={pause.kind === "HOSPITAL" ? "Giấy nhập viện (tên file)" : "Giấy chứng tử (tên file)"} className="sm:col-span-2" value={pause.document} onChange={(e) => setPause({ ...pause, document: e.target.value })} placeholder="giay-nhap-vien.pdf" error={pauseTried ? pauseErrs.document : undefined} />
             <TextArea label="Ghi chú" className="sm:col-span-2" value={pause.note} onChange={(e) => setPause({ ...pause, note: e.target.value })} />
             <Note className="sm:col-span-2">{pause.kind === "HOSPITAL" ? "Quản lý duyệt: các ngày còn lại được dời sang sau. Quá 30 ngày phải gia hạn bảo lưu hoặc chấm dứt (BR-22)." : "Trung tâm xin chia buồn cùng gia đình. Phần chưa dùng của gói dài hạn sẽ được hoàn qua cổng thanh toán (5.9)."}</Note>
             <div className="sm:col-span-2"><ErrorText error={sendPause.error} /></div>
@@ -542,19 +552,20 @@ export function FamilyAbsencePage() {
   const eid = f.elderlyId || act[0]?.elderly.id;
   const sub = act.find((r) => r.elderly.id === eid)?.sub;
   const send = useMutation({ mutationFn: () => family.reportAbsence(me, { ...f, elderlyId: eid! }), onSuccess: () => qc.invalidateQueries() });
+  const absErrs = validateAbsence(f);
   return (
     <Page title="Báo nghỉ">
       <div className="grid gap-4 lg:grid-cols-[400px_1fr]">
         <Card title="Báo nghỉ mới">
           <div className="grid gap-2">
             <SelectField label="Cụ" value={eid ?? ""} onChange={(e) => setF({ ...f, elderlyId: Number(e.target.value) })}>{act.map((r) => <option key={r.elderly.id} value={r.elderly.id}>{r.elderly.fullName}</option>)}</SelectField>
-            <div className="grid grid-cols-2 gap-2"><Field label="Từ ngày" type="date" value={f.fromDate} onChange={(e) => setF({ ...f, fromDate: e.target.value, toDate: e.target.value > f.toDate ? e.target.value : f.toDate })} /><Field label="Đến ngày" type="date" value={f.toDate} onChange={(e) => setF({ ...f, toDate: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-2"><Field label="Từ ngày" type="date" min={TODAY} value={f.fromDate} onChange={(e) => setF({ ...f, fromDate: e.target.value, toDate: e.target.value > f.toDate ? e.target.value : f.toDate })} error={absErrs.fromDate} /><Field label="Đến ngày" type="date" min={f.fromDate} value={f.toDate} onChange={(e) => setF({ ...f, toDate: e.target.value })} error={absErrs.toDate} /></div>
             <SelectField label="Lý do" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })}>{["Ốm", "Đi khám", "Việc gia đình", "Khác"].map((x) => <option key={x}>{x}</option>)}</SelectField>
             <TextArea label="Ghi chú" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
             {sub && (sub.cycle === "DAY" ? <Note tone="green">Gói ngày: báo trước 17h hôm trước thì không mất tiền, tiền ngày đó giữ thành số dư (BR-21).</Note> : <Note>Gói {CYCLE_LABEL[sub.cycle].toLowerCase()}: vẫn tính tiền. Báo nghỉ để trung tâm chuẩn bị nhân sự và suất ăn. Nhập viện nhiều ngày thì dùng Bảo lưu.</Note>)}
             {send.isSuccess && <Note tone="green">Đã gửi báo nghỉ.{send.data.credit ? ` Đã cộng số dư ${vnd(send.data.credit)}.` : ""}</Note>}
             <ErrorText error={send.error} />
-            <Button icon={CalendarDays} disabled={!eid} loading={send.isPending} onClick={() => send.mutate()}>Gửi báo nghỉ</Button>
+            <Button icon={CalendarDays} disabled={!eid || Object.keys(absErrs).length > 0} loading={send.isPending} onClick={() => send.mutate()}>Gửi báo nghỉ</Button>
           </div>
         </Card>
         <Card title="Đã báo">

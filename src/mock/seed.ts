@@ -204,16 +204,16 @@ const servicePermissions: ServicePermission[] = [
 ];
 
 const assessments: Assessment[] = [
-  { id: 1, elderlyId: 1, subscriptionId: 21, kind: "INITIAL", scheduledAt: t("2026-08-27", "09:00"), nurseId: 3, barthel: 90, proposedGroup: "CHRONIC", baseline: "HA 135/85 · ĐH đói 7,4 mmol/L · 58kg", diagnosisDocs: "Sổ khám tiểu đường BV Nhân dân 115", nurseNote: "Tự đi lại, đau gối phải. Cần nhắc thuốc.", doneAt: t("2026-08-27", "09:40"), status: "APPROVED", approvedBy: 2, approvedAt: t("2026-08-27", "11:00") },
-  { id: 2, elderlyId: 2, subscriptionId: 2, kind: "INITIAL", scheduledAt: t("2026-09-10", "09:00"), nurseId: 3, barthel: 70, proposedGroup: "REHAB", baseline: "HA 128/80 · 64kg · đi 10m với khung", diagnosisDocs: "Giấy ra viện BV Chợ Rẫy 03/2026", nurseNote: "Cần hỗ trợ khi di chuyển, tập đi hằng ngày.", doneAt: t("2026-09-10", "09:50"), status: "APPROVED", approvedBy: 2, approvedAt: t("2026-09-10", "14:00") },
-  { id: 3, elderlyId: 3, subscriptionId: 3, kind: "INITIAL", scheduledAt: t("2026-08-26", "14:00"), nurseId: 3, barthel: 95, proposedGroup: "CHRONIC", baseline: "HA 145/90 · 52kg", nurseNote: "Huyết áp dao động, quên thuốc.", doneAt: t("2026-08-26", "14:30"), status: "APPROVED", approvedBy: 2, approvedAt: t("2026-08-26", "16:00") },
-  { id: 4, elderlyId: 4, subscriptionId: 4, kind: "INITIAL", scheduledAt: t("2026-09-27", "09:00"), nurseId: 5, barthel: 100, proposedGroup: "MOBILE", baseline: "HA 125/78 · 60kg", nurseNote: "Hoàn toàn tự lập.", doneAt: t("2026-09-27", "09:20"), status: "APPROVED", approvedBy: 2, approvedAt: t("2026-09-27", "10:00") },
-  { id: 5, elderlyId: 5, subscriptionId: 5, kind: "INITIAL", scheduledAt: t("2026-09-26", "09:00"), nurseId: 5, barthel: 55, proposedGroup: "STROKE", baseline: "HA 150/90 · 48kg · yếu tay chân phải", diagnosisDocs: "Giấy ra viện BV Nhân dân 115 (12/2025)", nurseNote: "Nói chậm, nuốt chậm. Cần thức ăn mềm.", doneAt: t("2026-09-26", "09:50"), status: "APPROVED", approvedBy: 2, approvedAt: t("2026-09-26", "15:00") },
-  { id: 6, elderlyId: 6, subscriptionId: 6, kind: "INITIAL", scheduledAt: t("2026-10-05", "07:30"), nurseId: 5, barthel: 100, proposedGroup: "MOBILE", baseline: "HA 122/80 · 66kg", nurseNote: "Đi thử gói ngày.", doneAt: t("2026-10-05", "07:45"), status: "APPROVED", approvedBy: 2, approvedAt: t("2026-10-05", "08:00") },
-  { id: 7, elderlyId: 7, subscriptionId: 7, kind: "INITIAL", scheduledAt: t("2026-09-15", "09:00"), nurseId: 3, barthel: 85, proposedGroup: "DEMENTIA", baseline: "MMSE 21/30 · HA 130/80", diagnosisDocs: "Kết luận BV Đại học Y Dược", nurseNote: "Hay hỏi lặp lại, có lúc muốn đi về. Không kích động.", doneAt: t("2026-09-15", "09:45"), status: "APPROVED", approvedBy: 2, approvedAt: t("2026-09-15", "11:00") },
+  { id: 1, elderlyId: 1, subscriptionId: 21, kind: "INITIAL", scheduledAt: t("2026-08-27", "09:00"), nurseId: 3, barthel: 90, proposedGroup: "CHRONIC", baseline: "HA 135/85 · ĐH đói 7,4 mmol/L · 58kg", diagnosisDocs: "Sổ khám tiểu đường BV Nhân dân 115", nurseNote: "Tự đi lại, đau gối phải. Cần nhắc thuốc.", doneAt: t("2026-08-27", "09:40"), status: "APPROVED", approvedBy: 3, approvedAt: t("2026-08-27", "09:40") },
+  { id: 2, elderlyId: 2, subscriptionId: 2, kind: "INITIAL", scheduledAt: t("2026-09-10", "09:00"), nurseId: 3, barthel: 70, proposedGroup: "REHAB", baseline: "HA 128/80 · 64kg · đi 10m với khung", diagnosisDocs: "Giấy ra viện BV Chợ Rẫy 03/2026", nurseNote: "Cần hỗ trợ khi di chuyển, tập đi hằng ngày.", doneAt: t("2026-09-10", "09:50"), status: "APPROVED", approvedBy: 3, approvedAt: t("2026-09-10", "09:50") },
+  { id: 3, elderlyId: 3, subscriptionId: 3, kind: "INITIAL", scheduledAt: t("2026-08-26", "14:00"), nurseId: 3, barthel: 95, proposedGroup: "CHRONIC", baseline: "HA 145/90 · 52kg", nurseNote: "Huyết áp dao động, quên thuốc.", doneAt: t("2026-08-26", "14:30"), status: "APPROVED", approvedBy: 3, approvedAt: t("2026-08-26", "14:30") },
+  { id: 4, elderlyId: 4, subscriptionId: 4, kind: "INITIAL", scheduledAt: t("2026-09-27", "09:00"), nurseId: 5, barthel: 100, proposedGroup: "MOBILE", baseline: "HA 125/78 · 60kg", nurseNote: "Hoàn toàn tự lập.", doneAt: t("2026-09-27", "09:20"), status: "APPROVED", approvedBy: 5, approvedAt: t("2026-09-27", "09:20") },
+  { id: 5, elderlyId: 5, subscriptionId: 5, kind: "INITIAL", scheduledAt: t("2026-09-26", "09:00"), nurseId: 5, barthel: 55, proposedGroup: "STROKE", baseline: "HA 150/90 · 48kg · yếu tay chân phải", diagnosisDocs: "Giấy ra viện BV Nhân dân 115 (12/2025)", nurseNote: "Nói chậm, nuốt chậm. Cần thức ăn mềm.", doneAt: t("2026-09-26", "09:50"), status: "APPROVED", approvedBy: 5, approvedAt: t("2026-09-26", "09:50") },
+  { id: 6, elderlyId: 6, subscriptionId: 6, kind: "INITIAL", scheduledAt: t("2026-10-05", "07:30"), nurseId: 5, barthel: 100, proposedGroup: "MOBILE", baseline: "HA 122/80 · 66kg", nurseNote: "Đi thử gói ngày.", doneAt: t("2026-10-05", "07:45"), status: "APPROVED", approvedBy: 5, approvedAt: t("2026-10-05", "07:45") },
+  { id: 7, elderlyId: 7, subscriptionId: 7, kind: "INITIAL", scheduledAt: t("2026-09-15", "09:00"), nurseId: 3, barthel: 85, proposedGroup: "DEMENTIA", baseline: "MMSE 21/30 · HA 130/80", diagnosisDocs: "Kết luận BV Đại học Y Dược", nurseNote: "Hay hỏi lặp lại, có lúc muốn đi về. Không kích động.", doneAt: t("2026-09-15", "09:45"), status: "APPROVED", approvedBy: 3, approvedAt: t("2026-09-15", "09:45") },
   { id: 8, elderlyId: 8, subscriptionId: 8, kind: "INITIAL", scheduledAt: t("2026-10-10", "09:00"), nurseId: 3, status: "SCHEDULED" },
-  { id: 9, elderlyId: 9, subscriptionId: 9, kind: "INITIAL", scheduledAt: t("2026-10-08", "09:00"), nurseId: 3, barthel: 85, proposedGroup: "CHRONIC", baseline: "HA 165/95 (đo 2 lần) · 70kg", diagnosisDocs: "Đơn thuốc huyết áp phòng khám Q.5", nurseNote: "Gia đình khai vận động được, nhưng huyết áp cao không ổn định, đang dùng 2 loại thuốc. Đề xuất nhóm bệnh mãn tính, cần hạng Tiêu chuẩn.", doneAt: t("2026-10-08", "09:40"), status: "DONE" },
-  { id: 10, elderlyId: 10, subscriptionId: 10, kind: "INITIAL", scheduledAt: t("2026-10-03", "09:00"), nurseId: 5, barthel: 75, proposedGroup: "REHAB", baseline: "HA 130/85 · 55kg · đi 15m với nạng", diagnosisDocs: "Giấy ra viện BV Chấn thương chỉnh hình", nurseNote: "Tập đi 3 buổi/tuần.", doneAt: t("2026-10-03", "09:40"), status: "APPROVED", approvedBy: 2, approvedAt: t("2026-10-03", "15:00") },
+  { id: 9, elderlyId: 9, subscriptionId: 9, kind: "INITIAL", scheduledAt: t(DEMO_TODAY, "10:30"), nurseId: 3, status: "SCHEDULED" },
+  { id: 10, elderlyId: 10, subscriptionId: 10, kind: "INITIAL", scheduledAt: t("2026-10-03", "09:00"), nurseId: 5, barthel: 75, proposedGroup: "REHAB", baseline: "HA 130/85 · 55kg · đi 15m với nạng", diagnosisDocs: "Giấy ra viện BV Chấn thương chỉnh hình", nurseNote: "Tập đi 3 buổi/tuần.", doneAt: t("2026-10-03", "09:40"), status: "APPROVED", approvedBy: 5, approvedAt: t("2026-10-03", "09:40") },
   { id: 11, elderlyId: 12, subscriptionId: 12, kind: "INITIAL", scheduledAt: t("2026-10-13", "09:00"), nurseId: 5, status: "SCHEDULED" },
   { id: 12, elderlyId: 2, kind: "PERIODIC", scheduledAt: t("2026-10-12", "09:00"), nurseId: 3, status: "SCHEDULED" },
 ];
@@ -753,7 +753,7 @@ const systemSettings: SystemSettings = { vnpayMode: "PRODUCTION", momoMode: "PRO
 // ------------------------------------------------------------------ online registration with commitment (BR-79, BR-80)
 elderly.push(
   em({ id: 14, fullName: "Trương Thị Nga", familyUserId: 16, dateOfBirth: "1950-06-21", gender: "Nữ", address: "88 Trần Hưng Đạo, Q.5", declaredGroup: "MOBILE", targetGroup: "MOBILE", hobbies: "Cắm hoa", careNote: "Đăng ký online, tự khai vận động được.", caregiverId: 6, nurseId: 3, tone: "green" }),
-  em({ id: 15, fullName: "Lý Văn Bình", familyUserId: 17, dateOfBirth: "1946-09-14", gender: "Nam", address: "5 Lý Thường Kiệt, Q.10", declaredGroup: "MOBILE", targetGroup: "MOBILE", conditions: ["Tự khai: không bệnh nền"], careNote: "Đăng ký online. Kiểm tra ngày đầu: HA 172/98, đang uống 2 loại thuốc huyết áp.", caregiverId: 6, nurseId: 3, tone: "orange" }),
+  em({ id: 15, fullName: "Lý Văn Bình", familyUserId: 17, dateOfBirth: "1946-09-14", gender: "Nam", address: "5 Lý Thường Kiệt, Q.10", declaredGroup: "MOBILE", targetGroup: "CHRONIC", conditions: ["Tự khai: không bệnh nền"], careNote: "Đăng ký online. Kiểm tra ngày đầu: HA 172/98, đang uống 2 loại thuốc huyết áp.", caregiverId: 6, nurseId: 3, tone: "orange" }),
 );
 pickups.push(
   { id: 16, elderlyId: 14, fullName: "Bùi Thị Ngọc", relationship: "Con gái", phone: "0938 222 111", idLast4: "5544", isPrimary: true },
@@ -761,17 +761,18 @@ pickups.push(
 );
 subscriptions.push(
   sub({ id: 24, elderlyId: 14, targetGroup: "MOBILE", tier: "BASIC", cycle: "MONTH", startDate: DEMO_TODAY, endDate: "2026-11-07", surchargeAmount: 0, commitmentAt: t("2026-10-08", "20:41"), familyConfirmedAt: t("2026-10-08", "20:41"), status: "ACTIVE", createdAt: t("2026-10-08", "20:40"), createdBy: 16 }),
-  sub({ id: 25, elderlyId: 15, targetGroup: "MOBILE", tier: "BASIC", cycle: "MONTH", startDate: "2026-10-08", endDate: "2026-11-06", surchargeAmount: 0, commitmentAt: t("2026-10-06", "21:15"), familyConfirmedAt: t("2026-10-06", "21:15"), status: "ACTIVE", createdAt: t("2026-10-06", "21:14"), createdBy: 17, violation: "WRONG_GROUP" }),
+  { ...sub({ id: 25, elderlyId: 15, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "MONTH", startDate: "2026-10-08", endDate: "2026-11-06", surchargeAmount: 600000, surchargeNote: "Khai sai nhóm, kiểm tra ngày đầu: Bệnh mãn tính", commitmentAt: t("2026-10-06", "21:15"), familyConfirmedAt: t("2026-10-06", "21:15"), status: "ACTIVE", createdAt: t("2026-10-06", "21:14"), createdBy: 17, violation: "WRONG_GROUP", violationHandled: true }), basePrice: P("BASIC", "MONTH") },
 );
 serviceChoices.push(...choose(24, [15, 16, 17, 19, 20], DEMO_TODAY), ...choose(25, [12, 13, 15, 16, 20], "2026-10-08"));
 invoices.push(
   inv(14, 24, "HD-2610-0115", "NEW", [["Gói tháng · Cơ bản (09/10–07/11)", P("BASIC", "MONTH")]], "2026-10-08", "PAID"),
   inv(15, 25, "HD-2610-0109", "NEW", [["Gói tháng · Cơ bản (08/10–06/11)", P("BASIC", "MONTH")]], "2026-10-06", "PAID"),
+  inv(16, 25, "HD-2610-0116", "VIOLATION", [["Phụ phí nhóm Bệnh mãn tính (30/30 ngày còn lại)", 600000], ["Chênh lệch nâng hạng Cơ bản → Tiêu chuẩn (30 ngày)", P("STANDARD", "MONTH") - P("BASIC", "MONTH")]], "2026-10-08", "UNPAID"),
 );
 payments.push(pay(12, 14, 16, "MOMO", "MOMO-78400", t("2026-10-08", "20:43")), pay(13, 15, 17, "VNPAY", "VNP-88350", t("2026-10-06", "21:17")));
 assessments.push(
   { id: 13, elderlyId: 14, subscriptionId: 24, kind: "FIRST_DAY", scheduledAt: t(DEMO_TODAY, "08:00"), nurseId: 3, status: "SCHEDULED" },
-  { id: 14, elderlyId: 15, subscriptionId: 25, kind: "FIRST_DAY", scheduledAt: t("2026-10-08", "08:00"), nurseId: 3, barthel: 90, proposedGroup: "CHRONIC", baseline: "HA 172/98 (đo 2 lần) · 68kg", diagnosisDocs: "Hộp thuốc Amlodipin, Losartan mang theo", nurseNote: "Gia đình khai không bệnh nền nhưng cụ đang dùng 2 thuốc huyết áp, HA cao. Thuộc nhóm bệnh mãn tính.", doneAt: t("2026-10-08", "08:35"), status: "DONE" },
+  { id: 14, elderlyId: 15, subscriptionId: 25, kind: "FIRST_DAY", scheduledAt: t("2026-10-08", "08:00"), nurseId: 3, barthel: 90, proposedGroup: "CHRONIC", baseline: "HA 172/98 (đo 2 lần) · 68kg", diagnosisDocs: "Hộp thuốc Amlodipin, Losartan mang theo", nurseNote: "Gia đình khai không bệnh nền nhưng cụ đang dùng 2 thuốc huyết áp, HA cao. Thuộc nhóm bệnh mãn tính.", doneAt: t("2026-10-08", "08:35"), status: "APPROVED", approvedBy: 3, approvedAt: t("2026-10-08", "08:35") },
 );
 attendance.push(
   { id: aid++, elderlyId: 15, date: "2026-10-08", checkIn: "07:40", checkOut: "16:20", status: "LEFT", checkedInBy: 6, checkedOutBy: 6, pickupId: 17 },
@@ -779,7 +780,7 @@ attendance.push(
   { id: aid++, elderlyId: 15, date: DEMO_TODAY, checkIn: "07:50", status: "PRESENT", checkedInBy: 6 },
 );
 careLogDays.push({ elderlyId: 14, date: DEMO_TODAY, status: "OPEN" }, { elderlyId: 15, date: DEMO_TODAY, status: "OPEN" });
-notifications.unshift(nf(18, 2, "SYSTEM", "Vi phạm cam kết: Lý Văn Bình", "Khai Vận động được, thực tế Bệnh mãn tính", t("2026-10-08", "08:36"), false, "/manager/registrations"));
+notifications.unshift(nf(18, 2, "SYSTEM", "Lê Thu Hạnh đã duyệt: Lý Văn Bình", "Khai Vận động được, thực tế Bệnh mãn tính · đã gửi hóa đơn phụ phí, hạn 3 ngày", t("2026-10-08", "08:36"), false, "/manager/registrations"));
 
 export const seed = {
   users, staffProfiles, elderly, pickups, packages, entitlements, services, subscriptions, serviceChoices, addOns, servicePermissions,

@@ -162,7 +162,8 @@ export function MemberDetailPage() {
             { key: "b", header: "Barthel", render: (a) => a.barthel ?? "—" },
             { key: "g", header: "Đề xuất", render: (a) => a.proposedGroup ? <GroupBadge group={a.proposedGroup} /> : "—" },
             { key: "o", header: "Nền", render: (a) => <span className="text-[11.5px]">{a.baseline ?? "—"}</span> },
-            { key: "s", header: "Trạng thái", render: (a) => <Badge tone={a.status === "APPROVED" ? "green" : a.status === "DONE" ? "orange" : "blue"}>{({ SCHEDULED: "Đã hẹn", DONE: "Chờ Quản lý duyệt", APPROVED: "Đã duyệt" })[a.status]}</Badge> },
+            { key: "s", header: "Trạng thái", render: (a) => <Badge tone={a.status === "APPROVED" ? "green" : "blue"}>{a.status === "APPROVED" ? "Đã duyệt" : "Đã hẹn"}</Badge> },
+            { key: "a", header: "Người duyệt", render: (a) => a.approver ? <span className="text-[12px]">{a.approver.fullName}<span className="block text-[10.5px] text-subtle">{a.approvedAt && `${hm(a.approvedAt)} ${dmy(a.approvedAt.slice(0, 10))}`}</span></span> : "—" },
           ]} />
           {e.targetGroup && <Note className="mt-3">Nhóm {GROUP_LABEL[e.targetGroup]} đánh giá lại mỗi {GROUP_INFO[e.targetGroup].reassessMonths === 1 ? "tháng" : "3 tháng"} (BR-12). Mức đổi thì giá đổi từ kỳ sau.</Note>}
         </Card>
@@ -253,23 +254,25 @@ export function MemberEditPage() {
 }
 
 // ------------------------------------------------------------------ registrations & assessment approval
-const STAGE: Record<string, [string, "orange" | "blue" | "teal" | "green" | "red" | "gray"]> = {
-  ASSESS: ["Chờ đánh giá", "blue"], APPROVE: ["Chờ chốt nhóm & phụ phí", "orange"], CONFIRM: ["Chờ gia đình xác nhận giá", "teal"], PAY: ["Chờ thanh toán", "teal"], DONE: ["Đã hiệu lực", "green"], REJECTED: ["Không tiếp nhận", "red"], VIOLATION: ["Vi phạm cam kết", "red"],
+const STAGE: Record<string, [string, "orange" | "blue" | "teal" | "green" | "red" | "gray" | "purple"]> = {
+  ASSESS: ["Chờ điều dưỡng đánh giá", "blue"], WAIT: ["Đã duyệt · chờ chỗ", "purple"], PAY: ["Chờ gia đình thanh toán", "teal"], VIOLATION: ["Khai sai · chờ trả phụ phí", "red"],
+  DONE: ["Đã hiệu lực", "green"], REJECTED: ["Không tiếp nhận / ngừng nhận", "red"],
 };
 export function RegistrationsPage() {
   const me = useMe();
   const qc = useQueryClient();
   const [sp, setSp] = useSearchParams();
   const tab = sp.get("tab") ?? "pipeline";
-  const [stage, setStage] = useState<"OPEN" | "ASSESS" | "APPROVE" | "PAY" | "DONE" | "VIOLATION">("OPEN");
+  const [stage, setStage] = useState<"OPEN" | "ASSESS" | "PAY" | "VIOLATION" | "DONE">("OPEN");
   const [sel, setSel] = useState<number>();
   const { data, isLoading } = useQuery({ queryKey: ["m-regs"], queryFn: () => manager.registrations() });
-  const rows = (data?.rows ?? []).filter((r) => stage === "OPEN" ? ["ASSESS", "APPROVE", "CONFIRM", "PAY", "VIOLATION"].includes(r.stage) : stage === "PAY" ? ["CONFIRM", "PAY"].includes(r.stage) : stage === "DONE" ? ["DONE", "REJECTED"].includes(r.stage) : r.stage === stage);
+  const OPEN = ["ASSESS", "WAIT", "PAY", "VIOLATION"];
+  const rows = (data?.rows ?? []).filter((r) => stage === "OPEN" ? OPEN.includes(r.stage) : stage === "ASSESS" ? ["ASSESS", "WAIT"].includes(r.stage) : stage === "DONE" ? ["DONE", "REJECTED"].includes(r.stage) : r.stage === stage);
   const cur = rows.find((r) => r.sub.id === sel) ?? rows[0];
   const visit = useMutation({ mutationFn: ({ id, s }: { id: number; s: "CONFIRMED" | "DONE" }) => manager.setVisit(me, id, s), onSuccess: () => qc.invalidateQueries({ queryKey: ["m-regs"] }) });
   const n = (s: string[]) => data?.rows.filter((r) => s.includes(r.stage)).length ?? 0;
   return (
-    <Page title="Đăng ký & đánh giá" sub="Đăng ký online có cam kết (Vận động được): thanh toán ngay, điều dưỡng kiểm tra sáng ngày đầu. Nhóm bệnh: đánh giá → Quản lý chốt phụ phí → gia đình thanh toán.">
+    <Page title="Đăng ký & đánh giá" sub="Quản lý chỉ xem. Điều dưỡng duyệt kết quả đánh giá; hệ thống tự áp nhóm, phụ phí cố định, nâng hạng và xử lý khai sai.">
       <Tabs value={tab} onChange={(v) => setSp({ tab: v })} items={[{ value: "pipeline", label: "Đăng ký gói" }, { value: "visits", label: `Lịch tham quan (${data?.visits.filter((v) => v.status === "NEW").length ?? 0} mới)` }]} />
       {tab === "visits" ? (
         <Card>
@@ -284,18 +287,18 @@ export function RegistrationsPage() {
       ) : (
         <>
           <div className="flex flex-wrap gap-1.5">
-            {([["OPEN", `Đang xử lý (${n(["ASSESS", "APPROVE", "CONFIRM", "PAY", "VIOLATION"])})`], ["VIOLATION", `Vi phạm cam kết (${n(["VIOLATION"])})`], ["ASSESS", `Chờ đánh giá (${n(["ASSESS"])})`], ["APPROVE", `Chờ chốt (${n(["APPROVE"])})`], ["PAY", `Chờ xác nhận & thanh toán (${n(["CONFIRM", "PAY"])})`], ["DONE", "Đã xong / không nhận"]] as const).map(([v, l]) => <Chip key={v} active={stage === v} onClick={() => setStage(v)}>{l}</Chip>)}
+            {([["OPEN", `Đang xử lý (${n(OPEN)})`], ["ASSESS", `Chờ đánh giá (${n(["ASSESS", "WAIT"])})`], ["PAY", `Chờ thanh toán (${n(["PAY"])})`], ["VIOLATION", `Khai sai (${n(["VIOLATION"])})`], ["DONE", "Đã xong / không nhận"]] as const).map(([v, l]) => <Chip key={v} active={stage === v} onClick={() => setStage(v)}>{l}</Chip>)}
           </div>
           <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
             <Card bodyClass="space-y-2">
               {isLoading ? <Loading /> : rows.length === 0 ? <EmptyState icon={CircleCheck} title="Không có đăng ký" /> : rows.map((r) => (
                 <button key={r.sub.id} onClick={() => setSel(r.sub.id)} className={cn("w-full rounded-[10px] border px-3 py-2.5 text-left", cur?.sub.id === r.sub.id ? "border-[2px] border-orange" : "border-line hover:bg-canvas")}>
                   <ElderlyCell e={r.elderly} sub={`${CYCLE_LABEL[r.sub.cycle]} · ${TIER_LABEL[r.sub.tier]} · gửi ${dm(r.sub.createdAt.slice(0, 10))}`} />
-                  <div className="mt-1.5"><Badge tone={STAGE[r.stage][1]}>{STAGE[r.stage][0]}</Badge></div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5"><Badge tone={STAGE[r.stage][1]}>{STAGE[r.stage][0]}</Badge>{r.approver && <span className="text-[11px] text-subtle">Duyệt: {r.approver.fullName}</span>}</div>
                 </button>
               ))}
             </Card>
-            {cur ? <RegistrationDetail key={cur.sub.id} r={cur} capacity={data!.capacity} nurses={data!.nurses} /> : <Card><EmptyState icon={Users} title="Chọn một đăng ký" /></Card>}
+            {cur ? <RegistrationDetail key={cur.sub.id} r={cur} /> : <Card><EmptyState icon={Users} title="Chọn một đăng ký" /></Card>}
           </div>
         </>
       )}
@@ -304,30 +307,12 @@ export function RegistrationsPage() {
 }
 
 type RegRow = Awaited<ReturnType<typeof manager.registrations>>["rows"][number];
-type Cap = Awaited<ReturnType<typeof manager.registrations>>["capacity"];
-function RegistrationDetail({ r, capacity, nurses }: { r: RegRow; capacity: Cap; nurses: { id: number; fullName: string }[] }) {
-  const me = useMe();
-  const qc = useQueryClient();
+const when = (iso?: string) => (iso ? `${dmy(iso.slice(0, 10))} ${hm(iso)}` : "—");
+/** Read-only for the Manager: who assessed, who approved, what the system applied (BR-10 bản mới). */
+function RegistrationDetail({ r }: { r: RegRow }) {
   const a = r.assessment;
-  const [group, setGroup] = useState<TargetGroup>(a?.proposedGroup ?? r.elderly.declaredGroup);
-  const needTier = minTierFor(group);
-  const [tier, setTier] = useState<Tier>(tierRank(r.sub.tier) < tierRank(needTier) ? needTier : r.sub.tier);
-  const fixedFor = (x: TargetGroup) => manager.surchargeFor(x, r.sub.cycle, r.sub.dayDates?.length ?? 1);
-  const [surcharge, setSurcharge] = useState(String(r.sub.surchargeAmount || fixedFor(group)));
-  const [note, setNote] = useState(r.sub.surchargeNote ?? "");
-  const [drop, setDrop] = useState<number[]>([]);
-  const [reject, setReject] = useState(false);
-  const [reason, setReason] = useState(NOT_ACCEPTED[0]);
-  const [at, setAt] = useState(a?.scheduledAt.slice(0, 16) ?? `${TODAY}T14:00`);
-  const [nurseId, setNurseId] = useState(a?.nurseId ?? nurses[0]?.id);
-  const inv = () => qc.invalidateQueries();
-  const approve = useMutation({ mutationFn: () => manager.approveRegistration(me, r.sub.id, { group, tier, surcharge: Number(surcharge) || 0, note, dropServiceIds: drop }), onSuccess: inv });
-  const rej = useMutation({ mutationFn: () => manager.rejectRegistration(me, r.sub.id, reason), onSuccess: () => { setReject(false); inv(); } });
-  const sched = useMutation({ mutationFn: () => manager.scheduleAssessment(me, r.sub.id, `${at}:00`, Number(nurseId)), onSuccess: inv });
-  const remind = useMutation({ mutationFn: () => manager.remindRenewal(me, r.sub.id) });
-  const cap = capacity.find((c) => c.tier === tier)!;
-  const upgraded = tier !== r.sub.tier;
-  const disease = DISEASE_GROUPS.includes(group);
+  const s = r.sub;
+  const kindLabel = a?.kind === "FIRST_DAY" ? "Kiểm tra ngày đầu (đăng ký online có cam kết)" : a?.kind === "PERIODIC" ? "Đánh giá định kỳ" : "Đánh giá đầu vào";
   return (
     <div className="space-y-4">
       <Card title={r.elderly.fullName} actions={<Badge tone={STAGE[r.stage][1]}>{STAGE[r.stage][0]}</Badge>}>
@@ -339,159 +324,63 @@ function RegistrationDetail({ r, capacity, nurses }: { r: RegRow; capacity: Cap;
             <KV label="Gia đình">{r.family?.fullName} · {r.family?.phone}</KV>
           </div>
           <div>
-            <KV label="Thời hạn">{CYCLE_LABEL[r.sub.cycle]}{r.sub.weekdays ? ` (${weekdaysLabel(r.sub.weekdays)})` : ""}</KV>
-            <KV label="Hạng chọn"><TierBadge tier={r.sub.tier} /></KV>
-            <KV label="Bắt đầu">{r.sub.dayDates ? r.sub.dayDates.map(dm).join(", ") : dmy(r.sub.startDate)}</KV>
+            <KV label="Thời hạn">{CYCLE_LABEL[s.cycle]}{s.weekdays ? ` (${weekdaysLabel(s.weekdays)})` : ""}</KV>
+            <KV label="Bắt đầu">{s.dayDates ? s.dayDates.map(dm).join(", ") : dmy(s.startDate)}</KV>
             <KV label="Hoạt động tích">{r.choices.map((c) => c.name).join(", ") || "—"}</KV>
+            <KV label="Cam kết khai đúng">{s.commitmentAt ? when(s.commitmentAt) : "—"}</KV>
           </div>
         </div>
       </Card>
 
-      {r.stage === "VIOLATION" && <ViolationPanel r={r} />}
-      <Card title={<span className="flex items-center gap-2"><Stethoscope size={16} className="text-teal" />{a?.kind === "FIRST_DAY" ? "Kiểm tra ngày đầu (đăng ký online có cam kết)" : "Đánh giá đầu vào"}</span>}>
-        {!a || a.status === "SCHEDULED" ? (
-          <div className="space-y-2">
-            {a ? <Note>Đã hẹn {dmy(a.scheduledAt.slice(0, 10))} lúc {hm(a.scheduledAt)} với {a.nurse?.fullName}. Gia đình đã nhận thông báo.</Note> : <Note tone="red">Chưa có lịch đánh giá.</Note>}
-            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-              <Field label="Ngày giờ đánh giá" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
-              <SelectField label="Điều dưỡng" value={nurseId} onChange={(e) => setNurseId(Number(e.target.value))}>{nurses.map((n) => <option key={n.id} value={n.id}>{n.fullName}</option>)}</SelectField>
-              <Button className="self-center" variant="outline" icon={CalendarClock} loading={sched.isPending} onClick={() => sched.mutate()}>{a ? "Đổi lịch" : "Đặt lịch"}</Button>
-            </div>
-          </div>
+      <Card title={<span className="flex items-center gap-2"><Stethoscope size={16} className="text-teal" />{kindLabel}</span>}>
+        {!a ? <Note>Chưa có lịch đánh giá.</Note> : a.status === "SCHEDULED" ? (
+          <Note>Đã hẹn {when(a.scheduledAt)} với điều dưỡng {a.nurse?.fullName ?? "—"}. Điều dưỡng đánh giá và duyệt trên app.</Note>
         ) : (
           <div className="grid gap-x-6 sm:grid-cols-2">
             <div>
-              <KV label="Điều dưỡng">{a.nurse?.fullName} · {dmy(a.doneAt?.slice(0, 10))}</KV>
+              <KV label="Điều dưỡng đánh giá">{a.nurse?.fullName} · {when(a.doneAt)}</KV>
               <KV label="Điểm Barthel"><b className="text-[15px] text-navy">{a.barthel}</b>/100</KV>
-              <KV label="Đề xuất nhóm"><GroupBadge group={a.proposedGroup} /></KV>
+              <KV label="Kết luận nhóm"><GroupBadge group={a.proposedGroup} />{a.notAccepted && <Badge tone="red" className="ml-1">Thuộc diện không nhận</Badge>}</KV>
             </div>
             <div>
               <KV label="Chỉ số nền">{a.baseline}</KV>
               <KV label="Giấy tờ">{a.diagnosisDocs ?? "—"}</KV>
               <KV label="Nhận xét">{a.nurseNote}</KV>
             </div>
-            {a.kind !== "FIRST_DAY" && a.proposedGroup !== r.elderly.declaredGroup && <Note tone="red" className="sm:col-span-2">Đánh giá khác với gia đình khai ({GROUP_LABEL[r.elderly.declaredGroup]} → {GROUP_LABEL[a.proposedGroup!]}). Áp dụng quy tắc cuối mục 4.12: nhập phụ phí thỏa thuận, nâng hạng nếu cần, bỏ dịch vụ không phù hợp, gửi gia đình xác nhận.</Note>}
+            <div className="mt-2 rounded-xl bg-green-soft/50 px-3 py-2 text-[12.5px] sm:col-span-2">
+              <b className="text-green-ink">Người duyệt: {r.approver?.fullName ?? "—"}</b>{r.approverPosition && <span className="text-muted"> ({r.approverPosition})</span>} · lúc {when(a.approvedAt)}
+            </div>
           </div>
         )}
       </Card>
 
-      {r.stage === "APPROVE" && (
-        <Card title="Chốt đối tượng, hạng và phụ phí">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <SelectField label="Đối tượng (nhóm chính, BR-16)" value={group} onChange={(e) => { const g = e.target.value as TargetGroup; setGroup(g); if (tierRank(tier) < tierRank(minTierFor(g))) setTier(minTierFor(g)); setSurcharge(String(fixedFor(g))); }}>
-              {GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}
-            </SelectField>
-            <SelectField label="Hạng" value={tier} onChange={(e) => setTier(e.target.value as Tier)}>
-              {TIERS.map((t) => <option key={t} value={t} disabled={tierRank(t) < tierRank(needTier)}>{TIER_LABEL[t]}{tierRank(t) < tierRank(needTier) ? " (không áp dụng cho nhóm này)" : ""}</option>)}
-            </SelectField>
-            <Field label="Phụ phí nhóm (đ/kỳ, theo bảng cố định)" type="number" step={50000} value={surcharge} onChange={(e) => setSurcharge(e.target.value)} disabled={!disease} />
-            <Field label="Lý do / nội dung phụ phí" value={note} onChange={(e) => setNote(e.target.value)} placeholder="VD: theo dõi đường huyết, nhắc thuốc 2 lần/ngày" />
+      <Card title="Kết quả hệ thống áp dụng">
+        <KV label="Nhóm · hạng" w={170}><GroupBadge group={s.targetGroup} /> <TierBadge tier={s.tier} /></KV>
+        <KV label="Phụ phí nhóm" w={170}>{s.surchargeAmount ? `${vnd(s.surchargeAmount)} · ${s.surchargeNote ?? "theo bảng cố định"}` : "Không có"}</KV>
+        {r.invoice && <KV label="Hóa đơn gói" w={170}><Link className="text-orange" to={`/manager/invoices/${r.invoice.id}`}>{r.invoice.number}</Link> · {vnd(r.invoice.total)} · {r.payment ? <Badge tone="green">Đã thanh toán {when(r.payment.paidAt)}</Badge> : <Badge tone="orange">Chưa thanh toán · hạn {dmy(r.invoice.dueDate)}</Badge>}</KV>}
+        {r.failed.length > 0 && <Note tone="red" className="mt-2">Có {r.failed.length} lần thanh toán thất bại ({r.failed.map((p) => `${p.method} ${dm(p.paidAt.slice(0, 10))}`).join(", ")}).</Note>}
+        {s.violation === "WRONG_GROUP" && (
+          <div className="mt-3 rounded-xl border border-red-line bg-red-soft/30 p-3 text-[12.5px]">
+            <b className="text-red-ink">Khai sai nhóm (BR-80):</b> gia đình khai {GROUP_LABEL[r.elderly.declaredGroup]}, thực tế {GROUP_LABEL[s.targetGroup]}.
+            {r.violationInvoice && <div className="mt-1">Hóa đơn phụ phí + chênh lệch: <Link className="text-orange" to={`/manager/invoices/${r.violationInvoice.id}`}>{r.violationInvoice.number}</Link> · {vnd(r.violationInvoice.total)} · {r.violationInvoice.status === "PAID" ? <Badge tone="green">Đã trả</Badge> : <Badge tone="orange">Chưa trả · hạn {dmy(r.violationInvoice.dueDate)}</Badge>}</div>}
+            {s.status === "SUSPENDED" && <div className="mt-1 font-semibold text-red-ink">Quá hạn 3 ngày chưa trả → hệ thống đã chuyển gói sang Tạm ngưng.</div>}
           </div>
-          {upgraded && <Note tone="orange" className="mt-2">Hạng {TIER_LABEL[r.sub.tier]} không áp dụng cho nhóm {GROUP_LABEL[group]} (BR-11) — tự nâng lên {TIER_LABEL[tier]}. Gia đình sẽ thấy giá mới khi xác nhận.</Note>}
-          {r.choices.some((c) => c.needsNurseOk) && disease && (
-            <div className="mt-3">
-              <div className="mb-1 text-[12px] font-semibold text-navy">Bỏ dịch vụ ⚠ không phù hợp</div>
-              <div className="flex flex-wrap gap-2">{r.choices.filter((c) => c.needsNurseOk).map((c) => <label key={c.id} className="flex items-center gap-1.5 rounded-lg bg-canvas px-2 py-1 text-[12px]"><input type="checkbox" checked={drop.includes(c.id)} onChange={(e) => setDrop(e.target.checked ? [...drop, c.id] : drop.filter((x) => x !== c.id))} />{c.name}</label>)}</div>
-            </div>
-          )}
-          <div className="mt-3 rounded-xl bg-canvas p-3 text-[12.5px]">
-            <KV label="Sức chứa hạng" w={160}>{cap.held}/{cap.beds} chỗ {cap.full ? <Badge tone="red">Hết chỗ</Badge> : <Badge tone="green">Còn {cap.free}</Badge>}</KV>
-            <KV label="Giá gói" w={160}>theo bảng giá hạng {TIER_LABEL[tier]}</KV>
-            <KV label="Phụ phí" w={160}>{vnd(Number(surcharge) || 0)}</KV>
+        )}
+        {s.violation === "NOT_ACCEPTED" && (
+          <div className="mt-3 rounded-xl border border-red-line bg-red-soft/30 p-3 text-[12.5px]">
+            <b className="text-red-ink">Thuộc diện không nhận (BR-80):</b> đã ngừng nhận cụ.
+            {r.refund && <div className="mt-1">Hoàn {vnd(r.refund.amount)} · {r.refund.reason} · {r.refund.status === "DONE" ? <Badge tone="green">Đã hoàn</Badge> : <Badge tone="orange">Chờ gửi lệnh hoàn (mục Thanh toán)</Badge>}</div>}
           </div>
-          <ErrorText error={approve.error} />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="success" icon={Send} loading={approve.isPending} disabled={r.sub.cycle !== "DAY" && cap.full} onClick={() => approve.mutate()}>Chốt & gửi gia đình xác nhận</Button>
-            {cap.full && <Button variant="outline" icon={Hourglass} to="/manager/waitlist">Hạng đã đầy · danh sách chờ</Button>}
-            <Button variant="danger" className="ml-auto" icon={Ban} onClick={() => setReject(true)}>Không tiếp nhận</Button>
-          </div>
-        </Card>
-      )}
-
-      {(r.stage === "CONFIRM" || r.stage === "PAY") && (
-        <Card title="Chờ gia đình">
-          <KV label="Nhóm · hạng" w={150}><GroupBadge group={r.sub.targetGroup} /> <TierBadge tier={r.sub.tier} /></KV>
-          <KV label="Phụ phí" w={150}>{vnd(r.sub.surchargeAmount)} · {r.sub.surchargeNote}</KV>
-          <KV label="Gia đình xác nhận giá" w={150}>{r.sub.familyConfirmedAt ? `${dmy(r.sub.familyConfirmedAt.slice(0, 10))} ${hm(r.sub.familyConfirmedAt)}` : <Badge tone="orange">Chưa xác nhận</Badge>}</KV>
-          {r.invoice && <KV label="Hóa đơn" w={150}><Link className="text-orange" to={`/manager/invoices/${r.invoice.id}`}>{r.invoice.number}</Link> · {vnd(r.invoice.total)} · hạn {dmy(r.invoice.dueDate)}</KV>}
-          {r.failed.length > 0 && <Note tone="red" className="mt-2">Có {r.failed.length} lần thanh toán thất bại ({r.failed.map((p) => `${p.method} ${dm(p.paidAt.slice(0, 10))}`).join(", ")}).</Note>}
-          <div className="mt-3 flex gap-2"><Button variant="outline" icon={MessageCircle} loading={remind.isPending} onClick={() => remind.mutate()}>{remind.isSuccess ? "Đã nhắc" : "Nhắc gia đình"}</Button></div>
-          <Note className="mt-3">Không thu đặt cọc. Khi cổng thanh toán báo thành công, gói tự chuyển "Đang hiệu lực" (BR-19, 5.1).</Note>
-        </Card>
-      )}
-      {r.stage === "REJECTED" && <Note tone="red">Không tiếp nhận: {r.sub.surchargeNote}</Note>}
-      {r.stage === "DONE" && <Note tone="green">Gói đang hiệu lực từ {dmy(r.sub.startDate)}. Nhớ phân công điều dưỡng và hộ lý ở hồ sơ cụ.</Note>}
-
-      <Modal open={reject} onClose={() => setReject(false)} title="Không tiếp nhận" footer={<><Button variant="neutral" onClick={() => setReject(false)}>Hủy</Button><Button variant="danger" loading={rej.isPending} onClick={() => rej.mutate()}>Xác nhận</Button></>}>
-        <SelectField label="Lý do (BR-18)" value={reason} onChange={(e) => setReason(e.target.value)}>{[...NOT_ACCEPTED, "Gia đình không đồng ý mức phụ phí"].map((x) => <option key={x}>{x}</option>)}</SelectField>
-        <Note className="mt-2">Gia đình chưa thanh toán nên không phát sinh hoàn tiền.</Note>
-      </Modal>
+        )}
+        {r.stage === "WAIT" && <Note className="mt-2">Hạng {TIER_LABEL[s.tier]} đang hết chỗ. Gia đình đã được đưa vào danh sách chờ.</Note>}
+        {r.stage === "REJECTED" && s.status === "REJECTED" && <Note tone="red" className="mt-2">Không tiếp nhận: {s.surchargeNote}</Note>}
+        {r.stage === "DONE" && <Note tone="green" className="mt-2">Gói đang hiệu lực từ {dmy(s.startDate)}. Nhớ phân công điều dưỡng và hộ lý ở hồ sơ cụ.</Note>}
+      </Card>
+      <Note>Quản lý chỉ xem để theo dõi và đối chiếu khi có sự cố. Mọi bước đều lưu tên người duyệt và thời điểm.</Note>
     </div>
   );
 }
 
-/** BR-80: the first-day check of an online registration found a false declaration. */
-function ViolationPanel({ r }: { r: RegRow }) {
-  const me = useMe();
-  const qc = useQueryClient();
-  const a = r.assessment;
-  const [group, setGroup] = useState<TargetGroup>(a?.proposedGroup && a.proposedGroup !== "MOBILE" ? a.proposedGroup : "CHRONIC");
-  const surcharge = String(manager.monthlySurcharge(group));
-  const [note, setNote] = useState(a?.nurseNote ?? "");
-  const inv = () => qc.invalidateQueries();
-  const charge = useMutation({ mutationFn: () => manager.chargeWrongGroup(me, r.sub.id, group, Number(surcharge) || 0, note), onSuccess: inv });
-  const suspend = useMutation({ mutationFn: () => manager.suspendForViolation(me, r.sub.id), onSuccess: inv });
-  const stop = useMutation({ mutationFn: () => manager.stopNotAccepted(me, r.sub.id), onSuccess: inv });
-  const commitAt = r.sub.commitmentAt;
-  if (r.sub.violation === "NOT_ACCEPTED") {
-    const q = manager.refundQuote(r.sub.id);
-    return (
-      <Card title={<span className="flex items-center gap-2 text-red-ink"><Ban size={16} />Vi phạm cam kết · cụ thuộc diện không nhận</span>} className="ring-2 ring-red-line">
-        <Note tone="red">Điều dưỡng {a?.nurse?.fullName} kiểm tra {a?.doneAt ? `${dmy(a.doneAt.slice(0, 10))} ${hm(a.doneAt)}` : ""}: {a?.nurseNote || "cụ thuộc diện không nhận"} (Barthel {a?.barthel}). Gia đình đã cam kết khai đúng lúc {commitAt ? `${dmy(commitAt.slice(0, 10))} ${hm(commitAt)}` : "—"}.</Note>
-        <div className="mt-3 rounded-xl bg-canvas p-3 text-[12.5px]">
-          <KV label="Đã đóng (gói + phụ phí)" w={220}>{vnd(q.paid)}</KV>
-          <KV label="Thời điểm phát hiện" w={220}>{q.firstDay ? "Buổi kiểm tra ngày đầu → tính trên tổng tiền" : `Sau ngày đầu → tính trên phần chưa dùng (${q.unused}/${q.total} ngày)`}</KV>
-          <KV label="Cơ sở tính hoàn" w={220}>{vnd(q.base)}</KV>
-          <KV label="Hoàn 95% cho gia đình" w={220}><span className="text-[15px] text-green-ink">{vnd(q.refund)}</span></KV>
-          <KV label="Trung tâm giữ 5% phí hoạt động" w={220}>{vnd(q.base - q.refund)}</KV>
-        </div>
-        <Note className="mt-2">Dịch vụ mua thêm đã dùng không hoàn. Hoàn qua cổng thanh toán (mục Thanh toán → Hoàn tiền).</Note>
-        <ErrorText error={stop.error} />
-        <Button className="mt-3" variant="danger" icon={Ban} loading={stop.isPending} onClick={() => stop.mutate()}>Ngừng nhận cụ & tạo lệnh hoàn {vnd(q.refund)}</Button>
-      </Card>
-    );
-  }
-  if (r.sub.violationHandled) {
-    const vi = r.violationInvoice;
-    const overdue = !!vi && vi.dueDate < TODAY;
-    return (
-      <Card title={<span className="flex items-center gap-2 text-red-ink"><Ban size={16} />Vi phạm cam kết · chờ gia đình thanh toán</span>} className="ring-2 ring-red-line">
-        {vi && <KV label="Hóa đơn" w={150}><Link className="text-orange" to={`/manager/invoices/${vi.id}`}>{vi.number}</Link> · {vnd(vi.total)} · hạn {dmy(vi.dueDate)}</KV>}
-        <Note className="mt-2">Quá 3 ngày chưa thanh toán thì chuyển gói sang Tạm ngưng (BR-80). Gia đình thanh toán xong gói tự hoạt động lại.</Note>
-        <Button className="mt-3" variant="danger" disabled={!overdue} loading={suspend.isPending} onClick={() => suspend.mutate()}>{overdue ? "Chuyển Tạm ngưng" : `Chưa quá hạn (hạn ${dmy(vi?.dueDate)})`}</Button>
-      </Card>
-    );
-  }
-  const q = manager.violationQuote(r.sub.id, group, Number(surcharge) || 0);
-  return (
-    <Card title={<span className="flex items-center gap-2 text-red-ink"><Ban size={16} />Vi phạm cam kết · khai sai nhóm</span>} className="ring-2 ring-red-line">
-      <Note tone="red">Gia đình khai <b>{GROUP_LABEL[r.elderly.declaredGroup]}</b>, điều dưỡng kiểm tra ngày đầu: <b>{a?.proposedGroup ? GROUP_LABEL[a.proposedGroup] : "—"}</b> (Barthel {a?.barthel}, {a?.baseline}). Cam kết lúc {commitAt ? `${dmy(commitAt.slice(0, 10))} ${hm(commitAt)}` : "—"}.</Note>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <SelectField label="Nhóm thực tế" value={group} onChange={(e) => setGroup(e.target.value as TargetGroup)}>{DISEASE_GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}</SelectField>
-        <Field label="Phụ phí nhóm (đ/tháng, theo bảng cố định)" value={vnd(Number(surcharge))} readOnly />
-        <TextArea label="Ghi chú cho gia đình" className="sm:col-span-2" value={note} onChange={(e) => setNote(e.target.value)} />
-      </div>
-      <div className="mt-3 rounded-xl bg-canvas p-3 text-[12.5px]">
-        <KV label="Số ngày còn lại" w={220}>{q.left}/{q.total} ngày</KV>
-        <KV label="Phụ phí cho số ngày còn lại" w={220}>{vnd(q.surcharge)}</KV>
-        <KV label="Chênh lệch nâng hạng" w={220}>{q.tierDiff ? `${TIER_LABEL[r.sub.tier]} → ${TIER_LABEL[q.toTier]}: ${vnd(q.tierDiff)}` : "Không (hạng đã phù hợp)"}</KV>
-        <KV label="Gia đình cần trả trong 3 ngày" w={220}><span className="text-[15px] text-orange">{vnd(q.sum)}</span></KV>
-      </div>
-      <ErrorText error={charge.error} />
-      <Button className="mt-3" icon={Send} loading={charge.isPending} onClick={() => charge.mutate()}>Gửi hóa đơn cho gia đình</Button>
-    </Card>
-  );
-}
 
 // ------------------------------------------------------------------ waitlist
 export function WaitlistPage() {

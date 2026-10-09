@@ -22,8 +22,8 @@ export function ManagerDashboard() {
   if (isLoading || !data) return <Page title="Vận hành trong ngày"><Loading /></Page>;
   const c = data.counts;
   const todo: [number, Tone, string, string][] = [
-    [data.todo.assessDone, "orange", "Đánh giá xong, chờ chốt nhóm & phụ phí", "/manager/registrations"],
-    [data.todo.awaitingPay, "blue", "Chờ gia đình xác nhận giá / thanh toán", "/manager/registrations"],
+    [data.todo.assessToday, "blue", "Lịch đánh giá / kiểm tra ngày đầu hôm nay (điều dưỡng duyệt)", "/manager/registrations"],
+    [data.todo.awaitingPay, "blue", "Chờ gia đình thanh toán", "/manager/registrations"],
     [data.todo.absences, "purple", "Báo nghỉ chờ duyệt", "/manager/absences"],
     [data.todo.pauses, "purple", "Bảo lưu / chấm dứt chờ duyệt", "/manager/pauses"],
     [data.todo.leaves, "teal", "Xin nghỉ / đổi ca của nhân viên", "/manager/shifts?tab=leave"],

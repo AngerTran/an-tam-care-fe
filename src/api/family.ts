@@ -3,6 +3,7 @@
 import type { Cycle, ElderlyMember, MedicationPlan, PaymentMethod, TargetGroup, Tier, User } from "../types/models";
 import { CYCLE_MONTHS, GROUP_LABEL, minTierFor, TIER_LABEL, tierRank, TIERS } from "../domain/catalog";
 import { addDays, daysBetween } from "../lib/format";
+import { assertValid, validateAbsence, validatePause, validatePickup, validateRelative, validateStartDate } from "../lib/validate";
 import {
   activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, invoicesOf,
   lookups, metricsOf, need, nextId, notify, notifyManagers, fixedSurcharge, nowDoing, NOW, paymentOf, pkgName, priceOfPkg, scheduledOn, stamp, TODAY, wait,
@@ -41,6 +42,7 @@ export const family = {
     await wait();
     const d = db();
     const { id, ...rest } = input;
+    assertValid(validateRelative({ ...(id ? guard(me, id) : {}), ...rest }));
     if (id) {
       const e = guard(me, id);
       if (e.targetGroup && rest.declaredGroup !== e.declaredGroup) delete (rest as Partial<ElderlyMember>).declaredGroup; // locked after assessment
@@ -57,6 +59,7 @@ export const family = {
   async savePickup(me: User, input: { id?: number; elderlyId: number; fullName: string; relationship: string; phone: string; idLast4: string; isPrimary: boolean }) {
     await wait();
     guard(me, input.elderlyId);
+    assertValid(validatePickup(input));
     const d = db();
     if (input.isPrimary) d.pickups.filter((p) => p.elderlyId === input.elderlyId).forEach((p) => (p.isPrimary = false));
     const { id, ...rest } = input;
@@ -174,6 +177,13 @@ export const family = {
     const d = db();
     const e = guard(me, input.elderlyId);
     if (!input.commit) throw new Error("Vui lòng đọc Quy định dịch vụ và tích cam kết khai đúng (BR-79)");
+    if (input.cycle === "DAY") {
+      if (!input.dayDates?.length) throw new Error("Chọn ít nhất một ngày");
+      for (const x of input.dayDates) { const err = validateStartDate(x); if (err) throw new Error(`Ngày ${x.slice(8)}/${x.slice(5, 7)}: ${err.toLowerCase()}`); }
+    } else {
+      const err = validateStartDate(input.startDate);
+      if (err) throw new Error(err);
+    }
     const cur = currentSub(e.id);
     if (cur && ["PENDING_ASSESSMENT", "AWAITING_PAYMENT"].includes(cur.status)) throw new Error("Cụ đang có một đăng ký chờ xử lý");
     const group = e.targetGroup ?? input.group;
@@ -395,6 +405,7 @@ export const family = {
     const d = db();
     const s = need(byId(d.subscriptions, input.subId));
     const e = guard(me, s.elderlyId);
+    assertValid(validatePause(input, d.centerSettings.maxPauseDays));
     if (input.kind === "HOSPITAL" && input.toDate && daysBetween(input.fromDate, input.toDate) + 1 > d.centerSettings.maxPauseDays) throw new Error(`Bảo lưu tối đa ${d.centerSettings.maxPauseDays} ngày (BR-22)`);
     if (!input.document) throw new Error("Đính kèm giấy tờ (giấy nhập viện / giấy chứng tử)");
     d.pauses.unshift({ id: nextId(d.pauses), subscriptionId: s.id, kind: input.kind, fromDate: input.fromDate, toDate: input.toDate, document: input.document, note: input.note, requestedBy: me.id, createdAt: stamp(), status: "PENDING" });
@@ -428,6 +439,7 @@ export const family = {
     await wait();
     const d = db();
     const e = guard(me, input.elderlyId);
+    assertValid(validateAbsence(input));
     const s = activeSub(e.id);
     if (!s) throw new Error("Cụ chưa có gói đang hiệu lực");
     let credit = 0;
