@@ -309,13 +309,23 @@ export const staff = {
       return { assessment: a, elderly: e, sub: s, family: lookups.user(e.familyUserId), choices: s ? choicesOf(s.id).map((id) => lookups.service(id)!) : [], permissions: d.servicePermissions.filter((p) => p.elderlyId === e.id) };
     });
   },
-  async submitAssessment(me: User, id: number, input: { barthel: number; group: TargetGroup; baseline: string; docs: string; note: string; permissions: { serviceId: number; allowed: boolean; reason: string }[] }) {
+  async submitAssessment(me: User, id: number, input: { barthel: number; group: TargetGroup; baseline: string; docs: string; note: string; notAccepted?: boolean; permissions: { serviceId: number; allowed: boolean; reason: string }[] }) {
     await wait();
     if (!isNurse(me)) throw new Error("Chỉ điều dưỡng đánh giá đầu vào (BR-10)");
     const d = db();
     const a = need(byId(d.assessments, id));
-    if (input.barthel < 20) throw new Error("Barthel dưới 20: thuộc diện không nhận (BR-18). Báo Quản lý từ chối.");
-    Object.assign(a, { barthel: input.barthel, proposedGroup: input.group, baseline: input.baseline, diagnosisDocs: input.docs, nurseNote: input.note, doneAt: stamp(), status: a.kind === "PERIODIC" ? "APPROVED" : "DONE" });
+    const notAccepted = !!input.notAccepted || input.barthel < 20;
+    if (notAccepted && a.kind !== "FIRST_DAY") throw new Error("Thuộc diện không nhận (BR-18). Báo Quản lý từ chối.");
+    Object.assign(a, { barthel: input.barthel, proposedGroup: input.group, baseline: input.baseline, diagnosisDocs: input.docs, nurseNote: input.note, notAccepted, doneAt: stamp(), status: a.kind === "PERIODIC" ? "APPROVED" : "DONE" });
+    // BR-80: first-day check of an online registration — matching declaration is approved right away
+    if (a.kind === "FIRST_DAY") {
+      const sub = need(byId(d.subscriptions, a.subscriptionId));
+      const el = need(lookups.elderly(a.elderlyId));
+      if (notAccepted) sub.violation = "NOT_ACCEPTED";
+      else if (input.group !== el.declaredGroup) sub.violation = "WRONG_GROUP";
+      else { a.status = "APPROVED"; el.targetGroup = input.group; }
+      if (sub.violation) notifyManagers("SYSTEM", `Vi phạm cam kết: ${el.fullName}`, notAccepted ? "Cụ thuộc diện không nhận — ngừng nhận, hoàn 95%" : `Khai ${GROUP_LABEL[el.declaredGroup]}, thực tế ${GROUP_LABEL[input.group]}`, "/manager/registrations");
+    }
     for (const p of input.permissions) {
       d.servicePermissions = d.servicePermissions.filter((x) => !(x.elderlyId === a.elderlyId && x.serviceId === p.serviceId));
       d.servicePermissions.push({ elderlyId: a.elderlyId, serviceId: p.serviceId, allowed: p.allowed, reason: p.reason, nurseId: me.id, date: TODAY });

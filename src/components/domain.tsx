@@ -7,7 +7,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { family } from "../api";
 import { useMe } from "../auth/AuthContext";
-import { GROUP_LABEL, GROUP_TONE, POSITION_LABEL, SUB_STATUS, TIER_LABEL, TIER_TONE } from "../domain/catalog";
+import { GROUP_LABEL, GROUP_TONE, POSITION_LABEL, SERVICE_TERMS, SUB_STATUS, TIER_LABEL, TIER_TONE } from "../domain/catalog";
 import { age } from "../lib/format";
 import type { Attendance, CareLogEntry, ElderlyMember, Position, SubStatus, TargetGroup, Tier } from "../types/models";
 import { Avatar, Badge, cn, Photo, SelectField, type Tone } from "./ui";
@@ -153,6 +153,20 @@ export function Stat({ label, value, tone = "navy", icon: Icon }: { label: strin
 
 export function Check({ ok, children }: { ok: boolean; children: ReactNode }) {
   return <span className={cn("flex items-start gap-1.5 text-[12px]", ok ? "text-ink" : "text-faint line-through")}><CircleCheck size={14} className={cn("mt-0.5 shrink-0", ok ? "text-green" : "text-faint")} />{children}</span>;
+}
+
+/** "Quy định dịch vụ" (BR-79): shown on the public site and before the family commits and pays. */
+export function ServiceTerms({ className }: { className?: string }) {
+  return (
+    <div className={cn("space-y-3 text-[12.5px]", className)}>
+      {SERVICE_TERMS.map((s, i) => (
+        <div key={s.title}>
+          <div className="font-bold text-navy">{i + 1}. {s.title}</div>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted">{s.items.map((x) => <li key={x}>{x}</li>)}</ul>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ------------------------------------------------------------------ family: selected elderly

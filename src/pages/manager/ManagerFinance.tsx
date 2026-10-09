@@ -13,7 +13,7 @@ import { dmy, hm, millions, vnd } from "../../lib/format";
 import type { CenterSettings, Invoice } from "../../types/models";
 
 export const INV_STATUS: Record<Invoice["status"], ["green" | "orange" | "gray" | "red", string]> = { PAID: ["green", "Đã thanh toán"], UNPAID: ["orange", "Chưa thanh toán"], REFUNDED: ["gray", "Đã hoàn"], VOID: ["red", "Đã hủy"] };
-export const INV_KIND: Record<Invoice["kind"], string> = { NEW: "Đăng ký mới", RENEWAL: "Gia hạn", UPGRADE: "Nâng hạng", ADDON: "Dịch vụ mua thêm", DAY_BOOKING: "Đặt gói ngày" };
+export const INV_KIND: Record<Invoice["kind"], string> = { NEW: "Đăng ký mới", RENEWAL: "Gia hạn", UPGRADE: "Nâng hạng", ADDON: "Dịch vụ mua thêm", DAY_BOOKING: "Đặt gói ngày", VIOLATION: "Phụ phí sau kiểm tra (BR-80)" };
 
 export function PaymentsPage() {
   const me = useMe();

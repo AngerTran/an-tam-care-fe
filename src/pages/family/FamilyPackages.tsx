@@ -7,7 +7,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { family, TODAY } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
-import { ElderlyCell, GroupBadge, SubBadge, TierBadge } from "../../components/domain";
+import { ElderlyCell, GroupBadge, ServiceTerms, SubBadge, TierBadge } from "../../components/domain";
 import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, IconCircle, KV, Loading, Modal, Note, SelectField, Table, TextArea, Toggle, cn } from "../../components/ui";
 import { CYCLE_DESC, CYCLE_LABEL, CYCLES, DISEASE_GROUPS, GROUP_INFO, GROUP_LABEL, GROUPS, M3_OPTIONS, minTierFor, NOT_ACCEPTED, TIER_LABEL, TIERS, tierRank, weekdaysLabel } from "../../domain/catalog";
 import { addDays, age, dm, dmy, hm, vnd, weekday } from "../../lib/format";
@@ -129,7 +129,9 @@ export function RegisterWizard() {
   const [choices, setChoices] = useState<number[]>([]);
   const [addons, setAddons] = useState<Record<number, number>>({});
   const [ack, setAck] = useState(false);
-  const submit = useMutation({ mutationFn: () => family.register(me, { elderlyId: eid!, cycle, group, tier, choiceIds: choices, addOns: Object.entries(addons).filter(([, q]) => q > 0).map(([k, q]) => ({ serviceId: Number(k), quantity: q })), startDate: start, weekdays: cycle === "M3" ? weekdays : undefined, dayDates: cycle === "DAY" ? dayDates : undefined }), onSuccess: () => qc.invalidateQueries() });
+  const [commit, setCommit] = useState(false);
+  const nav = useNavigate();
+  const submit = useMutation({ onSuccess: (r) => { qc.invalidateQueries(); if (r.invoiceId) nav(`/family/checkout/${r.invoiceId}`); }, mutationFn: () => family.register(me, { commit, elderlyId: eid!, cycle, group, tier, choiceIds: choices, addOns: Object.entries(addons).filter(([, q]) => q > 0).map(([k, q]) => ({ serviceId: Number(k), quantity: q })), startDate: start, weekdays: cycle === "M3" ? weekdays : undefined, dayDates: cycle === "DAY" ? dayDates : undefined }) });
   const wait = useMutation({ mutationFn: () => family.joinWaitlist(me, eid!, tier), onSuccess: () => qc.invalidateQueries() });
   if (isLoading || !data) return <Page title="Đăng ký gói"><Loading /></Page>;
   const el = data.elderly.find((x) => x.elderly.id === eid);
@@ -143,7 +145,7 @@ export function RegisterWizard() {
   const addonTotal = Object.entries(addons).reduce((s, [k, q]) => s + (data.services.find((x) => x.id === Number(k))?.addonPrice ?? 0) * q, 0);
   const canNext = [!!eid && !(el?.sub && ["PENDING_ASSESSMENT", "AWAITING_PAYMENT"].includes(el.sub.status)), cycle !== "DAY" || dayDates.length > 0, ack || !!el?.elderly.targetGroup, tierRank(tier) >= tierRank(minTierFor(g)) && choices.length <= ent.optionalMax, true][step];
   const fullErr = submit.error instanceof Error && submit.error.message.startsWith("FULL:");
-  if (submit.isSuccess) {
+  if (submit.isSuccess && !submit.data.invoiceId) {
     return (
       <Page title="Đăng ký gói">
         <Card className="mx-auto max-w-xl text-center">
@@ -267,7 +269,7 @@ export function RegisterWizard() {
         <Card title="5. Tóm tắt và giá" className="mx-auto max-w-2xl">
           <KV label="Cụ">{el.elderly.fullName}</KV>
           <KV label="Thời hạn">{CYCLE_LABEL[cycle]}{cycle === "M3" ? ` · ${weekdaysLabel(weekdays)}` : ""}{cycle === "DAY" ? ` · ${dayDates.sort().map(dm).join(", ")}` : ` · từ ${dmy(start)}`}</KV>
-          <KV label="Đối tượng"><GroupBadge group={g} /> {el.elderly.targetGroup ? "(đã đánh giá)" : "(tự khai, chờ đánh giá)"}</KV>
+          <KV label="Đối tượng"><GroupBadge group={g} /> {el.elderly.targetGroup ? "(đã đánh giá)" : g === "MOBILE" ? "(tự khai, điều dưỡng kiểm tra sáng ngày đầu)" : "(tự khai, chờ đánh giá)"}</KV>
           <KV label="Hạng"><TierBadge tier={tier} /></KV>
           <KV label="Hoạt động">{choices.map((id) => data.services.find((s) => s.id === id)?.name).join(", ") || "—"}</KV>
           <div className="mt-3 rounded-xl bg-canvas p-3">
@@ -276,7 +278,16 @@ export function RegisterWizard() {
             <KV label="Dịch vụ mua thêm" w={200}>{vnd(addonTotal)}</KV>
             <KV label="Tạm tính" w={200}><span className="text-[16px] text-orange">{vnd(base + addonTotal)}</span>{disease && " + phụ phí"}</KV>
           </div>
-          <Note className="mt-3">Không thu đặt cọc. Thanh toán qua VNPay/MoMo sau khi bạn xác nhận giá cuối. Đã thanh toán thì không hoàn tiền khi cụ nghỉ (trừ trường hợp qua đời).</Note>
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center gap-2 text-[13px] font-bold text-navy"><ShieldCheck size={16} className="text-orange" />Quy định dịch vụ</div>
+            <ServiceTerms className="max-h-64 overflow-y-auto rounded-xl border border-line p-3" />
+          </div>
+          <label className={cn("mt-3 flex items-start gap-2 rounded-xl border-[1.5px] p-3 text-[12.5px]", commit ? "border-green bg-green-soft/40" : "border-orange bg-orange-soft")}>
+            <input type="checkbox" checked={commit} onChange={(e) => setCommit(e.target.checked)} className="mt-0.5" />
+            <span><b className="text-navy">Tôi đã đọc Quy định dịch vụ và cam kết thông tin khai là đúng sự thật.</b> Nếu khai sai là vi phạm hợp đồng và được xử lý theo mục 4 của Quy định (BR-79, BR-80).</span>
+          </label>
+          {!el.elderly.targetGroup && g === "MOBILE" && <Note tone="green" className="mt-2">Thanh toán ngay, không chờ duyệt. Gói hiệu lực từ {cycle === "DAY" ? dm([...dayDates].sort()[0] ?? start) : dmy(start)}. Sáng ngày đầu điều dưỡng kiểm tra chỉ số, Barthel và giấy tờ.</Note>}
+          {!el.elderly.targetGroup && disease && <Note className="mt-2">Nhóm bệnh: điều dưỡng đánh giá trước, Quản lý báo phụ phí, rồi bạn thanh toán.</Note>}
           {cap.full && cycle !== "DAY" && <Note tone="red" className="mt-2">Hạng {TIER_LABEL[tier]} đang hết chỗ. Bạn có thể vào danh sách chờ: có chỗ trung tâm giữ 24 giờ để thanh toán. {data.entitlements.find((x) => x.tier === tier)?.waitlistPriority && "Hạng Cao cấp được xếp đầu danh sách chờ."}</Note>}
           {wait.isSuccess && <Note tone="green" className="mt-2">Đã vào danh sách chờ, vị trí {wait.data}.</Note>}
           <ErrorText error={fullErr ? null : submit.error ?? wait.error} />
@@ -284,7 +295,7 @@ export function RegisterWizard() {
       )}
       <div className="flex justify-between">
         <Button variant="neutral" disabled={step === 0} onClick={() => setStep(step - 1)}>Quay lại</Button>
-        {step < 4 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Tiếp tục</Button> : cap.full && cycle !== "DAY" ? <Button icon={Hourglass} loading={wait.isPending} disabled={wait.isSuccess} onClick={() => wait.mutate()}>Vào danh sách chờ</Button> : <Button icon={CircleCheck} loading={submit.isPending} onClick={() => submit.mutate()}>Gửi đăng ký</Button>}
+        {step < 4 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Tiếp tục</Button> : cap.full && cycle !== "DAY" ? <Button icon={Hourglass} loading={wait.isPending} disabled={wait.isSuccess} onClick={() => wait.mutate()}>Vào danh sách chờ</Button> : <Button icon={!disease || el?.elderly.targetGroup ? CreditCard : CircleCheck} disabled={!commit} loading={submit.isPending} onClick={() => submit.mutate()}>{!disease || el?.elderly.targetGroup ? "Thanh toán ngay" : "Gửi đăng ký"}</Button>}
       </div>
     </Page>
   );
@@ -341,9 +352,12 @@ export function MyPackagesPage() {
                       </div>
                     </div>
                   )}
+                  {r.assessment?.kind === "FIRST_DAY" && r.assessment.status === "SCHEDULED" && s.status === "ACTIVE" && <Note><ShieldCheck size={12} className="inline" /> Đăng ký online có cam kết. Sáng {dmy(s.startDate)} điều dưỡng kiểm tra chỉ số, thang Barthel và giấy tờ của cụ.</Note>}
+                  {r.assessment?.kind === "FIRST_DAY" && r.assessment.status === "APPROVED" && !s.violation && <Note tone="green">Kiểm tra ngày đầu: thông tin khai đúng.</Note>}
+                  {r.unpaid.filter((i) => i.kind === "VIOLATION").map((i) => <Note key={i.id} tone="red">Kết quả kiểm tra ngày đầu khác thông tin đã khai (vi phạm cam kết, BR-80): cụ thuộc nhóm <b>{GROUP_LABEL[s.targetGroup]}</b>. Vui lòng thanh toán <b>{vnd(i.total)}</b> trước {dmy(i.dueDate)}, quá hạn gói sẽ tạm ngưng. <Link to={`/family/checkout/${i.id}`} className="font-semibold">Thanh toán ngay</Link></Note>)}
                   {s.status === "SUSPENDED" && <Note tone="red">Gói hết hạn chưa đóng, cụ không check-in được (BR-23). {r.unpaid[0] && <Link to={`/family/checkout/${r.unpaid[0].id}`} className="font-semibold">Thanh toán {vnd(r.unpaid[0].total)}</Link>}</Note>}
                   {s.status === "PAUSED" && <Note>Bảo lưu tới {dmy(s.pausedUntil)}. Ngày kết thúc gói đã dời sang {dmy(s.endDate)}. Giường cố định vẫn được giữ.</Note>}
-                  {s.status === "TERMINATED" && <Note>Hợp đồng đã chấm dứt.</Note>}
+                  {s.status === "TERMINATED" && <Note>{s.violation === "NOT_ACCEPTED" ? "Trung tâm ngừng nhận cụ do thuộc diện không nhận (vi phạm cam kết). Đã tạo lệnh hoàn 95% qua cổng thanh toán." : "Hợp đồng đã chấm dứt."}</Note>}
                   <div>
                     <div className="mb-1 text-[12px] font-semibold text-navy">Hoạt động tự chọn ({r.choices.length}/{r.entitlement?.optionalMax})</div>
                     <div className="flex flex-wrap gap-1">{r.choices.map((c) => { const p = r.permissions.find((x) => x.serviceId === c.id); return <Badge key={c.id} tone={p && !p.allowed ? "red" : "blue"}>{c.name}{p && !p.allowed ? " · ĐD chưa cho phép" : ""}</Badge>; })}</div>

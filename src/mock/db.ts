@@ -2,7 +2,7 @@
 // Replace src/api/* implementations with real HTTP calls once the backend exists.
 import { seed, type DB } from "./seed";
 
-const KEY = "atc-db-v3";
+const KEY = "atc-db-v4";
 
 function load(): DB {
   try {

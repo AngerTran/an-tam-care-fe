@@ -144,6 +144,11 @@ export interface Subscription {
   createdBy: number;
   /** subscription this one renews / upgrades */
   previousId?: number;
+  /** BR-79: family read the service terms and committed that the declaration is true */
+  commitmentAt?: string;
+  /** BR-80: first-day check found a wrong declaration */
+  violation?: "WRONG_GROUP" | "NOT_ACCEPTED";
+  violationHandled?: boolean;
 }
 
 /** subscription_service_choices */
@@ -178,7 +183,8 @@ export interface Assessment {
   id: number;
   elderlyId: number;
   subscriptionId?: number;
-  kind: "INITIAL" | "PERIODIC";
+  /** FIRST_DAY = online registration with commitment, nurse checks on the first morning (BR-79) */
+  kind: "INITIAL" | "PERIODIC" | "FIRST_DAY";
   scheduledAt: string;
   nurseId?: number;
   barthel?: number;
@@ -186,6 +192,8 @@ export interface Assessment {
   baseline?: string;
   diagnosisDocs?: string;
   nurseNote?: string;
+  /** nurse found the elderly belongs to the not-accepted cases (BR-18) */
+  notAccepted?: boolean;
   doneAt?: string;
   status: "SCHEDULED" | "DONE" | "APPROVED";
   approvedBy?: number;
@@ -212,7 +220,7 @@ export interface Invoice {
   id: number;
   subscriptionId: number;
   number: string;
-  kind: "NEW" | "RENEWAL" | "UPGRADE" | "ADDON" | "DAY_BOOKING";
+  kind: "NEW" | "RENEWAL" | "UPGRADE" | "ADDON" | "DAY_BOOKING" | "VIOLATION";
   lines: InvoiceLine[];
   creditUsed: number;
   total: number;

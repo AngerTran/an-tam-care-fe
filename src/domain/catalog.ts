@@ -88,6 +88,16 @@ export const MOODS = ["Vui", "Bình thường", "Buồn", "Lo âu", "Kích độ
 export const MEAL_AMOUNTS = ["Hết", "3/4", "1/2", "1/4", "Không ăn"] as const;
 export const PARTICIPATION = ["Tích cực", "Có tham gia", "Từ chối"] as const;
 
+/** BR-80: share kept by the centre when it stops serving an elderly declared falsely. */
+export const VIOLATION_KEEP = 0.05;
+/** "Quy định dịch vụ" shown to families before they commit and pay online (BR-79). */
+export const SERVICE_TERMS: { title: string; items: string[] }[] = [
+  { title: "Đối tượng", items: ["Trung tâm nhận 5 nhóm: vận động được, bệnh mãn tính, phục hồi chức năng, sa sút trí tuệ nhẹ–vừa, sau tai biến.", "Không nhận: cụ nằm liệt giường hoàn toàn, sa sút trí tuệ nặng (kích động mạnh), cần chăm sóc tích cực (ăn qua sonde, mở khí quản, loét nặng, giai đoạn cuối).", "Nhóm bệnh không mua được hạng Cơ bản."] },
+  { title: "Giờ chăm sóc và đón cụ", items: ["Chăm sóc 7h–16h30, Thứ 2 – Thứ 7. 16h30–19h30 chỉ chờ đón, miễn phí, không hoạt động và không ăn uống.", "Trung tâm chỉ giao cụ cho người có trong danh sách người được phép đón, đối chiếu ảnh và CCCD."] },
+  { title: "Thanh toán và hoàn tiền", items: ["Trả trước qua VNPay/MoMo. Không thu tiền mặt, không đặt cọc.", "Gói tháng, quý, năm: cụ nghỉ vẫn tính tiền, gia đình tự dừng gói không hoàn tiền. Gói ngày báo nghỉ trước 17h hôm trước được giữ tiền thành số dư.", "Nhập viện có giấy tờ: bảo lưu tối đa 30 ngày. Cụ qua đời: hoàn phần chưa dùng của gói dài hạn."] },
+  { title: "Cam kết khai đúng và kiểm tra ngày đầu", items: ["Gia đình cam kết thông tin khai (nhóm đối tượng, bệnh nền, giấy tờ) là đúng sự thật.", "Sáng ngày đầu, điều dưỡng kiểm tra: đo chỉ số nền, chấm thang Barthel, xem giấy tờ.", "Nếu cụ thuộc nhóm bệnh nhưng khai \"Vận động được\": gia đình trả phụ phí nhóm và chênh lệch nâng hạng cho số ngày còn lại trong 3 ngày; không trả thì gói tạm ngưng.", "Nếu cụ thuộc diện không nhận: trung tâm ngừng nhận cụ vì an toàn. Phát hiện ở buổi kiểm tra ngày đầu: hoàn 95% tổng tiền đã đóng. Phát hiện sau ngày đầu: hoàn 95% phần chưa dùng. Dịch vụ mua thêm đã dùng không hoàn."] },
+];
+
 /** Giá kỳ = giá gốc − giảm giá thời hạn + phụ phí thỏa thuận + dịch vụ lẻ (mục 4.4). */
 export function priceOf(basePrice: number, cycle: Cycle, surcharge = 0, addons = 0, days = 1) {
   const gross = cycle === "DAY" ? basePrice * days : basePrice;

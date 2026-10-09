@@ -4,7 +4,7 @@ import type {
   ActivitySchedule, CenterSettings, ElderlyMember, Equipment, Incident, Menu, NapBed, Room, Service, TargetGroup,
   Tier, TierEntitlement, User,
 } from "../types/models";
-import { CYCLE_LABEL, GROUP_LABEL, minTierFor, TIER_LABEL, tierRank } from "../domain/catalog";
+import { CYCLE_LABEL, GROUP_LABEL, minTierFor, TIER_LABEL, tierRank, VIOLATION_KEEP } from "../domain/catalog";
 import { addDays, daysBetween } from "../lib/format";
 import {
   activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, honor, invoicesOf, lookups, metricsOf, need,
@@ -124,14 +124,15 @@ export const manager = {
     await wait();
     const d = db();
     const rows = d.subscriptions
-      .filter((s) => ["PENDING_ASSESSMENT", "AWAITING_PAYMENT", "REJECTED"].includes(s.status) || (s.status === "ACTIVE" && s.createdAt >= "2026-10-01"))
+      .filter((s) => ["PENDING_ASSESSMENT", "AWAITING_PAYMENT", "REJECTED"].includes(s.status) || (s.status === "ACTIVE" && s.createdAt >= "2026-10-01") || (!!s.violation && s.status !== "TERMINATED" && (!s.violationHandled || invoicesOf(s.id).some((i) => i.kind === "VIOLATION" && i.status === "UNPAID"))))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map((s) => {
         const e = need(lookups.elderly(s.elderlyId));
         const assessment = d.assessments.filter((a) => a.subscriptionId === s.id).sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0];
         const invoice = invoicesOf(s.id).find((i) => i.kind !== "ADDON");
-        const stage = s.status === "PENDING_ASSESSMENT" ? (assessment?.status === "DONE" ? "APPROVE" : "ASSESS") : s.status === "AWAITING_PAYMENT" ? (s.familyConfirmedAt ? "PAY" : "CONFIRM") : s.status === "ACTIVE" ? "DONE" : "REJECTED";
-        return { sub: s, elderly: e, family: lookups.user(e.familyUserId), assessment: assessment && { ...assessment, nurse: lookups.user(assessment.nurseId) }, invoice, payment: invoice ? paymentOf(invoice.id) : undefined, failed: invoice ? d.payments.filter((p) => p.invoiceId === invoice.id && p.status === "FAILED") : [], choices: choicesOf(s.id).map((id) => need(lookups.service(id))), stage, pickups: d.pickups.filter((p) => p.elderlyId === e.id) };
+        const vinv = invoicesOf(s.id).find((i) => i.kind === "VIOLATION");
+        const stage = s.violation && s.status !== "TERMINATED" && (!s.violationHandled || vinv?.status === "UNPAID") ? "VIOLATION" : s.status === "PENDING_ASSESSMENT" ? (assessment?.status === "DONE" ? "APPROVE" : "ASSESS") : s.status === "AWAITING_PAYMENT" ? (s.familyConfirmedAt ? "PAY" : "CONFIRM") : s.status === "ACTIVE" ? "DONE" : "REJECTED";
+        return { violationInvoice: invoicesOf(s.id).find((i) => i.kind === "VIOLATION"), refund: d.refunds.find((r) => r.subscriptionId === s.id), sub: s, elderly: e, family: lookups.user(e.familyUserId), assessment: assessment && { ...assessment, nurse: lookups.user(assessment.nurseId) }, invoice, payment: invoice ? paymentOf(invoice.id) : undefined, failed: invoice ? d.payments.filter((p) => p.invoiceId === invoice.id && p.status === "FAILED") : [], choices: choicesOf(s.id).map((id) => need(lookups.service(id))), stage, pickups: d.pickups.filter((p) => p.elderlyId === e.id) };
       });
     return { rows, visits: d.visits, capacity: capacity(), nurses: d.users.filter((u) => lookups.position(u.id) === "NURSE") };
   },
@@ -189,6 +190,84 @@ export const manager = {
     notify(e.familyUserId, "SYSTEM", `Trung tâm chưa tiếp nhận ${honor(e).toLowerCase()} ${e.fullName}`, reason);
     audit(me.id, `Không tiếp nhận ${e.fullName}: ${reason}`, "subscriptions", s.id);
     commit();
+  },
+  /** BR-80 quotes: remaining-day share of the surcharge + tier difference, or the 95% refund. */
+  violationQuote(subId: number, group: TargetGroup, monthlySurcharge: number) {
+    const d = db();
+    const s = need(byId(d.subscriptions, subId));
+    const total = Math.max(1, daysBetween(s.startDate, s.endDate) + 1);
+    const left = Math.max(0, daysBetween(TODAY, s.endDate) + 1);
+    const months = Math.max(1, s.cycle === "Q" ? 3 : s.cycle === "Y" ? 12 : 1);
+    const toTier: Tier = tierRank(s.tier) < tierRank(minTierFor(group)) ? minTierFor(group) : s.tier;
+    const round = (n: number) => Math.round(n / 1000) * 1000;
+    const surcharge = round((monthlySurcharge * months * left) / total);
+    const tierDiff = toTier === s.tier ? 0 : round(((priceOfPkg(toTier, s.cycle) - priceOfPkg(s.tier, s.cycle)) * left) / total);
+    return { left, total, toTier, surcharge, tierDiff, sum: surcharge + tierDiff };
+  },
+  refundQuote(subId: number) {
+    const d = db();
+    const s = need(byId(d.subscriptions, subId));
+    const a = d.assessments.find((x) => x.subscriptionId === subId && x.kind === "FIRST_DAY");
+    const firstDay = !!a?.doneAt && a.doneAt.slice(0, 10) === s.startDate;
+    // add-on lines ("×") are not refunded (BR-80)
+    const paid = invoicesOf(s.id).filter((i) => i.status === "PAID" && i.kind !== "ADDON").reduce((x, i) => x + i.lines.filter((l) => !l.label.includes("×")).reduce((y, l) => y + l.amount, 0), 0);
+    const total = Math.max(1, daysBetween(s.startDate, s.endDate) + 1);
+    const unused = Math.max(0, daysBetween(TODAY, s.endDate) + 1);
+    const base = firstDay ? paid : Math.round((paid * unused) / total);
+    return { firstDay, paid, base, unused, total, refund: Math.round((base * (1 - VIOLATION_KEEP)) / 1000) * 1000 };
+  },
+  async chargeWrongGroup(me: User, subId: number, group: TargetGroup, monthlySurcharge: number, note: string) {
+    await wait();
+    const d = db();
+    const s = need(byId(d.subscriptions, subId));
+    const e = need(lookups.elderly(s.elderlyId));
+    const q = manager.violationQuote(subId, group, monthlySurcharge);
+    const lines = [{ label: `Phụ phí nhóm ${GROUP_LABEL[group]} (${q.left}/${q.total} ngày còn lại)`, amount: q.surcharge }];
+    if (q.tierDiff) lines.push({ label: `Chênh lệch nâng hạng ${TIER_LABEL[s.tier]} → ${TIER_LABEL[q.toTier]} (${q.left} ngày)`, amount: q.tierDiff });
+    const id = nextId(d.invoices);
+    d.invoices.push({ id, subscriptionId: s.id, number: invNo(id), kind: "VIOLATION", lines, creditUsed: 0, total: q.sum, issueDate: TODAY, dueDate: addDays(TODAY, 3), status: "UNPAID" });
+    s.targetGroup = group;
+    s.tier = q.toTier;
+    s.packageId = need(d.packages.find((p) => p.tier === q.toTier && p.cycle === s.cycle)).id;
+    s.surchargeAmount = monthlySurcharge;
+    s.surchargeNote = note;
+    s.violationHandled = true;
+    e.targetGroup = group;
+    const a = d.assessments.find((x) => x.subscriptionId === subId && x.kind === "FIRST_DAY");
+    if (a) Object.assign(a, { status: "APPROVED", approvedBy: me.id, approvedAt: stamp() });
+    notify(e.familyUserId, "PAYMENT", `Kết quả kiểm tra khác khai báo: ${e.fullName}`, `Cụ thuộc nhóm ${GROUP_LABEL[group]}. Vui lòng thanh toán ${q.sum.toLocaleString("vi-VN")}đ trong 3 ngày, quá hạn gói sẽ tạm ngưng (BR-80).`, "/family/packages");
+    audit(me.id, `Xử lý vi phạm cam kết ${e.fullName}: ${group}, thu ${q.sum.toLocaleString("vi-VN")}đ`, "subscriptions", s.id);
+    commit();
+    return id;
+  },
+  async suspendForViolation(me: User, subId: number) {
+    await wait();
+    const s = need(byId(db().subscriptions, subId));
+    const e = need(lookups.elderly(s.elderlyId));
+    s.status = "SUSPENDED";
+    e.status = "SUSPENDED";
+    notify(e.familyUserId, "PAYMENT", `Gói của ${e.fullName} tạm ngưng`, "Chưa thanh toán phần phụ phí sau kiểm tra trong 3 ngày (BR-80).", "/family/packages");
+    audit(me.id, `Tạm ngưng do chưa trả phụ phí vi phạm: ${e.fullName}`, "subscriptions", s.id);
+    commit();
+  },
+  async stopNotAccepted(me: User, subId: number) {
+    await wait();
+    const d = db();
+    const s = need(byId(d.subscriptions, subId));
+    const e = need(lookups.elderly(s.elderlyId));
+    const q = manager.refundQuote(subId);
+    const inv = invoicesOf(s.id).find((i) => i.status === "PAID");
+    const pay = inv ? paymentOf(inv.id) : undefined;
+    if (pay && q.refund) d.refunds.unshift({ id: nextId(d.refunds), subscriptionId: s.id, paymentId: pay.id, amount: q.refund, reason: `Ngừng nhận: cụ thuộc diện không nhận, khai sai (BR-80). Hoàn 95% ${q.firstDay ? "tổng tiền đã đóng" : "phần chưa dùng"}.`, status: "PENDING", createdAt: stamp(), processedBy: me.id });
+    s.status = "TERMINATED";
+    s.violationHandled = true;
+    e.status = "TERMINATED";
+    const a = d.assessments.find((x) => x.subscriptionId === subId && x.kind === "FIRST_DAY");
+    if (a) Object.assign(a, { status: "APPROVED", approvedBy: me.id, approvedAt: stamp() });
+    notify(e.familyUserId, "PAYMENT", `Trung tâm ngừng nhận ${e.fullName}`, `Cụ thuộc diện trung tâm không nhận. Hoàn ${q.refund.toLocaleString("vi-VN")}đ qua cổng thanh toán.`, "/family/invoices");
+    audit(me.id, `Ngừng nhận ${e.fullName} (vi phạm cam kết), hoàn ${q.refund.toLocaleString("vi-VN")}đ`, "subscriptions", s.id);
+    commit();
+    return q.refund;
   },
   async setVisit(me: User, id: number, status: "CONFIRMED" | "DONE") {
     const v = need(byId(db().visits, id));

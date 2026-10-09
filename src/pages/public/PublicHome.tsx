@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { chatbot, publicSite } from "../../api";
 import { useAuth, HOME } from "../../auth/AuthContext";
+import { ServiceTerms } from "../../components/domain";
 import { Badge, Button, Card, Field, IconCircle, Note, Photo, TextArea, cn } from "../../components/ui";
 import { CYCLE_DESC, CYCLE_LABEL, CYCLES, GROUP_INFO, GROUP_LABEL, GROUPS, NOT_ACCEPTED, TIER_LABEL, ZONE_LABEL } from "../../domain/catalog";
 import { vnd } from "../../lib/format";
@@ -25,6 +26,7 @@ export function PublicHome() {
             <a href="#doi-tuong" className="hover:text-orange">Đối tượng</a>
             <a href="#co-so" className="hover:text-orange">Cơ sở vật chất</a>
             <a href="#mot-ngay" className="hover:text-orange">Một ngày ở trung tâm</a>
+            <a href="#quy-dinh" className="hover:text-orange">Quy định dịch vụ</a>
             <a href="#hoi-dap" className="hover:text-orange">Hỏi đáp</a>
           </nav>
           <div className="ml-auto flex gap-2">
@@ -141,6 +143,12 @@ export function PublicHome() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section id="quy-dinh" className="mx-auto max-w-6xl px-4 pt-12">
+        <h2 className="text-[24px] font-bold text-navy">Quy định dịch vụ</h2>
+        <p className="mt-1 text-[13px] text-muted">Khi đăng ký online, gia đình đọc quy định này và tích cam kết khai đúng trước khi thanh toán. Cụ được điều dưỡng kiểm tra vào sáng ngày đầu.</p>
+        <Card className="mt-4"><ServiceTerms className="sm:columns-2 sm:gap-8 [&>div]:mb-3 [&>div]:break-inside-avoid" /></Card>
       </section>
 
       <section id="hoi-dap" className="mx-auto grid max-w-6xl gap-6 px-4 py-12 md:grid-cols-2">

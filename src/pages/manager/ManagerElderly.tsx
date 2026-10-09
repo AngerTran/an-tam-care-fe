@@ -156,7 +156,7 @@ export function MemberDetailPage() {
       {tab === "assess" && (
         <Card title="Đánh giá đầu vào và định kỳ">
           <Table rows={data.assessments} rowKey={(a) => a.id} columns={[
-            { key: "k", header: "Loại", render: (a) => a.kind === "INITIAL" ? "Đầu vào" : "Định kỳ" },
+            { key: "k", header: "Loại", render: (a) => a.kind === "FIRST_DAY" ? "Kiểm tra ngày đầu" : a.kind === "INITIAL" ? "Đầu vào" : "Định kỳ" },
             { key: "d", header: "Lịch", render: (a) => `${dmy(a.scheduledAt.slice(0, 10))} ${hm(a.scheduledAt)}` },
             { key: "n", header: "Điều dưỡng", render: (a) => a.nurse?.fullName },
             { key: "b", header: "Barthel", render: (a) => a.barthel ?? "—" },
@@ -254,22 +254,22 @@ export function MemberEditPage() {
 
 // ------------------------------------------------------------------ registrations & assessment approval
 const STAGE: Record<string, [string, "orange" | "blue" | "teal" | "green" | "red" | "gray"]> = {
-  ASSESS: ["Chờ đánh giá", "blue"], APPROVE: ["Chờ chốt nhóm & phụ phí", "orange"], CONFIRM: ["Chờ gia đình xác nhận giá", "teal"], PAY: ["Chờ thanh toán", "teal"], DONE: ["Đã hiệu lực", "green"], REJECTED: ["Không tiếp nhận", "red"],
+  ASSESS: ["Chờ đánh giá", "blue"], APPROVE: ["Chờ chốt nhóm & phụ phí", "orange"], CONFIRM: ["Chờ gia đình xác nhận giá", "teal"], PAY: ["Chờ thanh toán", "teal"], DONE: ["Đã hiệu lực", "green"], REJECTED: ["Không tiếp nhận", "red"], VIOLATION: ["Vi phạm cam kết", "red"],
 };
 export function RegistrationsPage() {
   const me = useMe();
   const qc = useQueryClient();
   const [sp, setSp] = useSearchParams();
   const tab = sp.get("tab") ?? "pipeline";
-  const [stage, setStage] = useState<"OPEN" | "ASSESS" | "APPROVE" | "PAY" | "DONE">("OPEN");
+  const [stage, setStage] = useState<"OPEN" | "ASSESS" | "APPROVE" | "PAY" | "DONE" | "VIOLATION">("OPEN");
   const [sel, setSel] = useState<number>();
   const { data, isLoading } = useQuery({ queryKey: ["m-regs"], queryFn: () => manager.registrations() });
-  const rows = (data?.rows ?? []).filter((r) => stage === "OPEN" ? ["ASSESS", "APPROVE", "CONFIRM", "PAY"].includes(r.stage) : stage === "PAY" ? ["CONFIRM", "PAY"].includes(r.stage) : stage === "DONE" ? ["DONE", "REJECTED"].includes(r.stage) : r.stage === stage);
+  const rows = (data?.rows ?? []).filter((r) => stage === "OPEN" ? ["ASSESS", "APPROVE", "CONFIRM", "PAY", "VIOLATION"].includes(r.stage) : stage === "PAY" ? ["CONFIRM", "PAY"].includes(r.stage) : stage === "DONE" ? ["DONE", "REJECTED"].includes(r.stage) : r.stage === stage);
   const cur = rows.find((r) => r.sub.id === sel) ?? rows[0];
   const visit = useMutation({ mutationFn: ({ id, s }: { id: number; s: "CONFIRMED" | "DONE" }) => manager.setVisit(me, id, s), onSuccess: () => qc.invalidateQueries({ queryKey: ["m-regs"] }) });
   const n = (s: string[]) => data?.rows.filter((r) => s.includes(r.stage)).length ?? 0;
   return (
-    <Page title="Đăng ký & đánh giá" sub="Luồng 5.1: gia đình đăng ký → điều dưỡng đánh giá → Quản lý chốt nhóm & phụ phí → gia đình xác nhận và thanh toán">
+    <Page title="Đăng ký & đánh giá" sub="Đăng ký online có cam kết (Vận động được): thanh toán ngay, điều dưỡng kiểm tra sáng ngày đầu. Nhóm bệnh: đánh giá → Quản lý chốt phụ phí → gia đình thanh toán.">
       <Tabs value={tab} onChange={(v) => setSp({ tab: v })} items={[{ value: "pipeline", label: "Đăng ký gói" }, { value: "visits", label: `Lịch tham quan (${data?.visits.filter((v) => v.status === "NEW").length ?? 0} mới)` }]} />
       {tab === "visits" ? (
         <Card>
@@ -284,7 +284,7 @@ export function RegistrationsPage() {
       ) : (
         <>
           <div className="flex flex-wrap gap-1.5">
-            {([["OPEN", `Đang xử lý (${n(["ASSESS", "APPROVE", "CONFIRM", "PAY"])})`], ["ASSESS", `Chờ đánh giá (${n(["ASSESS"])})`], ["APPROVE", `Chờ chốt (${n(["APPROVE"])})`], ["PAY", `Chờ xác nhận & thanh toán (${n(["CONFIRM", "PAY"])})`], ["DONE", "Đã xong / không nhận"]] as const).map(([v, l]) => <Chip key={v} active={stage === v} onClick={() => setStage(v)}>{l}</Chip>)}
+            {([["OPEN", `Đang xử lý (${n(["ASSESS", "APPROVE", "CONFIRM", "PAY", "VIOLATION"])})`], ["VIOLATION", `Vi phạm cam kết (${n(["VIOLATION"])})`], ["ASSESS", `Chờ đánh giá (${n(["ASSESS"])})`], ["APPROVE", `Chờ chốt (${n(["APPROVE"])})`], ["PAY", `Chờ xác nhận & thanh toán (${n(["CONFIRM", "PAY"])})`], ["DONE", "Đã xong / không nhận"]] as const).map(([v, l]) => <Chip key={v} active={stage === v} onClick={() => setStage(v)}>{l}</Chip>)}
           </div>
           <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
             <Card bodyClass="space-y-2">
@@ -346,7 +346,8 @@ function RegistrationDetail({ r, capacity, nurses }: { r: RegRow; capacity: Cap;
         </div>
       </Card>
 
-      <Card title={<span className="flex items-center gap-2"><Stethoscope size={16} className="text-teal" />Đánh giá đầu vào</span>}>
+      {r.stage === "VIOLATION" && <ViolationPanel r={r} />}
+      <Card title={<span className="flex items-center gap-2"><Stethoscope size={16} className="text-teal" />{a?.kind === "FIRST_DAY" ? "Kiểm tra ngày đầu (đăng ký online có cam kết)" : "Đánh giá đầu vào"}</span>}>
         {!a || a.status === "SCHEDULED" ? (
           <div className="space-y-2">
             {a ? <Note>Đã hẹn {dmy(a.scheduledAt.slice(0, 10))} lúc {hm(a.scheduledAt)} với {a.nurse?.fullName}. Gia đình đã nhận thông báo.</Note> : <Note tone="red">Chưa có lịch đánh giá.</Note>}
@@ -368,7 +369,7 @@ function RegistrationDetail({ r, capacity, nurses }: { r: RegRow; capacity: Cap;
               <KV label="Giấy tờ">{a.diagnosisDocs ?? "—"}</KV>
               <KV label="Nhận xét">{a.nurseNote}</KV>
             </div>
-            {a.proposedGroup !== r.elderly.declaredGroup && <Note tone="red" className="sm:col-span-2">Đánh giá khác với gia đình khai ({GROUP_LABEL[r.elderly.declaredGroup]} → {GROUP_LABEL[a.proposedGroup!]}). Áp dụng quy tắc cuối mục 4.12: nhập phụ phí thỏa thuận, nâng hạng nếu cần, bỏ dịch vụ không phù hợp, gửi gia đình xác nhận.</Note>}
+            {a.kind !== "FIRST_DAY" && a.proposedGroup !== r.elderly.declaredGroup && <Note tone="red" className="sm:col-span-2">Đánh giá khác với gia đình khai ({GROUP_LABEL[r.elderly.declaredGroup]} → {GROUP_LABEL[a.proposedGroup!]}). Áp dụng quy tắc cuối mục 4.12: nhập phụ phí thỏa thuận, nâng hạng nếu cần, bỏ dịch vụ không phù hợp, gửi gia đình xác nhận.</Note>}
           </div>
         )}
       </Card>
@@ -425,6 +426,69 @@ function RegistrationDetail({ r, capacity, nurses }: { r: RegRow; capacity: Cap;
         <Note className="mt-2">Gia đình chưa thanh toán nên không phát sinh hoàn tiền.</Note>
       </Modal>
     </div>
+  );
+}
+
+/** BR-80: the first-day check of an online registration found a false declaration. */
+function ViolationPanel({ r }: { r: RegRow }) {
+  const me = useMe();
+  const qc = useQueryClient();
+  const a = r.assessment;
+  const [group, setGroup] = useState<TargetGroup>(a?.proposedGroup && a.proposedGroup !== "MOBILE" ? a.proposedGroup : "CHRONIC");
+  const [surcharge, setSurcharge] = useState("600000");
+  const [note, setNote] = useState(a?.nurseNote ?? "");
+  const inv = () => qc.invalidateQueries();
+  const charge = useMutation({ mutationFn: () => manager.chargeWrongGroup(me, r.sub.id, group, Number(surcharge) || 0, note), onSuccess: inv });
+  const suspend = useMutation({ mutationFn: () => manager.suspendForViolation(me, r.sub.id), onSuccess: inv });
+  const stop = useMutation({ mutationFn: () => manager.stopNotAccepted(me, r.sub.id), onSuccess: inv });
+  const commitAt = r.sub.commitmentAt;
+  if (r.sub.violation === "NOT_ACCEPTED") {
+    const q = manager.refundQuote(r.sub.id);
+    return (
+      <Card title={<span className="flex items-center gap-2 text-red-ink"><Ban size={16} />Vi phạm cam kết · cụ thuộc diện không nhận</span>} className="ring-2 ring-red-line">
+        <Note tone="red">Điều dưỡng {a?.nurse?.fullName} kiểm tra {a?.doneAt ? `${dmy(a.doneAt.slice(0, 10))} ${hm(a.doneAt)}` : ""}: {a?.nurseNote || "cụ thuộc diện không nhận"} (Barthel {a?.barthel}). Gia đình đã cam kết khai đúng lúc {commitAt ? `${dmy(commitAt.slice(0, 10))} ${hm(commitAt)}` : "—"}.</Note>
+        <div className="mt-3 rounded-xl bg-canvas p-3 text-[12.5px]">
+          <KV label="Đã đóng (gói + phụ phí)" w={220}>{vnd(q.paid)}</KV>
+          <KV label="Thời điểm phát hiện" w={220}>{q.firstDay ? "Buổi kiểm tra ngày đầu → tính trên tổng tiền" : `Sau ngày đầu → tính trên phần chưa dùng (${q.unused}/${q.total} ngày)`}</KV>
+          <KV label="Cơ sở tính hoàn" w={220}>{vnd(q.base)}</KV>
+          <KV label="Hoàn 95% cho gia đình" w={220}><span className="text-[15px] text-green-ink">{vnd(q.refund)}</span></KV>
+          <KV label="Trung tâm giữ 5% phí hoạt động" w={220}>{vnd(q.base - q.refund)}</KV>
+        </div>
+        <Note className="mt-2">Dịch vụ mua thêm đã dùng không hoàn. Hoàn qua cổng thanh toán (mục Thanh toán → Hoàn tiền).</Note>
+        <ErrorText error={stop.error} />
+        <Button className="mt-3" variant="danger" icon={Ban} loading={stop.isPending} onClick={() => stop.mutate()}>Ngừng nhận cụ & tạo lệnh hoàn {vnd(q.refund)}</Button>
+      </Card>
+    );
+  }
+  if (r.sub.violationHandled) {
+    const vi = r.violationInvoice;
+    const overdue = !!vi && vi.dueDate < TODAY;
+    return (
+      <Card title={<span className="flex items-center gap-2 text-red-ink"><Ban size={16} />Vi phạm cam kết · chờ gia đình thanh toán</span>} className="ring-2 ring-red-line">
+        {vi && <KV label="Hóa đơn" w={150}><Link className="text-orange" to={`/manager/invoices/${vi.id}`}>{vi.number}</Link> · {vnd(vi.total)} · hạn {dmy(vi.dueDate)}</KV>}
+        <Note className="mt-2">Quá 3 ngày chưa thanh toán thì chuyển gói sang Tạm ngưng (BR-80). Gia đình thanh toán xong gói tự hoạt động lại.</Note>
+        <Button className="mt-3" variant="danger" disabled={!overdue} loading={suspend.isPending} onClick={() => suspend.mutate()}>{overdue ? "Chuyển Tạm ngưng" : `Chưa quá hạn (hạn ${dmy(vi?.dueDate)})`}</Button>
+      </Card>
+    );
+  }
+  const q = manager.violationQuote(r.sub.id, group, Number(surcharge) || 0);
+  return (
+    <Card title={<span className="flex items-center gap-2 text-red-ink"><Ban size={16} />Vi phạm cam kết · khai sai nhóm</span>} className="ring-2 ring-red-line">
+      <Note tone="red">Gia đình khai <b>{GROUP_LABEL[r.elderly.declaredGroup]}</b>, điều dưỡng kiểm tra ngày đầu: <b>{a?.proposedGroup ? GROUP_LABEL[a.proposedGroup] : "—"}</b> (Barthel {a?.barthel}, {a?.baseline}). Cam kết lúc {commitAt ? `${dmy(commitAt.slice(0, 10))} ${hm(commitAt)}` : "—"}.</Note>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <SelectField label="Nhóm thực tế" value={group} onChange={(e) => setGroup(e.target.value as TargetGroup)}>{DISEASE_GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}</SelectField>
+        <Field label="Phụ phí nhóm (đ/tháng)" type="number" step={50000} value={surcharge} onChange={(e) => setSurcharge(e.target.value)} />
+        <TextArea label="Ghi chú cho gia đình" className="sm:col-span-2" value={note} onChange={(e) => setNote(e.target.value)} />
+      </div>
+      <div className="mt-3 rounded-xl bg-canvas p-3 text-[12.5px]">
+        <KV label="Số ngày còn lại" w={220}>{q.left}/{q.total} ngày</KV>
+        <KV label="Phụ phí cho số ngày còn lại" w={220}>{vnd(q.surcharge)}</KV>
+        <KV label="Chênh lệch nâng hạng" w={220}>{q.tierDiff ? `${TIER_LABEL[r.sub.tier]} → ${TIER_LABEL[q.toTier]}: ${vnd(q.tierDiff)}` : "Không (hạng đã phù hợp)"}</KV>
+        <KV label="Gia đình cần trả trong 3 ngày" w={220}><span className="text-[15px] text-orange">{vnd(q.sum)}</span></KV>
+      </div>
+      <ErrorText error={charge.error} />
+      <Button className="mt-3" icon={Send} loading={charge.isPending} onClick={() => charge.mutate()}>Gửi hóa đơn cho gia đình</Button>
+    </Card>
   );
 }
 

@@ -169,10 +169,11 @@ export const family = {
       capacity: capacity(), credit: creditBalance(me),
     };
   },
-  async register(me: User, input: { elderlyId: number; cycle: Cycle; group: TargetGroup; tier: Tier; choiceIds: number[]; addOns: { serviceId: number; quantity: number }[]; startDate: string; weekdays?: number[]; dayDates?: string[] }) {
+  async register(me: User, input: { elderlyId: number; cycle: Cycle; group: TargetGroup; tier: Tier; choiceIds: number[]; addOns: { serviceId: number; quantity: number }[]; startDate: string; weekdays?: number[]; dayDates?: string[]; commit: boolean }) {
     await wait();
     const d = db();
     const e = guard(me, input.elderlyId);
+    if (!input.commit) throw new Error("Vui lòng đọc Quy định dịch vụ và tích cam kết khai đúng (BR-79)");
     const cur = currentSub(e.id);
     if (cur && ["PENDING_ASSESSMENT", "AWAITING_PAYMENT"].includes(cur.status)) throw new Error("Cụ đang có một đăng ký chờ xử lý");
     const group = e.targetGroup ?? input.group;
@@ -188,17 +189,27 @@ export const family = {
     // Already assessed → no new assessment; previous negotiated surcharge carries over, family still confirms (4.12)
     const prev = d.subscriptions.filter((s) => s.elderlyId === e.id && s.targetGroup === group && s.familyConfirmedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     const assessed = !!e.targetGroup;
+    // BR-79: "Vận động được" + commitment → pay online now, nurse checks on the first morning
+    const online = !assessed && group === "MOBILE";
     const months = Math.max(1, CYCLE_MONTHS[input.cycle]);
     const surcharge = assessed && prev ? Math.round((prev.surchargeAmount / Math.max(1, CYCLE_MONTHS[prev.cycle])) * months) : 0;
     const id = nextId(d.subscriptions);
     d.subscriptions.push({
       id, elderlyId: e.id, packageId: need(d.packages.find((p) => p.tier === input.tier && p.cycle === input.cycle)).id, targetGroup: group, tier: input.tier, cycle: input.cycle,
       weekdays: input.cycle === "M3" ? input.weekdays : undefined, dayDates, startDate: start, endDate: end, basePrice: base, discount: 0, surchargeAmount: surcharge,
-      surchargeNote: surcharge ? `Giữ mức đã thỏa thuận kỳ trước (${prev?.surchargeNote ?? ""})` : undefined, status: assessed ? "AWAITING_PAYMENT" : "PENDING_ASSESSMENT", createdAt: stamp(), createdBy: me.id, previousId: cur?.id,
+      surchargeNote: surcharge ? `Giữ mức đã thỏa thuận kỳ trước (${prev?.surchargeNote ?? ""})` : undefined, status: assessed || online ? "AWAITING_PAYMENT" : "PENDING_ASSESSMENT", createdAt: stamp(), createdBy: me.id, previousId: cur?.id,
+      commitmentAt: stamp(), familyConfirmedAt: assessed || online ? stamp() : undefined,
     });
     input.choiceIds.forEach((serviceId) => d.serviceChoices.push({ subscriptionId: id, serviceId, effectiveFrom: start }));
     input.addOns.forEach((a) => { const sv = need(lookups.service(a.serviceId)); d.addOns.push({ id: nextId(d.addOns), subscriptionId: id, serviceId: a.serviceId, quantity: a.quantity, price: (sv.addonPrice ?? 0) * a.quantity, createdAt: stamp() }); });
-    if (!assessed) {
+    let invoiceId: number | undefined;
+    if (online) {
+      e.declaredGroup = group;
+      const nurse = d.users.find((u) => lookups.position(u.id) === "NURSE");
+      d.assessments.push({ id: nextId(d.assessments), elderlyId: e.id, subscriptionId: id, kind: "FIRST_DAY", scheduledAt: `${start}T08:00:00`, nurseId: nurse?.id, status: "SCHEDULED" });
+      if (nurse) notify(nurse.id, "SYSTEM", "Kiểm tra ngày đầu (đăng ký online)", `${e.fullName} · ${start.slice(8)}/${start.slice(5, 7)} khi cụ đến`, "/staff/assessments");
+    }
+    if (!assessed && !online) {
       e.declaredGroup = input.group;
       let day = addDays(TODAY, 1);
       while (new Date(day + "T00:00:00").getDay() === 0) day = addDays(day, 1);
@@ -206,17 +217,18 @@ export const family = {
       d.assessments.push({ id: nextId(d.assessments), elderlyId: e.id, subscriptionId: id, kind: "INITIAL", scheduledAt: `${day}T09:00:00`, nurseId: nurse?.id, status: "SCHEDULED" });
       notify(me.id, "SYSTEM", `Đã đặt lịch đánh giá cho ${honor(e).toLowerCase()} ${e.fullName}`, `${day.slice(8)}/${day.slice(5, 7)} lúc 09:00 tại phòng y tế. Mang theo giấy ra viện / sổ khám nếu có.`);
       if (nurse) notify(nurse.id, "SYSTEM", "Lịch đánh giá đầu vào", `${e.fullName} · ${day.slice(8)}/${day.slice(5, 7)} 09:00`, "/staff/assessments");
-    } else {
+    } else if (assessed || online) {
       const s = need(byId(d.subscriptions, id));
       const lines = [{ label: `${pkgName(s)}`, amount: base }];
       if (surcharge) lines.push({ label: `Phụ phí nhóm ${GROUP_LABEL[group]}`, amount: surcharge });
       for (const ad of addOnsOf(id)) lines.push({ label: `${ad.service?.name} × ${ad.quantity}`, amount: ad.price });
       const iid = nextId(d.invoices);
-      d.invoices.push({ id: iid, subscriptionId: id, number: invNo(iid), kind: cur ? "RENEWAL" : "NEW", lines, creditUsed: 0, total: lines.reduce((x, l) => x + l.amount, 0), issueDate: TODAY, dueDate: addDays(TODAY, 3), status: "UNPAID" });
+      invoiceId = iid;
+      d.invoices.push({ id: iid, subscriptionId: id, number: invNo(iid), kind: cur && !online ? "RENEWAL" : "NEW", lines, creditUsed: 0, total: lines.reduce((x, l) => x + l.amount, 0), issueDate: TODAY, dueDate: addDays(TODAY, 3), status: "UNPAID" });
     }
     notifyManagers("SYSTEM", "Đăng ký gói mới", `${e.fullName} · ${pkgName({ tier: input.tier, cycle: input.cycle })} · ${GROUP_LABEL[group]}`, "/manager/registrations");
     commit();
-    return { subId: id, assessed };
+    return { subId: id, assessed, online, invoiceId };
   },
   async joinWaitlist(me: User, elderlyId: number, tier: Tier, reason: "FULL" | "UPGRADE" = "FULL") {
     await wait();
@@ -288,8 +300,9 @@ export const family = {
     if (s.status === "AWAITING_PAYMENT") {
       const prev = s.previousId ? byId(d.subscriptions, s.previousId) : undefined;
       if (prev && prev.status === "ACTIVE" && prev.endDate >= s.startDate) prev.status = "EXPIRED";
-      s.status = s.startDate <= TODAY || !prev ? "ACTIVE" : "ACTIVE";
+      s.status = "ACTIVE";
       e.status = "ACTIVE";
+      if (!e.targetGroup) e.targetGroup = s.targetGroup; // provisional until the first-day check (BR-79)
       const w = d.waitlist.find((x) => x.elderlyId === e.id && x.tier === s.tier && ["WAITING", "HOLDING"].includes(x.status));
       if (w) w.status = "CONVERTED";
       if (s.tier === "PREMIUM" && !d.beds.some((b) => b.fixedElderlyId === e.id)) {
@@ -297,6 +310,9 @@ export const family = {
         if (free) free.fixedElderlyId = e.id;
       }
       notifyManagers("PAYMENT", "Đã thanh toán, gói chuyển hiệu lực", `${e.fullName} · ${pkgName(s)} · ${inv.number}`, "/manager/registrations");
+    } else if (inv.kind === "VIOLATION" && s.status === "SUSPENDED") {
+      s.status = "ACTIVE";
+      e.status = "ACTIVE";
     } else if (inv.kind === "RENEWAL") {
       s.endDate = endOf(s.cycle, addDays(s.endDate, 1));
       if (s.status === "SUSPENDED") { s.status = "ACTIVE"; e.status = "ACTIVE"; }
