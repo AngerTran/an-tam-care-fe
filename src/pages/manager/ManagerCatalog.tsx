@@ -37,8 +37,9 @@ function ToneChips({ value, onChange }: { value: string; onChange: (t: TierDef["
   );
 }
 
-export function PackagesPage() {
+export function PackagesPage({ readOnly = false }: { readOnly?: boolean }) {
   const me = useMe();
+  const ro = readOnly;
   const qc = useQueryClient();
   const [tab, setTab] = useState<"price" | "ent" | "groups">("price");
   const [edit, setEdit] = useState<{ id: number; price: string; hidden: boolean }>();
@@ -88,11 +89,11 @@ export function PackagesPage() {
   const cfMonths = cf?.kind === "PERIOD" ? Number(cf.months) : 1;
   const cfPreview = cf && !cf.id ? tiers.filter((t) => t.def.status === "ACTIVE").map((t) => [t.def.id, cf.kind === "DAY" ? data.entitlements.find((e) => e.tier === t.def.id)?.dailyPrice ?? 0 : Math.round((monthPrice(t.def.id) * (cf.kind === "WEEKLY" ? (cf.weekdayOptions[0]?.length ?? 3) / 6 : cfMonths) * (1 - Number(cf.discount) / 100)) / 1000) * 1000] as const) : [];
   return (
-    <Page title="Gói & quyền lợi" sub="Gói = Thời hạn × Hạng, áp dụng theo Nhóm đối tượng. Quản lý thêm, sửa, ngừng bán hoặc xóa cả ba (mục 4.1). Đã có cụ dùng thì chỉ ngừng, không xóa.">
+    <Page title={ro ? "Gói & giá" : "Gói & giá (Admin)"} sub={ro ? "Chỉ xem để tư vấn cho gia đình. Giá, hạng, thời hạn, nhóm và phụ phí do Admin (chủ doanh nghiệp) quyết định." : "Gói = Thời hạn × Hạng, áp dụng theo Nhóm đối tượng. Admin thêm, sửa, ngừng bán hoặc xóa cả ba (mục 4.1). Đã có cụ dùng thì chỉ ngừng, không xóa."}>
       <Tabs value={tab} onChange={setTab} items={[{ value: "price", label: `Bảng giá (${data.cycles.length} thời hạn × ${tiers.length} hạng)` }, { value: "ent", label: "Hạng & quyền lợi" }, { value: "groups", label: `Nhóm đối tượng (${data.groups.length})` }]} />
       {tab === "price" && (
         <>
-          <Card title="Bảng giá" actions={<Button size="sm" icon={Plus} onClick={() => { saveCycle.reset(); openCycle(); }}>Thêm thời hạn</Button>}>
+          <Card title="Bảng giá" actions={!ro && <Button size="sm" icon={Plus} onClick={() => { saveCycle.reset(); openCycle(); }}>Thêm thời hạn</Button>}>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-[12.5px]">
                 <thead><tr className="border-b-[1.5px] border-line text-left"><th className="px-2 py-2 text-[10.5px] text-subtle uppercase">Thời hạn</th>{tiers.map((t) => <th key={t.def.id} className={cn("px-2 py-2", t.def.status === "HIDDEN" && "opacity-50")}><TierBadge tier={t.def.id} /> <span className="text-[11px] text-subtle">{data.capacity.find((c) => c.tier === t.def.id)?.held ?? 0}/{data.capacity.find((c) => c.tier === t.def.id)?.beds ?? 0} chỗ</span></th>)}</tr></thead>
@@ -102,10 +103,10 @@ export function PackagesPage() {
                       <td className="px-2 py-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <span><b className="text-navy">{c.label}</b> {c.status === "HIDDEN" && off}<span className="block text-[11px] text-orange">{cycleMeta(c)}</span><span className="block max-w-60 text-[11px] text-subtle">{c.desc}</span></span>
-                          <span className="flex shrink-0 gap-1">
+                          {!ro && <span className="flex shrink-0 gap-1">
                             <button aria-label={`Sửa ${c.label}`} title="Sửa" onClick={() => { saveCycle.reset(); openCycle(data.cycles.find((x) => x.def.id === c.id)); }} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-orange"><Pencil size={13} /></button>
                             <button aria-label={`Xóa ${c.label}`} title={blocker || (c.id === monthCycle() ? "Giá tham chiếu, không xóa" : "Xóa")} onClick={() => askDel("cycle", c.id, c.label, blocker || (c.id === monthCycle() ? "là giá tham chiếu 1 tháng cho các thời hạn khác" : ""))} className="rounded-md p-1 text-faint hover:bg-red-soft/50 hover:text-red-ink"><Trash2 size={13} /></button>
-                          </span>
+                          </span>}
                         </div>
                         {used > 0 && <span className="text-[10.5px] text-subtle">{used} đăng ký</span>}
                       </td>
@@ -116,8 +117,8 @@ export function PackagesPage() {
                         const disc = base ? 1 - p.pkg.basePrice / base : 0;
                         return (
                           <td key={t.def.id} className="px-2 py-2.5">
-                            <button onClick={() => { savePrice.reset(); setEdit({ id: p.pkg.id, price: String(p.pkg.basePrice), hidden: p.pkg.status === "HIDDEN" }); }} className={cn("group w-full rounded-lg border border-transparent px-2 py-1 text-left hover:border-orange", (p.pkg.status === "HIDDEN" || c.status === "HIDDEN" || t.def.status === "HIDDEN") && "opacity-50")}>
-                              <span className="flex items-center gap-1 font-bold text-navy">{vnd(p.pkg.basePrice)}<Pencil size={11} className="text-faint group-hover:text-orange" /></span>
+                            <button disabled={ro} onClick={() => { savePrice.reset(); setEdit({ id: p.pkg.id, price: String(p.pkg.basePrice), hidden: p.pkg.status === "HIDDEN" }); }} className={cn("group w-full rounded-lg border border-transparent px-2 py-1 text-left", !ro && "hover:border-orange", (p.pkg.status === "HIDDEN" || c.status === "HIDDEN" || t.def.status === "HIDDEN") && "opacity-50")}>
+                              <span className="flex items-center gap-1 font-bold text-navy">{vnd(p.pkg.basePrice)}{!ro && <Pencil size={11} className="text-faint group-hover:text-orange" />}</span>
                               <span className="block text-[11px] text-subtle">/{cycleUnit(c.id)}{disc > 0.005 ? ` · giảm ${Math.round(disc * 100)}%` : ""}{p.pkg.status === "HIDDEN" ? " · ngừng bán" : ""}</span>
                               <span className="block text-[11px] text-subtle">{p.active} cụ đang dùng</span>
                             </button>
@@ -142,7 +143,7 @@ export function PackagesPage() {
         </>
       )}
       {tab === "ent" && (
-        <Card title="Hạng & quyền lợi" actions={<span className="flex gap-1.5"><Button size="sm" variant="outline" icon={Plus} onClick={() => { savePerk.reset(); setPf({ label: "", values: Object.fromEntries(tiers.map((t) => [t.def.id, ""])) }); }}>Thêm dòng quyền lợi</Button><Button size="sm" icon={Plus} onClick={() => { saveTier.reset(); openTier(); }}>Thêm hạng</Button></span>}>
+        <Card title="Hạng & quyền lợi" actions={!ro && <span className="flex gap-1.5"><Button size="sm" variant="outline" icon={Plus} onClick={() => { savePerk.reset(); setPf({ label: "", values: Object.fromEntries(tiers.map((t) => [t.def.id, ""])) }); }}>Thêm dòng quyền lợi</Button><Button size="sm" icon={Plus} onClick={() => { saveTier.reset(); openTier(); }}>Thêm hạng</Button></span>}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-[12.5px]">
               <thead>
@@ -151,13 +152,13 @@ export function PackagesPage() {
                   {tiers.map((t, i) => (
                     <th key={t.def.id} className={cn("px-2 py-2", t.def.status === "HIDDEN" && "opacity-60")}>
                       <div className="flex flex-wrap items-center gap-1"><TierBadge tier={t.def.id} />{t.def.highlight && <Badge tone="orange">Phổ biến</Badge>}{t.def.status === "HIDDEN" && off}</div>
-                      <div className="mt-1 flex gap-0.5">
+                      {!ro && <div className="mt-1 flex gap-0.5">
                         <button title="Hạng thấp hơn" aria-label="Chuyển sang trái" disabled={i === 0} onClick={() => moveTier.mutate({ id: t.def.id, dir: -1 })} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-navy disabled:opacity-30"><ArrowLeft size={13} /></button>
                         <button title="Hạng cao hơn" aria-label="Chuyển sang phải" disabled={i === tiers.length - 1} onClick={() => moveTier.mutate({ id: t.def.id, dir: 1 })} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-navy disabled:opacity-30"><ArrowRight size={13} /></button>
                         <button title="Sửa tên, màu, trạng thái" aria-label={`Sửa hạng ${t.def.label}`} onClick={() => { saveTier.reset(); openTier(t); }} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-orange"><Pencil size={13} /></button>
                         <button title="Sửa quyền lợi" aria-label={`Sửa quyền lợi ${t.def.label}`} onClick={() => { saveEnt.reset(); setEntEdit(t.def.id); setEnt({ ...data.entitlements.find((e) => e.tier === t.def.id) }); }} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-orange"><ListChecks size={13} /></button>
                         <button title={t.blocker || "Xóa hạng"} aria-label={`Xóa hạng ${t.def.label}`} onClick={() => askDel("tier", t.def.id, `hạng ${t.def.label}`, t.blocker)} className="rounded-md p-1 text-faint hover:bg-red-soft/50 hover:text-red-ink"><Trash2 size={13} /></button>
-                      </div>
+                      </div>}
                     </th>
                   ))}
                 </tr>
@@ -178,8 +179,8 @@ export function PackagesPage() {
                   <tr key={pk.id} className="border-b border-line-soft bg-orange-soft/30">
                     <td className="px-2 py-2 text-muted">
                       <span className="flex items-center gap-1">{pk.label}
-                        <button aria-label={`Sửa ${pk.label}`} onClick={() => { savePerk.reset(); setPf({ id: pk.id, label: pk.label, values: { ...pk.values } }); }} className="rounded-md p-1 text-faint hover:text-orange"><Pencil size={12} /></button>
-                        <button aria-label={`Xóa ${pk.label}`} onClick={() => askDel("perk", String(pk.id), `quyền lợi "${pk.label}"`)} className="rounded-md p-1 text-faint hover:text-red-ink"><Trash2 size={12} /></button>
+                        {!ro && <><button aria-label={`Sửa ${pk.label}`} onClick={() => { savePerk.reset(); setPf({ id: pk.id, label: pk.label, values: { ...pk.values } }); }} className="rounded-md p-1 text-faint hover:text-orange"><Pencil size={12} /></button>
+                        <button aria-label={`Xóa ${pk.label}`} onClick={() => askDel("perk", String(pk.id), `quyền lợi "${pk.label}"`)} className="rounded-md p-1 text-faint hover:text-red-ink"><Trash2 size={12} /></button></>}
                       </span>
                     </td>
                     {tiers.map((t) => <td key={t.def.id} className="px-2 py-2 font-semibold text-ink">{pk.values[t.def.id] || "—"}</td>)}
@@ -193,13 +194,13 @@ export function PackagesPage() {
       )}
       {tab === "groups" && (
         <>
-          <div className="flex justify-end"><Button icon={Plus} onClick={() => { saveGroup.reset(); openGroup(); }}>Thêm nhóm</Button></div>
+          {!ro && <div className="flex justify-end"><Button icon={Plus} onClick={() => { saveGroup.reset(); openGroup(); }}>Thêm nhóm</Button></div>}
           <div className="grid gap-3 lg:grid-cols-2">
             {data.groups.map((row) => {
               const i = row.def;
               return (
                 <Card key={i.id} className={cn(i.status === "HIDDEN" && "opacity-70")} title={<span className="flex items-center gap-2"><GroupBadge group={i.id} />{i.status === "HIDDEN" && <Badge tone="gray">Ngừng nhận</Badge>}<span className="text-[12px] font-normal text-subtle">{row.count} cụ</span></span>}
-                  actions={<span className="flex gap-1"><Button size="sm" variant="neutral" icon={Pencil} onClick={() => { saveGroup.reset(); openGroup(row); }}>Sửa</Button><Button size="sm" variant="danger" icon={Trash2} aria-label={`Xóa nhóm ${i.label}`} title={row.blocker || "Xóa nhóm"} onClick={() => askDel("group", i.id, `nhóm ${i.label}`, row.blocker)} /></span>}>
+                  actions={!ro && <span className="flex gap-1"><Button size="sm" variant="neutral" icon={Pencil} onClick={() => { saveGroup.reset(); openGroup(row); }}>Sửa</Button><Button size="sm" variant="danger" icon={Trash2} aria-label={`Xóa nhóm ${i.label}`} title={row.blocker || "Xóa nhóm"} onClick={() => askDel("group", i.id, `nhóm ${i.label}`, row.blocker)} /></span>}>
                   <KV label="Dành cho" w={110}>{i.who}</KV>
                   {i.care.length > 0 && <KV label="Chăm sóc riêng" w={110}>{i.care.join(" · ")}</KV>}
                   <KV label="Theo dõi" w={110}>{i.watch || "—"}</KV>

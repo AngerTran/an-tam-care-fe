@@ -377,7 +377,7 @@ export const staff = {
       if (notAccepted) {
         sub.violation = "NOT_ACCEPTED";
         const refund = await manager.stopNotAccepted(me, sub.id);
-        outcome = `Thuộc diện không nhận: ngừng nhận, hoàn ${refund.toLocaleString("vi-VN")}đ`;
+        outcome = `Thuộc diện không nhận: ngừng nhận, đề nghị hoàn ${refund.toLocaleString("vi-VN")}đ (chờ Admin duyệt)`;
       } else if (input.group !== e.declaredGroup) {
         sub.violation = "WRONG_GROUP";
         await manager.chargeWrongGroup(me, sub.id, input.group, surchargeMonthly(input.group), input.note);
@@ -468,7 +468,7 @@ export const staff = {
       const e = need(lookups.equipment(input.equipmentId));
       if (input.quantity > usable(e)) throw new Error(`Chỉ còn ${usable(e)} ${e.name} dùng được`);
       e.broken += input.quantity;
-      if (usable(e) < e.minStock) notifyManagers("FACILITY", `${e.name} dưới định mức`, `Dùng được ${usable(e)}/${e.total}, định mức ${e.minStock}`, "/manager/facilities/equipment");
+      if (usable(e) < e.minStock) notifyManagers("FACILITY", `${e.name} dưới định mức`, `Dùng được ${usable(e)}/${e.total}, định mức ${e.minStock}`, "/manager/facilities/damage");
     }
     d.damageReports.unshift({ id: nextId(d.damageReports), ...input, reportedBy: me.id, reportedAt: stamp(), status: "NEW" });
     notifyManagers("FACILITY", "Báo hỏng mới", input.description.slice(0, 60), "/manager/facilities/damage");

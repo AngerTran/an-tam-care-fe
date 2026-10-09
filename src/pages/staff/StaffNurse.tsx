@@ -205,7 +205,7 @@ export function StaffAssessments() {
             {sel.assessment.kind !== "PERIODIC" && (
               <label className={cn("flex items-start gap-2 rounded-xl border-[1.5px] p-2.5 text-[12.5px]", f.notAccepted ? "border-red-line bg-red-soft/40" : "border-line")}>
                 <input type="checkbox" checked={f.notAccepted} onChange={(e) => setF({ ...f, notAccepted: e.target.checked })} className="mt-0.5" />
-                <span><b className="text-red-ink">Cụ thuộc diện không nhận</b> (liệt giường, sa sút trí tuệ nặng, cần chăm sóc tích cực). {sel.assessment.kind === "FIRST_DAY" ? "Trung tâm ngừng nhận và tự hoàn 95% tổng tiền đã đóng." : "Hồ sơ bị từ chối, gia đình được báo lý do."}</span>
+                <span><b className="text-red-ink">Cụ thuộc diện không nhận</b> (liệt giường, sa sút trí tuệ nặng, cần chăm sóc tích cực). {sel.assessment.kind === "FIRST_DAY" ? "Trung tâm ngừng nhận, hệ thống tạo đề nghị hoàn 95% tổng tiền đã đóng để Admin duyệt." : "Hồ sơ bị từ chối, gia đình được báo lý do."}</span>
               </label>
             )}
             {sel.assessment.kind === "FIRST_DAY" && !f.notAccepted && f.group !== sel.elderly.declaredGroup && <Note tone="red">Khác khai báo ({GROUP_LABEL[sel.elderly.declaredGroup]} → {GROUP_LABEL[f.group]}): vi phạm cam kết. Gia đình trả phụ phí nhóm và chênh lệch nâng hạng cho số ngày còn lại trong 3 ngày.</Note>}

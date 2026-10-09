@@ -632,6 +632,8 @@ export interface DamageReport {
   reportedAt: string;
   status: "NEW" | "REPAIRING" | "FIXED" | "DISPOSED";
   handledBy?: number;
+  /** Quản lý đề nghị thanh lý, chờ Admin duyệt */
+  disposeRequested?: boolean;
 }
 export interface InventoryCheck {
   id: number;

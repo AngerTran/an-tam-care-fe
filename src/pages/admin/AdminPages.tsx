@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileBarChart, KeyRound, Lock, Mail, Unlock, UserPlus } from "lucide-react";
 import { useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { admin } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
@@ -56,6 +57,14 @@ export function AdminDashboard() {
           </div>
         </Card>
       </div>
+      {(data.pendingRefunds.length > 0 || data.disposeRequests > 0) && (
+        <Card title="Chờ chủ doanh nghiệp duyệt">
+          <div className="flex flex-wrap gap-2">
+            {data.pendingRefunds.length > 0 && <Link to="/admin/refunds" className="rounded-xl border border-orange-line bg-orange-soft px-3 py-2 text-[12.5px] text-orange-ink hover:border-orange"><b>{data.pendingRefunds.length}</b> đề nghị hoàn tiền · {millions(data.pendingRefunds.reduce((s, r) => s + r.amount, 0))}</Link>}
+            {data.disposeRequests > 0 && <Link to="/admin/equipment" className="rounded-xl border border-orange-line bg-orange-soft px-3 py-2 text-[12.5px] text-orange-ink hover:border-orange"><b>{data.disposeRequests}</b> đề nghị thanh lý thiết bị</Link>}
+          </div>
+        </Card>
+      )}
       {data.latestReport && (
         <Card title={<span className="flex items-center gap-2"><FileBarChart size={16} />Báo cáo mới nhất từ Quản lý · {data.latestReport.label}</span>} actions={<Button size="sm" variant="outline" to="/admin/reports">Tất cả báo cáo</Button>}>
           <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">{data.latestReport.metrics.map((m) => <Stat key={m.label} label={m.label} value={m.value} />)}</div>
@@ -125,7 +134,9 @@ export function AdminFacilities() {
 export function AccountsPage() {
   const me = useMe();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"mgr" | "staff">("mgr");
+  const nav = useNavigate();
+  const [sp] = useSearchParams();
+  const [tab, setTab] = useState<"mgr" | "staff">(sp.get("tab") === "staff" ? "staff" : "mgr");
   const [q, setQ] = useState("");
   const [add, setAdd] = useState<{ fullName: string; email: string; phone: string } | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ["a-acc"], queryFn: () => admin.accounts() });
@@ -133,8 +144,8 @@ export function AccountsPage() {
   const reset = useMutation({ mutationFn: (id: number) => admin.resetPassword(me, id) });
   const create = useMutation({ mutationFn: () => admin.createManager(me, add!), onSuccess: () => { qc.invalidateQueries({ queryKey: ["a-acc"] }); setAdd(null); } });
   return (
-    <Page title="Tài khoản" sub={`Admin quản lý tài khoản Quản lý trung tâm; tài khoản nhân viên chỉ xem. ${data?.families ?? 0} tài khoản gia đình tự đăng ký.`} actions={tab === "mgr" && <Button size="sm" icon={UserPlus} onClick={() => setAdd({ fullName: "", email: "", phone: "" })}>Tạo tài khoản Quản lý</Button>}>
-      <Tabs value={tab} onChange={setTab} items={[{ value: "mgr", label: "Quản lý trung tâm" }, { value: "staff", label: "Nhân viên (chỉ xem)" }]} />
+    <Page title="Nhân viên & tài khoản" sub={`Admin tạo, sửa, khóa tài khoản Quản lý trung tâm và nhân viên. Quản lý trung tâm phân công cụ và xếp ca. ${data?.families ?? 0} tài khoản gia đình tự đăng ký.`} actions={tab === "staff" ? <Button size="sm" icon={UserPlus} to="/admin/staff/new">Thêm nhân viên</Button> : <Button size="sm" icon={UserPlus} onClick={() => setAdd({ fullName: "", email: "", phone: "" })}>Tạo tài khoản Quản lý</Button>}>
+      <Tabs value={tab} onChange={setTab} items={[{ value: "mgr", label: "Quản lý trung tâm" }, { value: "staff", label: "Nhân viên" }]} />
       <SearchBox value={q} onChange={setQ} placeholder="Tìm theo tên, email…" />
       <Card>
         {isLoading || !data ? <Loading /> : tab === "mgr" ? (
@@ -146,11 +157,12 @@ export function AccountsPage() {
             { key: "x", header: "", render: (u) => <span className="flex gap-1"><Button size="sm" variant="neutral" icon={Mail} onClick={() => reset.mutate(u.id)}>Đặt lại MK</Button><Button size="sm" variant={u.status === "LOCKED" ? "outline" : "danger"} icon={u.status === "LOCKED" ? Unlock : Lock} onClick={() => lock.mutate({ id: u.id, s: u.status === "LOCKED" ? "ACTIVE" : "LOCKED" })}>{u.status === "LOCKED" ? "Mở" : "Khóa"}</Button></span> },
           ]} />
         ) : (
-          <Table rows={data.staff.filter((r) => !q || `${r.user.fullName} ${r.user.email}`.toLowerCase().includes(q.toLowerCase()))} rowKey={(r) => r.user.id} columns={[
+          <Table rows={data.staff.filter((r) => !q || `${r.user.fullName} ${r.user.email}`.toLowerCase().includes(q.toLowerCase()))} rowKey={(r) => r.user.id} onRowClick={(r) => nav(`/admin/staff/${r.user.id}`)} columns={[
             { key: "n", header: "Họ tên", render: (r) => r.user.fullName },
             { key: "p", header: "Chức vụ", render: (r) => <PositionBadge position={r.position} /> },
             { key: "e", header: "Email", render: (r) => r.user.email },
-            { key: "s", header: "Trạng thái", render: (r) => <Badge tone={r.user.status === "ACTIVE" ? "green" : "orange"}>{r.user.status === "ACTIVE" ? "Hoạt động" : r.user.status === "INVITED" ? "Đã mời" : "Đã khóa"}</Badge> },
+            { key: "s", header: "Trạng thái", render: (r) => <Badge tone={r.user.status === "ACTIVE" ? "green" : r.user.status === "INVITED" ? "orange" : "red"}>{r.user.status === "ACTIVE" ? "Hoạt động" : r.user.status === "INVITED" ? "Đã mời" : "Đã khóa"}</Badge> },
+            { key: "x", header: "", render: (r) => <Button size="sm" variant={r.user.status === "LOCKED" ? "outline" : "danger"} icon={r.user.status === "LOCKED" ? Unlock : Lock} onClick={(ev) => { ev.stopPropagation(); lock.mutate({ id: r.user.id, s: r.user.status === "LOCKED" ? "ACTIVE" : "LOCKED" }); }}>{r.user.status === "LOCKED" ? "Mở khóa" : "Khóa"}</Button> },
           ]} />
         )}
         {reset.isSuccess && <Note tone="green" className="mt-2">Đã gửi email đặt lại mật khẩu.</Note>}
@@ -162,17 +174,17 @@ export function AccountsPage() {
   );
 }
 
-export function SystemSettingsPage() {
+export function SystemSettingsBody() {
   const me = useMe();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["a-sys"], queryFn: () => admin.systemSettings() });
   const [f, setF] = useState<Partial<SystemSettings>>({});
   const save = useMutation({ mutationFn: () => admin.saveSystemSettings(me, f), onSuccess: () => { qc.invalidateQueries({ queryKey: ["a-sys"] }); setF({}); } });
-  if (isLoading || !data) return <Page title="Cấu hình hệ thống"><Loading /></Page>;
+  if (isLoading || !data) return <Loading />;
   const v = { ...data, ...f };
   return (
-    <Page title="Cấu hình hệ thống" sub="Cổng thanh toán, AI, bảo mật, kênh thông báo." actions={Object.keys(f).length > 0 && <Button size="sm" loading={save.isPending} onClick={() => save.mutate()}>Lưu</Button>}>
-      {save.isSuccess && <Note tone="green">Đã lưu và ghi nhật ký hệ thống.</Note>}
+    <>
+      {(Object.keys(f).length > 0 || save.isSuccess) && <div className="flex items-center gap-2">{save.isSuccess && <Note tone="green">Đã lưu và ghi nhật ký hệ thống.</Note>}{Object.keys(f).length > 0 && <Button size="sm" className="ml-auto" loading={save.isPending} onClick={() => save.mutate()}>Lưu cấu hình hệ thống</Button>}</div>}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Cổng thanh toán">
           <div className="grid gap-2 sm:grid-cols-2">
@@ -195,7 +207,7 @@ export function SystemSettingsPage() {
           <div className="mt-2"><Toggle checked={v.pushEnabled} onChange={(x) => setF({ ...f, pushEnabled: x })} label="Push trên app mobile" /></div>
         </Card>
       </div>
-    </Page>
+    </>
   );
 }
 

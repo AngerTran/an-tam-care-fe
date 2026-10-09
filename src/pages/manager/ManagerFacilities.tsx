@@ -2,53 +2,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BedDouble, CircleCheck, ClipboardCheck, FileSpreadsheet, Lock, Pencil, Plus, Shuffle, Wrench } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { manager } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
-import { Progress, Stat, TierBadge } from "../../components/domain";
-import { Badge, Button, Card, Chip, ErrorText, Field, KV, Loading, Modal, Note, Photo, SelectField, Table, TextArea, cn } from "../../components/ui";
+import { TierBadge } from "../../components/domain";
+import { Badge, Button, Card, Chip, ErrorText, Field, Loading, Modal, Note, Photo, SelectField, Table, TextArea, cn } from "../../components/ui";
 import { entitlementFixedBed, EQUIP_CAT, TIER_LABEL, TIERS, ZONE_LABEL } from "../../domain/catalog";
 import { dm, dmy, hm } from "../../lib/format";
 import type { Equipment, NapBed, Room, Tier, Zone } from "../../types/models";
-
-export function FacilitiesOverview() {
-  const { data, isLoading } = useQuery({ queryKey: ["m-fac"], queryFn: () => manager.facilities() });
-  if (isLoading || !data) return <Page title="Cơ sở vật chất"><Loading /></Page>;
-  return (
-    <Page title="Cơ sở vật chất" sub="Số lượng do Quản lý nhập tay. Hệ thống tự cập nhật số dùng được, so sánh với nhu cầu và cảnh báo khi thiếu hoặc hỏng (4.5).">
-      <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label="Phòng / khu" value={data.rooms} />
-        <Stat label="Thiết bị dùng được" value={`${data.equipmentUsable}/${data.equipmentTotal}`} tone="green" />
-        <Stat label="Giường xếp hôm nay" value={data.bedsToday} />
-        <Stat label="Báo hỏng chưa xong" value={data.openDamage.length} tone="orange" />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Chỗ còn trống theo hạng" actions={<Link to="/manager/facilities/beds" className="text-[11.5px] font-semibold text-orange">Sơ đồ giường</Link>}>
-          {data.capacity.map((c) => (
-            <div key={c.tier} className="mb-2.5">
-              <div className="flex items-center justify-between text-[12.5px]"><TierBadge tier={c.tier} /><span>{c.free > 0 ? <Badge tone="green">Còn {c.free} chỗ</Badge> : <Badge tone="red">Hết chỗ · chặn bán (BR-71)</Badge>}</span></div>
-              <div className="mt-1 flex items-center gap-2"><Progress value={(c.held / Math.max(1, c.beds)) * 100} tone={c.full ? "red" : "green"} /><span className="text-[11px] whitespace-nowrap text-subtle">{c.held}/{c.beds}</span></div>
-            </div>
-          ))}
-          <KV label="Khu kiểm soát ra vào" w={150}>{data.secure.used}/{data.secure.capacity} cụ sa sút trí tuệ</KV>
-        </Card>
-        <Card title="Cảnh báo" actions={<Link to="/manager/facilities/equipment" className="text-[11.5px] font-semibold text-orange">Thiết bị</Link>}>
-          {data.lowEquip.map((e) => <div key={e.id} className="py-1 text-[12.5px]"><Badge tone="red">Dưới định mức</Badge> {e.name} · dùng được {e.total - e.broken - e.repairing}/{e.total}, tối thiểu {e.minStock}</div>)}
-          {data.closedRooms.map((r) => <div key={r.id} className="py-1 text-[12.5px]"><Badge tone="orange">Tạm đóng</Badge> {r.name} · {r.closedReason}</div>)}
-          {!data.lowEquip.length && !data.closedRooms.length && <div className="text-[12.5px] text-subtle">Không có</div>}
-        </Card>
-        <Card title="Báo hỏng chưa xử lý" actions={<Link to="/manager/facilities/damage" className="text-[11.5px] font-semibold text-orange">Xử lý</Link>}>
-          {data.openDamage.map(({ report: r, equipment, room, reporter }) => <div key={r.id} className="border-b border-line-soft py-1.5 text-[12.5px] last:border-0"><b className="text-navy">{equipment?.name ?? room?.name}</b> × {r.quantity} · {r.description}<span className="block text-[11px] text-subtle">{reporter?.fullName} · {dm(r.reportedAt.slice(0, 10))} · {r.status === "NEW" ? "Mới" : "Đang sửa"}</span></div>)}
-        </Card>
-        <Card title="Bù quyền lợi (4.8)">
-          {data.compensations.map((c) => <div key={c.id} className="text-[12.5px]"><b className="text-navy">{c.elderly?.fullName}</b> · {dm(c.date)} · {c.reason} → {c.form}</div>)}
-          <Note className="mt-2">Phòng Cao cấp đóng mà còn phòng tương đương: chuyển tạm, không bù. Không còn: xếp phòng 4–6 người, bù 1 buổi dịch vụ lẻ/ngày. Máy VLTL hỏng: bù buổi tuần sau.</Note>
-        </Card>
-      </div>
-    </Page>
-  );
-}
 
 // ------------------------------------------------------------------ rooms
 const ZONES = Object.keys(ZONE_LABEL) as Zone[];
@@ -162,10 +124,26 @@ export function EquipmentPage() {
   const { data, isLoading } = useQuery({ queryKey: ["m-equip"], queryFn: () => manager.equipment() });
   const rooms = useQuery({ queryKey: ["m-rooms-l"], queryFn: () => manager.rooms() });
   const save = useMutation({ mutationFn: () => manager.saveEquipment(me, form!), onSuccess: () => { qc.invalidateQueries(); setForm(null); } });
+  const damage = useQuery({ queryKey: ["m-damage"], queryFn: () => manager.damage() });
+  const dispose = useMutation({ mutationFn: (id: number) => manager.setDamageStatus(me, id, "DISPOSED"), onSuccess: () => qc.invalidateQueries() });
+  const requests = (damage.data ?? []).filter((r) => r.report.disposeRequested && r.report.status !== "DISPOSED");
   const doImport = useMutation({ mutationFn: () => manager.importEquipment(me, [{ name: "Máy đo nhiệt độ hồng ngoại", category: "MEDICAL", roomId: 2, total: 3, minStock: 2 }, { name: "Gậy 4 chân", category: "SAFETY", roomId: 1, total: 4, minStock: 2 }]), onSuccess: () => { qc.invalidateQueries(); setImp(false); } });
   const rows = (data ?? []).filter((r) => cat === "ALL" || (cat === "LOW" ? r.below : r.equipment.category === cat));
   return (
-    <Page title="Thiết bị" sub="Số dùng được = tổng − đang hỏng − đang sửa. Tổng số chỉ Quản lý nhập hoặc sửa (BR-70)." actions={<><Button size="sm" variant="outline" icon={FileSpreadsheet} onClick={() => setImp(true)}>Nhập từ Excel</Button><Button size="sm" icon={Plus} onClick={() => setForm({ name: "", category: "MEDICAL", roomId: 2, total: 1, minStock: 1, concurrent: 1, note: "" })}>Thêm thiết bị</Button></>}>
+    <Page title="Thiết bị" sub="Số dùng được = tổng − đang hỏng − đang sửa. Tổng số chỉ Admin nhập, sửa hoặc thanh lý (BR-70). Quản lý xử lý báo hỏng và đề nghị thanh lý." actions={<><Button size="sm" variant="outline" icon={FileSpreadsheet} onClick={() => setImp(true)}>Nhập từ Excel</Button><Button size="sm" icon={Plus} onClick={() => setForm({ name: "", category: "MEDICAL", roomId: 2, total: 1, minStock: 1, concurrent: 1, note: "" })}>Thêm thiết bị</Button></>}>
+      {requests.length > 0 && (
+        <Card title={`Đề nghị thanh lý chờ duyệt (${requests.length})`}>
+          <ul className="divide-y divide-line-soft">
+            {requests.map((r) => (
+              <li key={r.report.id} className="flex flex-wrap items-center gap-2 py-2 text-[12.5px]">
+                <span className="flex-1"><b className="text-navy">{r.equipment?.name}</b> × {r.report.quantity} · {r.report.description}<span className="block text-[11px] text-subtle">Báo {dmy(r.report.reportedAt.slice(0, 10))} · {r.reporter?.fullName}</span></span>
+                <Button size="sm" variant="danger" loading={dispose.isPending && dispose.variables === r.report.id} onClick={() => dispose.mutate(r.report.id)}>Duyệt thanh lý</Button>
+              </li>
+            ))}
+          </ul>
+          <ErrorText error={dispose.error} />
+        </Card>
+      )}
       <div className="flex flex-wrap gap-1.5"><Chip active={cat === "ALL"} onClick={() => setCat("ALL")}>Tất cả</Chip>{(Object.keys(EQUIP_CAT) as Equipment["category"][]).map((c) => <Chip key={c} active={cat === c} onClick={() => setCat(c)}>{EQUIP_CAT[c]}</Chip>)}<Chip active={cat === "LOW"} onClick={() => setCat("LOW")}>Dưới định mức ({data?.filter((r) => r.below).length ?? 0})</Chip></div>
       <Card>
         {isLoading ? <Loading /> : (
@@ -213,7 +191,7 @@ export function DamagePage() {
   const set = useMutation({ mutationFn: ({ id, s }: { id: number; s: "REPAIRING" | "FIXED" | "DISPOSED" }) => manager.setDamageStatus(me, id, s), onSuccess: () => qc.invalidateQueries() });
   const rows = (data ?? []).filter((r) => f === "ALL" || r.report.status === "NEW" || r.report.status === "REPAIRING");
   return (
-    <Page title="Báo hỏng" sub="Staff báo trên app, hệ thống trừ ngay khỏi số dùng được. Quản lý chọn: đang sửa / đã sửa xong (cộng lại) / thanh lý (giảm tổng) — mục 5.10.">
+    <Page title="Báo hỏng & sửa chữa" sub="Staff báo trên app, hệ thống trừ ngay khỏi số dùng được. Quản lý chọn: đang sửa / đã sửa xong (cộng lại) / đề nghị thanh lý (Admin duyệt rồi mới giảm tổng) — mục 5.10.">
       <div className="flex gap-1.5"><Chip active={f === "OPEN"} onClick={() => setF("OPEN")}>Chưa xong</Chip><Chip active={f === "ALL"} onClick={() => setF("ALL")}>Tất cả</Chip></div>
       <Card>
         {isLoading ? <Loading /> : (
@@ -228,13 +206,14 @@ export function DamagePage() {
               <span className="flex flex-wrap gap-1">
                 {r.report.status === "NEW" && <Button size="sm" variant="outline" icon={Wrench} onClick={() => set.mutate({ id: r.report.id, s: "REPAIRING" })}>Đang sửa</Button>}
                 <Button size="sm" variant="success" icon={CircleCheck} onClick={() => set.mutate({ id: r.report.id, s: "FIXED" })}>Sửa xong</Button>
-                {r.equipment && <Button size="sm" variant="danger" onClick={() => set.mutate({ id: r.report.id, s: "DISPOSED" })}>Thanh lý</Button>}
+                {r.equipment && (r.report.disposeRequested ? <Badge tone="orange">Chờ Admin duyệt thanh lý</Badge> : <Button size="sm" variant="danger" onClick={() => set.mutate({ id: r.report.id, s: "DISPOSED" })}>Đề nghị thanh lý</Button>)}
               </span>
             ) },
           ]} />
         )}
       </Card>
-      <Note>Phòng có sự cố: chuyển phòng sang Tạm đóng ở mục Khu và phòng. Sửa xong báo hỏng của phòng thì phòng tự mở lại.</Note>
+      <Note>Phòng có sự cố: báo Admin tạm đóng phòng (mục Khu & phòng của Admin). Sửa xong báo hỏng của phòng thì phòng tự mở lại.</Note>
+      <ErrorText error={set.error} />
     </Page>
   );
 }

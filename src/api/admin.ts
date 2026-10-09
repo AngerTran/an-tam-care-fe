@@ -32,6 +32,8 @@ export const admin = {
       lowEquip: d.equipment.filter((e) => usable(e) < e.minStock).length,
       closedRooms: d.rooms.filter((r) => r.status === "CLOSED").length,
       waitlist: d.waitlist.filter((w) => ["WAITING", "HOLDING"].includes(w.status)).length,
+      pendingRefunds: d.refunds.filter((r) => r.status === "PENDING"),
+      disposeRequests: d.damageReports.filter((r) => r.disposeRequested && r.status !== "DISPOSED").length,
       staff: d.users.filter((u) => u.role === "STAFF" && u.status !== "LOCKED").length,
       pendingReport: d.reports.filter((r) => !r.sentAt).length,
       latestReport: d.reports.filter((r) => r.sentAt).sort((a, b) => b.sentAt!.localeCompare(a.sentAt!))[0],

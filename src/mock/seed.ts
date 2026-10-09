@@ -328,7 +328,7 @@ const equipment: Equipment[] = [
 ];
 const damageReports: DamageReport[] = [
   { id: 1, equipmentId: 9, quantity: 1, description: "Ghế số 2 không chạy chế độ lưng, kêu to ở mô-tơ.", reportedBy: 4, reportedAt: t("2026-10-03", "14:20"), status: "REPAIRING", handledBy: 2 },
-  { id: 2, equipmentId: 6, quantity: 1, description: "Bàn đạp trái bị gãy chốt.", reportedBy: 3, reportedAt: t("2026-10-06", "09:10"), status: "REPAIRING", handledBy: 2 },
+  { id: 2, equipmentId: 6, quantity: 1, description: "Bàn đạp trái bị gãy chốt, hãng báo không còn phụ tùng.", reportedBy: 3, reportedAt: t("2026-10-06", "09:10"), status: "REPAIRING", handledBy: 2, disposeRequested: true },
   { id: 3, roomId: 10, quantity: 1, description: "Máy lạnh phòng P202 chảy nước, không lạnh.", reportedBy: 7, reportedAt: t("2026-10-07", "12:30"), status: "REPAIRING", handledBy: 2 },
   { id: 4, equipmentId: 9, quantity: 1, description: "Ghế số 4 bị rách da tựa tay, có cạnh sắc.", reportedBy: 6, reportedAt: t("2026-10-08", "15:00"), status: "NEW" },
   { id: 5, equipmentId: 3, quantity: 1, description: "Máy báo lỗi E-3 khi đo.", reportedBy: 3, reportedAt: t("2026-10-09", "07:50"), status: "NEW" },
@@ -670,7 +670,7 @@ const notifications: Notification[] = [
   nf(7, 10, "SYSTEM", "Danh sách chờ hạng Cao cấp", "Bà Lan đang ở vị trí 2. Khi có chỗ, chị có 24 giờ để thanh toán.", t("2026-10-05", "20:01"), true),
   nf(11, 2, "HEALTH", "Cảnh báo: huyết áp bà Hoa 160/95", "Điều dưỡng Hạnh đang xử lý", t(DEMO_TODAY, "07:55"), false, "/manager/alerts"),
   nf(12, 2, "SYSTEM", "Đánh giá đầu vào xong: ông Bùi Văn Tâm", "Điều dưỡng đề xuất nhóm Bệnh mãn tính, cần nâng lên Tiêu chuẩn", t("2026-10-08", "09:41"), false, "/manager/registrations"),
-  nf(13, 2, "FACILITY", "Ghế massage dưới định mức", "Dùng được 2/4, định mức tối thiểu 3", t("2026-10-08", "15:01"), false, "/manager/facilities/equipment"),
+  nf(13, 2, "FACILITY", "Ghế massage dưới định mức", "Dùng được 2/4, định mức tối thiểu 3", t("2026-10-08", "15:01"), false, "/manager/facilities/damage"),
   nf(14, 2, "SHIFT", "AI đã gợi ý lịch ca tuần 12–17/10", "Có 1 xung đột cần xem", t("2026-10-09", "06:00"), false, "/manager/shifts"),
   nf(15, 2, "SYSTEM", "Báo nghỉ mới", "Bà Lan nghỉ 12–13/10 · Bà Hoa nghỉ 16/10", t(DEMO_TODAY, "08:40"), false, "/manager/absences"),
   nf(16, 2, "MESSAGE", "Chatbot chuyển câu hỏi", "Trịnh Minh Khang hỏi về chỗ trống hạng Cao cấp", t("2026-10-08", "20:15"), false, "/manager/messages"),
