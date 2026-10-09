@@ -5,21 +5,26 @@ import { staff, TODAY } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Badge, Button, Chip, ErrorText, Field, Modal, Note, SelectField, TextArea, Toggle, cn } from "../../components/ui";
 import { MEAL_AMOUNTS, MOODS, PARTICIPATION } from "../../domain/catalog";
-import type { CareLogEntry, ElderlyMember, Incident, Thresholds } from "../../types/models";
+import type { CareLogEntry, DailyTask, ElderlyMember, Incident, Thresholds } from "../../types/models";
 
 export type EntryKindUI = "MEAL" | "HYGIENE" | "ACTIVITY" | "NAP" | "MOOD" | "PHOTO" | "NOTE";
 export const ENTRY_LABEL: Record<EntryKindUI, string> = { MEAL: "Ăn uống", HYGIENE: "Vệ sinh", ACTIVITY: "Hoạt động", NAP: "Nghỉ trưa", MOOD: "Tâm trạng", PHOTO: "Ảnh", NOTE: "Lưu ý / bất thường" };
 const now = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
 
-export function EntryModal({ kind, elderly, activities, photoInfo, onClose }: { kind?: EntryKindUI; elderly: ElderlyMember; activities: string[]; photoInfo?: string; onClose: () => void }) {
+const MEAL_OF: Record<string, string> = { "Ăn sáng": "Bữa sáng", "Ăn trưa": "Bữa trưa", "Ăn xế": "Bữa xế" };
+/** Daily task → which S5 form opens when the staff clicks the task row. */
+export const taskKind = (t: Pick<DailyTask, "type">): EntryKindUI | undefined => (t.type === "MEAL" ? "MEAL" : t.type === "ACTIVITY" ? "ACTIVITY" : t.type === "NAP" ? "NAP" : t.type === "HYGIENE" ? "HYGIENE" : undefined);
+
+export function EntryModal({ kind, elderly, activities, photoInfo, task, onClose }: { kind?: EntryKindUI; elderly: ElderlyMember; activities: string[]; photoInfo?: string; task?: Pick<DailyTask, "id" | "title" | "time">; onClose: () => void }) {
   const me = useMe();
   const qc = useQueryClient();
-  const [meal, setMeal] = useState("Bữa trưa");
+  const [meal, setMeal] = useState(task && MEAL_OF[task.title] ? MEAL_OF[task.title] : "Bữa trưa");
   const [amount, setAmount] = useState<string>("Hết");
   const [water, setWater] = useState("1");
   const [quick, setQuick] = useState<string[]>([]);
   const [hyg, setHyg] = useState("Đi vệ sinh");
-  const [act, setAct] = useState(activities[0] ?? "Thể dục trên ghế");
+  const [act, setAct] = useState(kind === "ACTIVITY" && task ? task.title : activities[0] ?? "Thể dục trên ghế");
+  const actOptions = task && kind === "ACTIVITY" && !activities.includes(task.title) ? [task.title, ...activities] : activities;
   const [part, setPart] = useState<string>("Có tham gia");
   const [mins, setMins] = useState("20");
   const [sleep, setSleep] = useState("12:05");
@@ -42,9 +47,9 @@ export function EntryModal({ kind, elderly, activities, photoInfo, onClose }: { 
       default: return { kind: "NOTE", title: "Lưu ý", detail: text, important };
     }
   };
-  const save = useMutation({ mutationFn: () => staff.addEntry(me, elderly.id, build()), onSuccess: () => { qc.invalidateQueries(); onClose(); } });
+  const save = useMutation({ mutationFn: async () => { await staff.addEntry(me, elderly.id, build()); if (task) await staff.setTask(me, task.id, "DONE"); }, onSuccess: () => { qc.invalidateQueries(); onClose(); } });
   return (
-    <Modal open={!!kind} onClose={onClose} title={kind ? `${ENTRY_LABEL[kind]} · ${elderly.fullName}` : ""} width={480} footer={<><Button variant="neutral" onClick={onClose}>Hủy</Button><Button loading={save.isPending} onClick={() => save.mutate()}>Lưu · {now()}</Button></>}>
+    <Modal open={!!kind} onClose={onClose} title={kind ? `${ENTRY_LABEL[kind]} · ${elderly.fullName}${task ? ` · việc ${task.time}` : ""}` : ""} width={480} footer={<><Button variant="neutral" onClick={onClose}>Hủy</Button><Button loading={save.isPending} onClick={() => save.mutate()}>Lưu · {now()}</Button></>}>
       <div className="space-y-2.5">
         {kind === "MEAL" && <>
           <div className="flex gap-1.5">{["Bữa sáng", "Bữa trưa", "Bữa xế"].map((m) => <Chip key={m} active={meal === m} onClick={() => setMeal(m)}>{m}</Chip>)}</div>
@@ -55,7 +60,7 @@ export function EntryModal({ kind, elderly, activities, photoInfo, onClose }: { 
         </>}
         {kind === "HYGIENE" && <div className="flex flex-wrap gap-1.5">{["Đi vệ sinh", "Thay quần", "Thay tã", "Rửa tay, lau mặt"].map((h) => <Chip key={h} active={hyg === h} onClick={() => setHyg(h)}>{h}</Chip>)}</div>}
         {kind === "ACTIVITY" && <>
-          <SelectField label="Hoạt động trong lịch (CL-10)" value={act} onChange={(e) => setAct(e.target.value)}>{activities.map((a) => <option key={a}>{a}</option>)}</SelectField>
+          <SelectField label="Hoạt động trong lịch (CL-10)" value={act} onChange={(e) => setAct(e.target.value)}>{actOptions.map((a) => <option key={a}>{a}</option>)}</SelectField>
           <div className="flex flex-wrap gap-1.5">{PARTICIPATION.map((p) => <Chip key={p} active={part === p} onClick={() => setPart(p)}>{p}</Chip>)}</div>
           <Field label="Thời lượng (phút)" type="number" value={mins} onChange={(e) => setMins(e.target.value)} />
         </>}

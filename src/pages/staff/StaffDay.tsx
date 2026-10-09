@@ -12,7 +12,7 @@ import { AttBadge, ElderlyCell, GroupBadge, Progress, Stat, TierBadge, Timeline 
 import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, KV, Loading, Modal, Note, SelectField, Table, Tabs, TextArea, cn } from "../../components/ui";
 import { GROUP_INFO, MEAL_AMOUNTS, PARTICIPATION } from "../../domain/catalog";
 import { dmy, hm, weekday } from "../../lib/format";
-import { EntryModal, IncidentModal, VitalsModal, type EntryKindUI } from "./StaffForms";
+import { EntryModal, IncidentModal, taskKind, VitalsModal, type EntryKindUI } from "./StaffForms";
 import { DoseButtons } from "./StaffNurse";
 
 // ------------------------------------------------------------------ S1
@@ -186,6 +186,7 @@ export function StaffCareLog() {
   const id = Number(useParams().id);
   const [tab, setTab] = useState<"tasks" | "timeline">("tasks");
   const [kind, setKind] = useState<EntryKindUI>();
+  const [taskFor, setTaskFor] = useState<{ id: number; title: string; time: string }>();
   const [vitals, setVitals] = useState(false);
   const [incident, setIncident] = useState(false);
   const [skip, setSkip] = useState<number>();
@@ -227,7 +228,7 @@ export function StaffCareLog() {
       </Card>
       {!closed && data.a?.status === "PRESENT" && (
         <div className="flex flex-wrap gap-2">
-          {QUICK.map(([k, Icon, l]) => <Button key={k} variant="neutral" icon={Icon} disabled={k === "PHOTO" && photoLimit !== null && photoLimit !== undefined && data.photos >= photoLimit} onClick={() => setKind(k)}>{l}</Button>)}
+          {QUICK.map(([k, Icon, l]) => <Button key={k} variant="neutral" icon={Icon} disabled={k === "PHOTO" && photoLimit !== null && photoLimit !== undefined && data.photos >= photoLimit} onClick={() => { setTaskFor(undefined); setKind(k); }}>{l}</Button>)}
           <Button variant="outline" icon={NotebookPen} onClick={() => setKind("NOTE")}>Ghi lưu ý / bất thường</Button>
           {nurse && <><Button variant="ai" icon={Activity} onClick={() => setVitals(true)}>Đo chỉ số</Button><Button variant="danger" icon={TriangleAlert} onClick={() => setIncident(true)}>Sự cố</Button></>}
           {!nurse && <Button variant="danger" icon={TriangleAlert} onClick={() => setIncident(true)}>Báo nhanh sự cố</Button>}
@@ -240,13 +241,20 @@ export function StaffCareLog() {
             {data.tasks.map((t) => {
               const mine = (t.owner === "NURSE") === nurse;
               const dose = meds.data?.find((m) => m.dose.elderlyId === id && m.dose.time === t.time && t.type === "MEDICATION");
+              const canOpen = mine && !closed && data.a?.status === "PRESENT" && t.status === "TODO" && (!!taskKind(t) || t.type === "VITALS" || t.type === "GLUCOSE");
+              const open = () => {
+                if (!canOpen) return;
+                if (t.type === "VITALS" || t.type === "GLUCOSE") return setVitals(true);
+                setTaskFor({ id: t.id, title: t.title, time: t.time });
+                setKind(taskKind(t));
+              };
               return (
-                <li key={t.id} className={cn("flex flex-wrap items-center gap-2 py-2", !mine && "opacity-60")}>
+                <li key={t.id} onClick={open} title={canOpen ? "Bấm để ghi chi tiết" : undefined} className={cn("-mx-2 flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 transition", !mine && "opacity-60", canOpen && "cursor-pointer hover:bg-orange-soft")}>
                   <span className={cn("w-12 text-[12px] font-semibold", t.status === "TODO" && t.time < NOW ? "text-red-ink" : "text-navy")}>{t.time}</span>
-                  <span className="min-w-0 flex-1 text-[12.5px]">{t.title}<span className="ml-1.5"><Badge tone={t.owner === "NURSE" ? "teal" : "blue"}>{t.owner === "NURSE" ? "Điều dưỡng" : "Hộ lý"}</Badge></span>{t.skipReason && <span className="block text-[11px] text-amber-ink">Bỏ qua: {t.skipReason}</span>}</span>
+                  <span className="min-w-0 flex-1 text-[12.5px]"><span className={cn(canOpen && "font-semibold text-navy underline decoration-orange-line decoration-2 underline-offset-4")}>{t.title}</span><span className="ml-1.5"><Badge tone={t.owner === "NURSE" ? "teal" : "blue"}>{t.owner === "NURSE" ? "Điều dưỡng" : "Hộ lý"}</Badge></span>{t.skipReason && <span className="block text-[11px] text-amber-ink">Bỏ qua: {t.skipReason}</span>}</span>
                   {t.status === "DONE" ? <Badge tone="green">Đã làm {t.doneAt} · {t.by?.fullName}</Badge> : t.status === "SKIPPED" ? <Badge tone="orange">Bỏ qua</Badge> : mine && !closed && data.a?.status === "PRESENT" ? (
-                    dose ? <DoseButtons doseId={dose.dose.id} /> : t.type === "VITALS" || t.type === "GLUCOSE" ? <Button size="sm" variant="ai" onClick={() => setVitals(true)}>Đo</Button> : t.type === "CHECKOUT" ? <Button size="sm" variant="outline" icon={DoorOpen} to="/staff/checkin">Check-out</Button> : (
-                      <span className="flex gap-1">
+                    dose ? <span onClick={(ev) => ev.stopPropagation()}><DoseButtons doseId={dose.dose.id} /></span> : t.type === "VITALS" || t.type === "GLUCOSE" ? <Button size="sm" variant="ai" onClick={(ev) => { ev.stopPropagation(); setVitals(true); }}>Đo</Button> : t.type === "CHECKOUT" ? <Button size="sm" variant="outline" icon={DoorOpen} to="/staff/checkin">Check-out</Button> : (
+                      <span className="flex gap-1" onClick={(ev) => ev.stopPropagation()}>
                         <Button size="sm" variant="success" icon={CircleCheck} onClick={() => setTask.mutate({ t: t.id, s: "DONE" })}>Đã làm</Button>
                         <Button size="sm" variant="neutral" onClick={() => setSkip(t.id)}>Bỏ qua</Button>
                       </span>
@@ -269,7 +277,7 @@ export function StaffCareLog() {
           <ErrorText error={close.error} />
         </Card>
       )}
-      <EntryModal key={kind} kind={kind} elderly={e} activities={acts} photoInfo={`${data.photos}/${photoLimit ?? "không giới hạn"} ảnh hôm nay`} onClose={() => setKind(undefined)} />
+      <EntryModal key={`${kind}-${taskFor?.id ?? "free"}`} kind={kind} task={taskFor} elderly={e} activities={acts} photoInfo={`${data.photos}/${photoLimit ?? "không giới hạn"} ảnh hôm nay`} onClose={() => { setKind(undefined); setTaskFor(undefined); }} />
       <VitalsModal open={vitals} onClose={() => setVitals(false)} elderly={e} thresholds={data.thresholds} diabetic={e.conditions.some((c) => c.includes("Tiểu đường"))} />
       {incident && <IncidentModal open onClose={() => setIncident(false)} elderlyOptions={[e]} defaultElderly={e.id} />}
       <Modal open={!!skip} onClose={() => setSkip(undefined)} title="Bỏ qua việc" footer={<><Button variant="neutral" onClick={() => setSkip(undefined)}>Hủy</Button><Button loading={setTask.isPending} onClick={() => setTask.mutate({ t: skip!, s: "SKIPPED", r: reason })}>Bỏ qua</Button></>}>
