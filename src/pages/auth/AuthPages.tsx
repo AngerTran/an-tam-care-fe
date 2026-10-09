@@ -16,13 +16,13 @@ function Split({ children, family }: { children: ReactNode; family?: boolean }) 
         <Heart size={44} className={family ? "text-white" : "text-orange"} strokeWidth={2.2} />
         <div className="text-[32px] leading-tight font-bold">{family ? "An Tâm Care cho gia đình" : "An Tâm Care"}</div>
         <p className="max-w-md text-[15px] leading-relaxed text-white/85">
-          {family ? "Một tài khoản, nhiều người thân. Xem gói dịch vụ, đăng ký và thanh toán online, theo dõi nhật ký chăm sóc mỗi ngày." : "Nền tảng quản lý trung tâm chăm sóc ban ngày cho người cao tuổi."}
+          {family ? "Một tài khoản, nhiều người thân. Đăng ký gói, thanh toán online, xem care log, ảnh và chỉ số sức khỏe của cụ mỗi ngày." : "Trung tâm chăm sóc ban ngày (bán trú) cho người cao tuổi · 7h–16h30, Thứ 2 – Thứ 7."}
         </p>
         {!family && (
           <ul className="space-y-1 text-[13px] text-white/75">
-            <li>• Quản lý điểm danh, nhật ký, thanh toán</li>
-            <li>• Gợi ý xếp ca bằng AI — quản lý duyệt</li>
-            <li>• Báo cáo cho từng trung tâm</li>
+            <li>• 3 hạng gói · 5 nhóm đối tượng · thanh toán VNPay/MoMo</li>
+            <li>• Care log theo thời gian thực cho gia đình</li>
+            <li>• AI gợi ý xếp ca, thực đơn, cảnh báo sức khỏe — người duyệt quyết định</li>
           </ul>
         )}
       </aside>
@@ -35,7 +35,7 @@ function Split({ children, family }: { children: ReactNode; family?: boolean }) 
 
 const loginSchema = z.object({ email: z.string().email("Email không hợp lệ"), password: z.string().min(1, "Nhập mật khẩu") });
 const DEMO = [
-  ["Quản lý trung tâm", "mai.tran@hoasen.vn"], ["Nhân viên", "hanh.le@hoasen.vn"], ["Gia đình", "lan.nguyen@gmail.com"], ["Admin", "admin@antamcare.vn"],
+  ["Quản lý trung tâm", "mai.tran@antamcare.vn"], ["Điều dưỡng", "hanh.le@antamcare.vn"], ["Hộ lý", "bao.pham@antamcare.vn"], ["Gia đình", "lan.nguyen@gmail.com"], ["Admin (chủ DN)", "admin@antamcare.vn"],
 ] as const;
 
 export function LoginPage() {
@@ -67,7 +67,7 @@ export function LoginPage() {
         <Button type="submit" size="lg" block loading={formState.isSubmitting}>Đăng nhập</Button>
       </form>
       <div className="mt-4 text-center text-[12.5px] text-muted">
-        Gia đình chưa có tài khoản? <Link to="/dang-ky" className="font-semibold text-orange">Đăng ký</Link>
+        Gia đình chưa có tài khoản? <Link to="/dang-ky" className="font-semibold text-orange">Đăng ký</Link> · <Link to="/" className="font-semibold text-blue">Xem gói & giá</Link>
       </div>
       <div className="mt-6 rounded-xl bg-canvas p-3">
         <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-subtle">

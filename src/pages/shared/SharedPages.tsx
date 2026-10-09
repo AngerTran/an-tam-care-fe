@@ -1,21 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Bot, Building2, CalendarDays, ClipboardList, CreditCard, Lock, MessageCircle, Search, Send, ShieldAlert, Users } from "lucide-react";
+import { Bell, Bot, Building2, CalendarDays, ClipboardList, CreditCard, HeartPulse, Lock, MessageCircle, Send, ShieldAlert, Users, Wrench } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { auth, family, inbox, lookups } from "../../api";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { auth, inbox, lookups, manager } from "../../api";
 import { HOME, ROLE_LABEL, useAuth, useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
-import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, IconCircle, KV, Loading, Modal, Note, SelectField, cn } from "../../components/ui";
+import { PositionBadge, SearchBox } from "../../components/domain";
+import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, IconCircle, KV, Loading, Modal, Note, TextArea, cn } from "../../components/ui";
+import { POSITION_LABEL } from "../../domain/catalog";
 import { dmy, hm } from "../../lib/format";
-import type { Notification, User } from "../../types/models";
+import type { Message, Notification, User } from "../../types/models";
+
+const TODAY = "2026-10-09";
+const when = (iso: string) => (iso.startsWith(TODAY) ? hm(iso) : dmy(iso.slice(0, 10)).slice(0, 5));
 
 // ------------------------------------------------------------------ notifications
 const NOTE_ICON: Record<Notification["type"], [typeof Bell, "orange" | "red" | "teal" | "blue" | "purple" | "green"]> = {
-  ATTENDANCE: [CalendarDays, "blue"], CARE_LOG: [ClipboardList, "green"], PAYMENT: [CreditCard, "orange"], MESSAGE: [MessageCircle, "purple"], SHIFT: [Users, "teal"], SYSTEM: [Bell, "orange"],
+  ATTENDANCE: [CalendarDays, "blue"], CARE_LOG: [ClipboardList, "green"], HEALTH: [HeartPulse, "red"], PAYMENT: [CreditCard, "orange"], MESSAGE: [MessageCircle, "purple"], SHIFT: [Users, "teal"], FACILITY: [Wrench, "orange"], SYSTEM: [Bell, "blue"],
 };
 export function NotificationsPage() {
   const me = useMe();
   const qc = useQueryClient();
+  const nav = useNavigate();
   const [unreadOnly, setUnreadOnly] = useState(false);
   const { data, isLoading } = useQuery({ queryKey: ["notifications", me.id], queryFn: () => inbox.notifications(me) });
   const readAll = useMutation({ mutationFn: () => inbox.markAllRead(me), onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications", me.id] }) });
@@ -25,7 +31,7 @@ export function NotificationsPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1.5">
           <Chip active={!unreadOnly} onClick={() => setUnreadOnly(false)}>Tất cả</Chip>
-          <Chip active={unreadOnly} onClick={() => setUnreadOnly(true)}>Chưa đọc</Chip>
+          <Chip active={unreadOnly} onClick={() => setUnreadOnly(true)}>Chưa đọc ({data?.filter((n) => !n.isRead).length ?? 0})</Chip>
         </div>
         <button className="text-[12px] font-semibold text-orange" onClick={() => readAll.mutate()}>Đánh dấu đã đọc tất cả</button>
       </div>
@@ -35,13 +41,13 @@ export function NotificationsPage() {
             {rows.map((n) => {
               const [Icon, tone] = NOTE_ICON[n.type];
               return (
-                <li key={n.id} className="flex items-center gap-3 py-3">
+                <li key={n.id} className={cn("flex items-center gap-3 py-3", n.link && "cursor-pointer hover:bg-canvas")} onClick={() => n.link && nav(n.link)}>
                   <IconCircle icon={Icon} tone={tone} size={36} />
                   <div className="min-w-0 flex-1">
                     <div className={cn("text-[13px] text-navy", !n.isRead ? "font-semibold" : "font-medium")}>{n.title}</div>
                     <div className="truncate text-[11.5px] text-subtle">{n.message}</div>
                   </div>
-                  <div className="text-[11px] text-subtle">{n.createdAt.slice(0, 10) === "2026-10-01" ? hm(n.createdAt) : dmy(n.createdAt.slice(0, 10))}</div>
+                  <div className="text-[11px] text-subtle">{when(n.createdAt)}</div>
                   {!n.isRead && <span className="size-2 rounded-full bg-orange" />}
                 </li>
               );
@@ -72,16 +78,16 @@ export function ProfilePage({ extra }: { extra?: ReactNode }) {
     },
     onSuccess: () => { setCur(""); setNext(""); setNext2(""); setMsg("Đã cập nhật mật khẩu"); },
   });
-  const center = lookups.center(me.centerId);
+  const pos = lookups.position(me.id);
   return (
     <Page title={me.role === "FAMILY" ? "Tài khoản" : "Hồ sơ cá nhân"}>
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <Card>
+        <Card className="h-fit">
           <div className="flex flex-col items-center gap-1.5 text-center">
-            <Avatar name={me.fullName} size={64} tone={me.role === "ADMIN" ? "purple" : "blue"} />
+            <Avatar name={me.fullName} size={64} tone={me.role === "ADMIN" ? "purple" : me.role === "STAFF" ? "teal" : "blue"} />
             <div className="text-[16px] font-bold text-navy">{me.fullName}</div>
-            <Badge tone={me.role === "ADMIN" ? "purple" : me.role === "STAFF" ? "teal" : "blue"}>{ROLE_LABEL[me.role]}</Badge>
-            <div className="text-[11.5px] text-subtle">{center?.name ?? (me.role === "ADMIN" ? "Nền tảng An Tâm Care" : "Tài khoản gia đình")}</div>
+            <Badge tone={me.role === "ADMIN" ? "purple" : me.role === "STAFF" ? "teal" : "blue"}>{pos ? POSITION_LABEL[pos] : ROLE_LABEL[me.role]}</Badge>
+            <div className="text-[11.5px] text-subtle">{me.role === "FAMILY" ? "Tài khoản gia đình" : lookups.settings().name}</div>
           </div>
           <div className="mt-3 border-t border-line-soft pt-2">
             <KV label="Email" w={70}>{me.email}</KV>
@@ -116,125 +122,155 @@ export function ProfilePage({ extra }: { extra?: ReactNode }) {
   );
 }
 
-// ------------------------------------------------------------------ messages (all roles)
-type Filter = "ALL" | "FAMILY" | "STAFF" | "ADMIN" | "UNREAD";
-const partnerTone = (u: User) => (u.role === "ADMIN" ? "purple" : u.role === "STAFF" ? "teal" : u.role === "MANAGER" ? "orange" : "blue") as "purple" | "teal" | "orange" | "blue";
-const partnerSub = (u: User, elderlyName?: string) =>
-  u.role === "FAMILY" ? `Gia đình${elderlyName ? ` · ${elderlyName}` : ""}` : u.role === "STAFF" ? u.position ?? "Nhân viên" : u.role === "ADMIN" ? "Hỗ trợ nền tảng" : lookups.center(u.centerId)?.name ?? "Quản lý trung tâm";
+// ------------------------------------------------------------------ messages (BR-40)
+const partnerTone = (u: User) => (u.role === "STAFF" ? "teal" : u.role === "MANAGER" ? "orange" : "blue") as "teal" | "orange" | "blue";
+const partnerSub = (u: User, elderlyName?: string) => {
+  if (u.role === "FAMILY") return `Gia đình${elderlyName ? ` · ${elderlyName}` : ""}`;
+  if (u.role === "STAFF") { const p = lookups.position(u.id); return p ? POSITION_LABEL[p] : "Nhân viên"; }
+  return "Quản lý trung tâm";
+};
 
 export function MessagesPage() {
   const me = useMe();
   const qc = useQueryClient();
   const [sp, setSp] = useSearchParams();
-  const [filter, setFilter] = useState<Filter>("ALL");
   const [q, setQ] = useState("");
   const [text, setText] = useState("");
   const [newChat, setNewChat] = useState(false);
-  const [forward, setForward] = useState(false);
-  const isFamily = me.role === "FAMILY";
-  const selected = sp.get("to") === "ai" ? "ai" : sp.get("to") ? Number(sp.get("to")) : null;
+  const tab = sp.get("tab") ?? "mine";
+  const selected = sp.get("to") ? Number(sp.get("to")) : undefined;
   const convs = useQuery({ queryKey: ["convs", me.id], queryFn: () => inbox.conversations(me) });
-  const list = useMemo(() => (convs.data ?? []).filter((c) => {
-    if (q && !`${c.partner.fullName} ${c.center?.name ?? ""} ${c.elderly?.fullName ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
-    if (filter === "UNREAD") return c.unread > 0;
-    if (filter === "FAMILY") return c.partner.role === "FAMILY";
-    if (filter === "STAFF") return c.partner.role === "STAFF" || c.partner.role === "MANAGER";
-    if (filter === "ADMIN") return c.partner.role === "ADMIN";
-    return true;
-  }), [convs.data, q, filter]);
+  const list = useMemo(() => (convs.data ?? []).filter((c) => !q || `${c.partner.fullName} ${c.elderly?.fullName ?? ""}`.toLowerCase().includes(q.toLowerCase())), [convs.data, q]);
   useEffect(() => {
-    if (selected === null && list.length && !isFamily) setSp({ to: String(list[0].partner.id) }, { replace: true });
-    if (selected === null && isFamily) setSp({ to: "ai" }, { replace: true });
-  }, [selected, list, isFamily, setSp]);
-  const partnerId = typeof selected === "number" ? selected : undefined;
-  const thread = useQuery({ queryKey: ["thread", me.id, partnerId], queryFn: () => inbox.thread(me, partnerId!), enabled: !!partnerId });
+    if (tab === "mine" && !selected && list.length) setSp({ to: String(list[0].partner.id) }, { replace: true });
+  }, [selected, list, setSp, tab]);
+  const thread = useQuery({ queryKey: ["thread", me.id, selected], queryFn: () => inbox.thread(me, selected!), enabled: !!selected && tab === "mine" });
   const send = useMutation({
-    mutationFn: (t: string) => inbox.send(me, partnerId!, t),
-    onSuccess: () => { setText(""); qc.invalidateQueries({ queryKey: ["thread", me.id, partnerId] }); qc.invalidateQueries({ queryKey: ["convs", me.id] }); },
+    mutationFn: (t: string) => inbox.send(me, selected!, t),
+    onSuccess: () => { setText(""); qc.invalidateQueries({ queryKey: ["thread", me.id, selected] }); qc.invalidateQueries({ queryKey: ["convs", me.id] }); },
   });
-  const partner = lookups.user(partnerId);
-  const conv = convs.data?.find((c) => c.partner.id === partnerId);
-  const chips: [Filter, string][] = me.role === "ADMIN" ? [["ALL", "Tất cả"], ["UNREAD", "Chưa đọc"]] : me.role === "MANAGER" ? [["ALL", "Tất cả"], ["FAMILY", "Gia đình"], ["STAFF", "Nhân viên"], ["ADMIN", "Admin"]] : [["ALL", "Tất cả"], ["UNREAD", "Chưa đọc"]];
+  const partner = lookups.user(selected);
+  const conv = convs.data?.find((c) => c.partner.id === selected);
   const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
-  }, [thread.data]);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [thread.data]);
   return (
-    <Page title={me.role === "ADMIN" ? "Tin nhắn với trung tâm" : me.role === "STAFF" ? "Tin nhắn với gia đình" : "Tin nhắn"}>
-      <div className="grid min-h-[540px] gap-3 lg:grid-cols-[300px_1fr]">
-        <Card bodyClass="space-y-2">
-          <div className="flex gap-2">
-            <label className="flex flex-1 items-center gap-2 rounded-[10px] border-[1.5px] border-input-line px-2.5">
-              <Search size={14} className="text-subtle" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={me.role === "ADMIN" ? "Tìm trung tâm…" : "Tìm cuộc trò chuyện…"} className="h-9 min-w-0 flex-1 text-[12.5px] outline-none" />
-            </label>
-            <Button size="md" variant="outline" onClick={() => setNewChat(true)}>Mới</Button>
-          </div>
-          <div className="flex flex-wrap gap-1.5">{chips.map(([v, l]) => <Chip key={v} active={filter === v} onClick={() => setFilter(v)}>{l}</Chip>)}</div>
-          {isFamily && (
-            <button onClick={() => setSp({ to: "ai" })} className={cn("flex w-full items-center gap-2.5 rounded-[10px] border px-2.5 py-2 text-left", selected === "ai" ? "border-orange bg-orange-soft" : "border-line")}>
-              <IconCircle icon={Bot} tone="teal" size={32} />
-              <span><span className="block text-[12.5px] font-semibold text-navy">Trợ lý AI</span><span className="text-[11px] text-subtle">Hỏi nhanh về trung tâm</span></span>
-            </button>
-          )}
-          {convs.isLoading ? <Loading /> : list.map((c) => (
-            <button key={c.partner.id} onClick={() => setSp({ to: String(c.partner.id) })} className={cn("flex w-full items-start gap-2.5 rounded-[10px] border px-2.5 py-2 text-left transition", c.partner.id === partnerId ? "border-orange bg-orange-soft" : "border-line hover:bg-canvas")}>
-              <Avatar name={me.role === "ADMIN" ? c.center?.name.replace("Day-Care ", "") ?? c.partner.fullName : c.partner.fullName} size={32} tone={partnerTone(c.partner)} />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1">
-                  <span className="flex-1 truncate text-[12.5px] font-semibold text-navy">{me.role === "ADMIN" ? c.center?.name : c.partner.fullName}</span>
-                  <span className="text-[10px] text-subtle">{c.last.sentAt.startsWith("2026-10-01") ? hm(c.last.sentAt) : dmy(c.last.sentAt.slice(0, 10)).slice(0, 5)}</span>
+    <Page title="Tin nhắn" sub={me.role === "MANAGER" ? "Nội bộ với nhân viên và câu hỏi chatbot chuyển tới" : me.role === "STAFF" ? "Gia đình các cụ bạn phụ trách và nội bộ" : "Nhân viên phụ trách cụ"}>
+      {me.role === "MANAGER" && (
+        <div className="flex gap-1.5">
+          <Chip active={tab === "mine"} onClick={() => setSp({ tab: "mine" })}>Hộp thư của tôi</Chip>
+          <Chip active={tab === "audit"} onClick={() => setSp({ tab: "audit" })}>Lịch sử gia đình – nhân viên</Chip>
+        </div>
+      )}
+      {tab === "audit" ? <FamilyThreadAudit /> : (
+        <div className="grid min-h-[540px] gap-3 lg:grid-cols-[300px_1fr]">
+          <Card bodyClass="space-y-2">
+            <div className="flex gap-2">
+              <SearchBox value={q} onChange={setQ} placeholder="Tìm cuộc trò chuyện…" className="flex-1" />
+              <Button size="md" variant="outline" onClick={() => setNewChat(true)}>Mới</Button>
+            </div>
+            {convs.isLoading ? <Loading /> : list.length === 0 ? <div className="py-6 text-center text-[12px] text-subtle">Chưa có cuộc trò chuyện</div> : list.map((c) => (
+              <button key={c.partner.id} onClick={() => setSp({ to: String(c.partner.id) })} className={cn("flex w-full items-start gap-2.5 rounded-[10px] border px-2.5 py-2 text-left transition", c.partner.id === selected ? "border-orange bg-orange-soft" : "border-line hover:bg-canvas")}>
+                <Avatar name={c.partner.fullName} size={32} tone={partnerTone(c.partner)} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1">
+                    <span className="flex-1 truncate text-[12.5px] font-semibold text-navy">{c.partner.fullName}</span>
+                    <span className="text-[10px] text-subtle">{when(c.last.sentAt)}</span>
+                  </span>
+                  <span className="flex items-center gap-1 truncate text-[10.5px] text-subtle">{c.channel === "CHATBOT_HANDOFF" && <Bot size={11} className="text-teal" />}{c.channel === "CHATBOT_HANDOFF" ? "Chatbot chuyển · " : ""}{partnerSub(c.partner, c.elderly?.fullName)}</span>
+                  <span className="flex items-center gap-1">
+                    <span className={cn("flex-1 truncate text-[11.5px]", c.unread ? "font-semibold text-ink" : "text-muted")}>{c.last.text}</span>
+                    {c.unread > 0 && <span className="size-2 rounded-full bg-orange" />}
+                  </span>
                 </span>
-                <span className="block truncate text-[10.5px] text-subtle">{me.role === "ADMIN" ? `${c.partner.fullName} · Center Manager` : partnerSub(c.partner, c.elderly?.fullName)}</span>
-                <span className="flex items-center gap-1">
-                  <span className={cn("flex-1 truncate text-[11.5px]", c.unread ? "font-semibold text-ink" : "text-muted")}>{c.last.text}</span>
-                  {c.unread > 0 && <span className="size-2 rounded-full bg-orange" />}
-                </span>
-              </span>
-            </button>
-          ))}
-          {me.role === "ADMIN" && <Note>Chỉ Quản lý trung tâm nhắn được với Admin. Gia đình và nhân viên không thấy kênh này.</Note>}
-          {me.role === "STAFF" && <Note>Chỉ nhắn với gia đình của người cao tuổi bạn phụ trách.</Note>}
-        </Card>
-        <Card className="flex flex-col" bodyClass="flex flex-1 flex-col">
-          {selected === "ai" ? <AiChat /> : !partner ? <EmptyState icon={MessageCircle} title="Chưa có cuộc trò chuyện" desc="Chọn một người ở danh sách bên trái hoặc bấm Mới." /> : (
-            <>
-              <div className="flex items-center gap-2.5 border-b border-line-soft pb-3">
-                <Avatar name={partner.fullName} size={36} tone={partnerTone(partner)} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13.5px] font-bold text-navy">{me.role === "ADMIN" ? lookups.center(partner.centerId)?.name : partner.fullName}</div>
-                  <div className="text-[11px] text-subtle">{me.role === "ADMIN" ? `${partner.fullName} · Center Manager` : partnerSub(partner, conv?.elderly?.fullName)}</div>
+              </button>
+            ))}
+            {me.role === "STAFF" && <Note>Chỉ nhắn với gia đình của các cụ bạn phụ trách. Mọi tin nhắn đều được lưu (BR-40).</Note>}
+            {me.role === "FAMILY" && <Note>Nhắn với điều dưỡng và hộ lý phụ trách cụ. Câu hỏi chung hãy dùng Trợ lý tư vấn.</Note>}
+            {me.role === "MANAGER" && <Note>Quản lý không nhắn thay nhân viên. Tin nhắn gia đình – nhân viên chỉ mở khi có khiếu nại (tab bên trên).</Note>}
+          </Card>
+          <Card className="flex flex-col" bodyClass="flex flex-1 flex-col">
+            {!partner ? <EmptyState icon={MessageCircle} title="Chưa chọn cuộc trò chuyện" desc="Chọn một người ở danh sách bên trái hoặc bấm Mới." /> : (
+              <>
+                <div className="flex items-center gap-2.5 border-b border-line-soft pb-3">
+                  <Avatar name={partner.fullName} size={36} tone={partnerTone(partner)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13.5px] font-bold text-navy">{partner.fullName}</div>
+                    <div className="text-[11px] text-subtle">{partnerSub(partner, conv?.elderly?.fullName)}</div>
+                  </div>
+                  {me.role === "MANAGER" && conv?.elderly && <Button size="sm" variant="outline" to={`/manager/members/${conv.elderly.id}`}>Hồ sơ cụ</Button>}
+                  {me.role === "STAFF" && conv?.elderly && <Button size="sm" variant="outline" to={`/staff/elderly/${conv.elderly.id}`}>Care log</Button>}
                 </div>
-                {me.role === "ADMIN" && <Button size="sm" variant="outline" icon={Building2} to={`/admin/centers/${partner.centerId}`}>Xem trung tâm</Button>}
-                {me.role === "MANAGER" && partner.role === "FAMILY" && <Button size="sm" variant="neutral" icon={Users} onClick={() => setForward(true)}>Chuyển cho nhân viên</Button>}
-                {me.role === "MANAGER" && conv?.elderly && <Button size="sm" variant="outline" to={`/manager/members/${conv.elderly.id}`}>Hồ sơ</Button>}
-              </div>
-              <div className="flex-1 space-y-2 overflow-y-auto py-3">
-                {thread.isLoading ? <Loading /> : thread.data?.map((m) => {
-                  const mineMsg = m.senderId === me.id;
-                  return (
-                    <div key={m.id} className={cn("flex", mineMsg ? "justify-end" : "justify-start")}>
-                      <div className={cn("max-w-[75%] rounded-2xl px-3.5 py-2 text-[12.5px] leading-relaxed", mineMsg ? "rounded-br-md bg-navy text-white" : "rounded-bl-md bg-bubble text-ink")}>
-                        {m.text}
-                        <div className={cn("mt-0.5 text-[9.5px]", mineMsg ? "text-right text-[#b8c4e0]" : "text-subtle")}>{hm(m.sentAt)}{mineMsg && m.isRead ? " · Đã xem" : ""}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={endRef} />
-              </div>
-              <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) send.mutate(text.trim()); }}>
-                <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nhập tin nhắn…" className="h-10 min-w-0 flex-1 rounded-[10px] border-[1.5px] border-input-line px-3 text-[12.5px] outline-none focus:border-orange" />
-                <Button type="submit" icon={Send} loading={send.isPending}>Gửi</Button>
-              </form>
-              <ErrorText error={send.error} />
-            </>
-          )}
-        </Card>
-      </div>
+                <div className="flex-1 space-y-2 overflow-y-auto py-3">
+                  {thread.isLoading ? <Loading /> : thread.data?.map((m) => <Bubble key={m.id} m={m} mine={m.senderId === me.id} />)}
+                  <div ref={endRef} />
+                </div>
+                <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) send.mutate(text.trim()); }}>
+                  <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nhập tin nhắn…" className="h-10 min-w-0 flex-1 rounded-[10px] border-[1.5px] border-input-line px-3 text-[12.5px] outline-none focus:border-orange" />
+                  <Button type="submit" icon={Send} loading={send.isPending}>Gửi</Button>
+                </form>
+                <ErrorText error={send.error} />
+              </>
+            )}
+          </Card>
+        </div>
+      )}
       <NewChatModal open={newChat} onClose={() => setNewChat(false)} onPick={(id) => { setNewChat(false); setSp({ to: String(id) }); }} />
-      {partner && <ForwardModal open={forward} onClose={() => setForward(false)} family={partner} />}
     </Page>
+  );
+}
+
+function Bubble({ m, mine }: { m: Message; mine: boolean }) {
+  return (
+    <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+      <div className={cn("max-w-[75%] rounded-2xl px-3.5 py-2 text-[12.5px] leading-relaxed", mine ? "rounded-br-md bg-navy text-white" : "rounded-bl-md bg-bubble text-ink")}>
+        {m.text}
+        <div className={cn("mt-0.5 text-[9.5px]", mine ? "text-right text-[#b8c4e0]" : "text-subtle")}>{dmy(m.sentAt.slice(0, 10)).slice(0, 5)} {hm(m.sentAt)}{mine && m.isRead ? " · Đã xem" : ""}</div>
+      </div>
+    </div>
+  );
+}
+
+function FamilyThreadAudit() {
+  const me = useMe();
+  const { data, isLoading } = useQuery({ queryKey: ["m-fam-threads"], queryFn: () => manager.familyThreads() });
+  const [pick, setPick] = useState<{ familyId: number; staffId: number }>();
+  const [reason, setReason] = useState("");
+  const open = useMutation({ mutationFn: () => manager.openFamilyThread(me, pick!.familyId, pick!.staffId, reason) });
+  return (
+    <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
+      <Card title="Các cuộc trò chuyện gia đình – nhân viên">
+        <Note className="mb-3">Bạn chỉ thấy ai nhắn với ai và số tin nhắn. Nội dung chỉ mở khi có khiếu nại hoặc gia đình yêu cầu; mỗi lần mở được ghi vào nhật ký hệ thống (BR-40).</Note>
+        {isLoading ? <Loading /> : (
+          <ul className="space-y-1.5">
+            {data?.map((t) => (
+              <li key={`${t.familyId}-${t.staffId}`}>
+                <button onClick={() => { setPick(t); open.reset(); setReason(""); }} className={cn("flex w-full items-center gap-2 rounded-[10px] border px-3 py-2 text-left text-[12.5px]", pick?.familyId === t.familyId && pick.staffId === t.staffId ? "border-orange bg-orange-soft" : "border-line hover:bg-canvas")}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-navy">{t.family?.fullName} ↔ {t.staff?.fullName}</span>
+                    <span className="text-[11px] text-subtle">{t.elderly ? `Cụ ${t.elderly.fullName} · ` : ""}{t.count} tin · gần nhất {when(t.last)}</span>
+                  </span>
+                  <PositionBadge position={lookups.position(t.staffId)} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card title="Nội dung">
+        {!pick ? <EmptyState icon={Lock} title="Chọn một cuộc trò chuyện" desc="Ghi lý do để mở lịch sử." /> : open.data ? (
+          <div className="space-y-2">
+            <Note tone="orange">Đã ghi nhật ký: {me.fullName} mở lịch sử lúc này. Lý do: {reason}</Note>
+            {open.data.map((m) => <Bubble key={m.id} m={m} mine={m.senderId === pick.staffId} />)}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <TextArea label="Lý do mở lịch sử (bắt buộc)" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="VD: Gia đình khiếu nại nhân viên trả lời chậm ngày 08/10" />
+            <ErrorText error={open.error} />
+            <Button icon={Lock} loading={open.isPending} onClick={() => open.mutate()}>Mở lịch sử & ghi nhật ký</Button>
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -243,65 +279,19 @@ function NewChatModal({ open, onClose, onPick }: { open: boolean; onClose: () =>
   const { data = [] } = useQuery({ queryKey: ["contacts", me.id], queryFn: () => inbox.contacts(me), enabled: open });
   return (
     <Modal open={open} onClose={onClose} title="Cuộc trò chuyện mới">
-      <ul className="max-h-80 space-y-1 overflow-y-auto">
-        {data.map((u) => (
-          <li key={u.id}>
-            <button onClick={() => onPick(u.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-canvas">
-              <Avatar name={u.fullName} size={30} tone={partnerTone(u)} />
-              <span><span className="block text-[12.5px] font-semibold text-navy">{me.role === "ADMIN" ? lookups.center(u.centerId)?.name : u.fullName}</span><span className="text-[11px] text-subtle">{me.role === "ADMIN" ? u.fullName : ROLE_LABEL[u.role]}</span></span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {data.length === 0 ? <div className="py-4 text-center text-[12.5px] text-subtle">Không có người nào bạn được nhắn.</div> : (
+        <ul className="max-h-80 space-y-1 overflow-y-auto">
+          {data.map(({ user: u, position }) => (
+            <li key={u.id}>
+              <button onClick={() => onPick(u.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-canvas">
+                <Avatar name={u.fullName} size={30} tone={partnerTone(u)} />
+                <span className="flex-1"><span className="block text-[12.5px] font-semibold text-navy">{u.fullName}</span><span className="text-[11px] text-subtle">{position ? POSITION_LABEL[position] : ROLE_LABEL[u.role]}</span></span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </Modal>
-  );
-}
-
-function ForwardModal({ open, onClose, family: fam }: { open: boolean; onClose: () => void; family: User }) {
-  const me = useMe();
-  const qc = useQueryClient();
-  const { data = [] } = useQuery({ queryKey: ["contacts", me.id], queryFn: () => inbox.contacts(me), enabled: open });
-  const staffList = data.filter((u) => u.role === "STAFF");
-  const [sid, setSid] = useState<number>();
-  const m = useMutation({ mutationFn: () => inbox.send(me, sid!, `Nhờ em trả lời giúp gia đình ${fam.fullName} trong mục Tin nhắn nhé.`), onSuccess: () => { qc.invalidateQueries({ queryKey: ["convs", me.id] }); onClose(); } });
-  return (
-    <Modal open={open} onClose={onClose} title="Chuyển cho nhân viên" footer={<><Button variant="neutral" onClick={onClose}>Huỷ</Button><Button disabled={!sid} loading={m.isPending} onClick={() => m.mutate()}>Chuyển</Button></>}>
-      <SelectField label="Nhân viên phụ trách" value={sid ?? ""} onChange={(e) => setSid(Number(e.target.value))}>
-        <option value="">Chọn nhân viên…</option>
-        {staffList.map((s) => <option key={s.id} value={s.id}>{s.fullName} · {s.position}</option>)}
-      </SelectField>
-      <Note className="mt-3">Nhân viên nhận tin nội bộ và tiếp tục trả lời gia đình (đề xuất cột messages.assigned_staff_id).</Note>
-    </Modal>
-  );
-}
-
-function AiChat() {
-  const me = useMe();
-  const [items, setItems] = useState<{ me: boolean; text: string }[]>([{ me: false, text: "Xin chào! Mình là trợ lý AI của trung tâm. Bạn có thể hỏi về giờ đón, gói dịch vụ, thực đơn hoặc chính sách hoàn tiền." }]);
-  const [text, setText] = useState("");
-  const ask = useMutation({ mutationFn: (q: string) => family.ask(me, q), onSuccess: (a) => setItems((x) => [...x, { me: false, text: a }]) });
-  return (
-    <>
-      <div className="flex items-center gap-2.5 border-b border-line-soft pb-3">
-        <IconCircle icon={Bot} tone="teal" size={36} />
-        <div className="flex-1"><div className="text-[13.5px] font-bold text-navy">Trợ lý AI</div><div className="text-[11px] text-subtle">Trả lời dựa trên thông tin của trung tâm (LLM API)</div></div>
-      </div>
-      <div className="flex-1 space-y-2 overflow-y-auto py-3">
-        {items.map((m, i) => (
-          <div key={i} className={cn("flex", m.me ? "justify-end" : "justify-start")}>
-            <div className={cn("max-w-[75%] rounded-2xl px-3.5 py-2 text-[12.5px] leading-relaxed", m.me ? "rounded-br-md bg-navy text-white" : "rounded-bl-md bg-bubble")}>{m.text}</div>
-          </div>
-        ))}
-        {ask.isPending && <div className="text-[11.5px] text-subtle">Trợ lý đang trả lời…</div>}
-      </div>
-      <div className="mb-2 flex flex-wrap gap-1.5">
-        {["Giờ đón là mấy giờ?", "Gói của bà gồm những gì?", "Chính sách hoàn tiền?"].map((s) => <Chip key={s} onClick={() => { setItems((x) => [...x, { me: true, text: s }]); ask.mutate(s); }}>{s}</Chip>)}
-      </div>
-      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!text.trim()) return; setItems((x) => [...x, { me: true, text }]); ask.mutate(text); setText(""); }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nhập câu hỏi…" className="h-10 min-w-0 flex-1 rounded-[10px] border-[1.5px] border-input-line px-3 text-[12.5px] outline-none focus:border-orange" />
-        <Button type="submit" icon={Send}>Gửi</Button>
-      </form>
-    </>
   );
 }
 
@@ -323,6 +313,7 @@ export function ForbiddenPage() {
 export function NotFoundPage() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-3 bg-canvas p-6 text-center">
+      <Building2 size={40} className="text-blue" />
       <div className="text-[44px] font-bold text-navy">404</div>
       <p className="text-[13px] text-muted">Không tìm thấy trang.</p>
       <Link to="/" className="text-[13px] font-semibold text-orange">Về trang chính</Link>

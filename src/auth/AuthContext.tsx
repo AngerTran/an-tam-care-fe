@@ -101,4 +101,4 @@ export function useMe() {
 }
 
 export const HOME: Record<Role, string> = { ADMIN: "/admin", MANAGER: "/manager", STAFF: "/staff", FAMILY: "/family" };
-export const ROLE_LABEL: Record<Role, string> = { ADMIN: "Administrator", MANAGER: "Center Manager", STAFF: "Caregiver / Staff", FAMILY: "Family Member" };
+export const ROLE_LABEL: Record<Role, string> = { ADMIN: "Chủ doanh nghiệp (Admin)", MANAGER: "Quản lý trung tâm", STAFF: "Nhân viên", FAMILY: "Gia đình" };

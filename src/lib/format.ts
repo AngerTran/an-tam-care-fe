@@ -11,7 +11,7 @@ export const dm = (iso?: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7
 /** "2026-10-01T09:44:00" -> "09:44" */
 export const hm = (iso?: string) => (iso ? iso.slice(11, 16) : "—");
 
-export const age = (dob: string, today = "2026-10-01") => {
+export const age = (dob: string, today = "2026-10-09") => {
   const [y, m, d] = dob.split("-").map(Number);
   const [ty, tm, td] = today.split("-").map(Number);
   return ty - y - (tm < m || (tm === m && td < d) ? 1 : 0);
