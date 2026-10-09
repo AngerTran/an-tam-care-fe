@@ -8,7 +8,7 @@ import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { Progress, Stat, TierBadge } from "../../components/domain";
 import { Badge, Button, Card, Chip, ErrorText, Field, KV, Loading, Modal, Note, Photo, SelectField, Table, TextArea, cn } from "../../components/ui";
-import { EQUIP_CAT, TIER_LABEL, TIERS, ZONE_LABEL } from "../../domain/catalog";
+import { entitlementFixedBed, EQUIP_CAT, TIER_LABEL, TIERS, ZONE_LABEL } from "../../domain/catalog";
 import { dm, dmy, hm } from "../../lib/format";
 import type { Equipment, NapBed, Room, Tier, Zone } from "../../types/models";
 
@@ -144,7 +144,7 @@ export function BedsPage() {
             <SelectField label="Phòng" value={form.roomId} onChange={(e) => setForm({ ...form, roomId: Number(e.target.value) })}>{data.rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</SelectField>
             <SelectField label="Hạng" value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value as Tier })}>{TIERS.map((t) => <option key={t} value={t}>{TIER_LABEL[t]}</option>)}</SelectField>
             <SelectField label="Trạng thái" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as "ACTIVE" })}><option value="ACTIVE">Dùng được</option><option value="BROKEN">Hỏng</option></SelectField>
-            {form.tier === "PREMIUM" && <SelectField label="Gán cố định cho cụ Cao cấp" className="sm:col-span-2" value={form.fixedElderlyId ?? ""} onChange={(e) => setForm({ ...form, fixedElderlyId: Number(e.target.value) || undefined })}><option value="">— Không —</option>{data.premium.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}</SelectField>}
+            {entitlementFixedBed(form.tier) && <SelectField label={`Gán cố định cho cụ ${TIER_LABEL[form.tier]}`} className="sm:col-span-2" value={form.fixedElderlyId ?? ""} onChange={(e) => setForm({ ...form, fixedElderlyId: Number(e.target.value) || undefined })}><option value="">— Không —</option>{data.premium.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}</SelectField>}
           </div>
         )}
       </Modal>

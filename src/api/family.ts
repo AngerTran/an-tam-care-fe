@@ -1,7 +1,7 @@
 // Family API (web + app). G1–G6 of mục 5.11, package registration 4.12, payment & renewal 5.7,
 // absence 5.3, pause / termination 5.8–5.9. Family only sees their own elderly.
 import type { Cycle, ElderlyMember, MedicationPlan, PaymentMethod, TargetGroup, Tier, User } from "../types/models";
-import { CYCLE_MONTHS, GROUP_LABEL, minTierFor, TIER_LABEL, tierRank, TIERS } from "../domain/catalog";
+import { CYCLE_LABEL, cycleDef, CYCLE_MONTHS, entitlementFixedBed, GROUP_LABEL, groupDef, isDayCycle, isWeeklyCycle, minTierFor, TIER_LABEL, tierDef, tierRank, TIERS } from "../domain/catalog";
 import { addDays, daysBetween } from "../lib/format";
 import { assertValid, validateAbsence, validatePause, validatePickup, validateRelative, validateStartDate } from "../lib/validate";
 import {
@@ -18,8 +18,8 @@ const nextMonday = (iso: string) => {
   return d;
 };
 function endOf(cycle: Cycle, start: string) {
-  if (cycle === "DAY") return start;
-  return addDays(start, 30 * CYCLE_MONTHS[cycle] - 1);
+  if (isDayCycle(cycle)) return start;
+  return addDays(start, 30 * Math.max(1, CYCLE_MONTHS[cycle] ?? 1) - 1);
 }
 
 export const family = {
@@ -177,7 +177,11 @@ export const family = {
     const d = db();
     const e = guard(me, input.elderlyId);
     if (!input.commit) throw new Error("Vui lòng đọc Quy định dịch vụ và tích cam kết khai đúng (BR-79)");
-    if (input.cycle === "DAY") {
+    if (tierDef(input.tier)?.status !== "ACTIVE") throw new Error("Hạng này đã ngừng bán");
+    if (cycleDef(input.cycle)?.status !== "ACTIVE") throw new Error(`${CYCLE_LABEL[input.cycle] ?? "Thời hạn này"} đã ngừng bán`);
+    if (!e.targetGroup && groupDef(input.group)?.status !== "ACTIVE") throw new Error("Nhóm đối tượng này trung tâm tạm không nhận");
+    if (d.packages.find((p) => p.tier === input.tier && p.cycle === input.cycle)?.status !== "ACTIVE") throw new Error("Gói này đang ngừng bán");
+    if (isDayCycle(input.cycle)) {
       if (!input.dayDates?.length) throw new Error("Chọn ít nhất một ngày");
       for (const x of input.dayDates) { const err = validateStartDate(x); if (err) throw new Error(`Ngày ${x.slice(8)}/${x.slice(5, 7)}: ${err.toLowerCase()}`); }
     } else {
@@ -191,11 +195,11 @@ export const family = {
     const ent = entitlement(input.tier);
     if (input.choiceIds.length > ent.optionalMax) throw new Error(`Hạng ${TIER_LABEL[input.tier]} chọn tối đa ${ent.optionalMax} hoạt động (BR-13)`);
     const cap = capacity().find((c) => c.tier === input.tier)!;
-    if (input.cycle !== "DAY" && cap.full) throw new Error(`FULL:${input.tier}`);
-    const dayDates = input.cycle === "DAY" ? [...(input.dayDates ?? [])].sort() : undefined;
+    if (!isDayCycle(input.cycle) && cap.full) throw new Error(`FULL:${input.tier}`);
+    const dayDates = isDayCycle(input.cycle) ? [...(input.dayDates ?? [])].sort() : undefined;
     const start = dayDates?.[0] ?? input.startDate;
     const end = dayDates ? dayDates[dayDates.length - 1] : endOf(input.cycle, start);
-    const base = input.cycle === "DAY" ? priceOfPkg(input.tier, "DAY") * (dayDates?.length ?? 1) : priceOfPkg(input.tier, input.cycle);
+    const base = isDayCycle(input.cycle) ? priceOfPkg(input.tier, input.cycle) * (dayDates?.length ?? 1) : priceOfPkg(input.tier, input.cycle);
     const assessed = !!e.targetGroup;
     // BR-79: every group pays online right away after committing; not yet assessed → nurse checks on the first morning
     const online = !assessed;
@@ -204,7 +208,7 @@ export const family = {
     const id = nextId(d.subscriptions);
     d.subscriptions.push({
       id, elderlyId: e.id, packageId: need(d.packages.find((p) => p.tier === input.tier && p.cycle === input.cycle)).id, targetGroup: group, tier: input.tier, cycle: input.cycle,
-      weekdays: input.cycle === "M3" ? input.weekdays : undefined, dayDates, startDate: start, endDate: end, basePrice: base, discount: 0, surchargeAmount: surcharge,
+      weekdays: isWeeklyCycle(input.cycle) ? input.weekdays : undefined, dayDates, startDate: start, endDate: end, basePrice: base, discount: 0, surchargeAmount: surcharge,
       surchargeNote: surcharge ? `Phụ phí cố định nhóm ${GROUP_LABEL[group]}` : undefined, status: assessed || online ? "AWAITING_PAYMENT" : "PENDING_ASSESSMENT", createdAt: stamp(), createdBy: me.id, previousId: cur?.id,
       commitmentAt: stamp(), familyConfirmedAt: assessed || online ? stamp() : undefined,
     });
@@ -313,8 +317,8 @@ export const family = {
       if (!e.targetGroup) e.targetGroup = s.targetGroup; // provisional until the first-day check (BR-79)
       const w = d.waitlist.find((x) => x.elderlyId === e.id && x.tier === s.tier && ["WAITING", "HOLDING"].includes(x.status));
       if (w) w.status = "CONVERTED";
-      if (s.tier === "PREMIUM" && !d.beds.some((b) => b.fixedElderlyId === e.id)) {
-        const free = d.beds.find((b) => b.tier === "PREMIUM" && !b.fixedElderlyId && b.status === "ACTIVE" && lookups.room(b.roomId)?.status === "ACTIVE");
+      if (entitlementFixedBed(s.tier) && !d.beds.some((b) => b.fixedElderlyId === e.id)) {
+        const free = d.beds.find((b) => b.tier === s.tier && !b.fixedElderlyId && b.status === "ACTIVE" && lookups.room(b.roomId)?.status === "ACTIVE");
         if (free) free.fixedElderlyId = e.id;
       }
       notifyManagers("PAYMENT", "Đã thanh toán, gói chuyển hiệu lực", `${e.fullName} · ${pkgName(s)} · ${inv.number}`, "/manager/registrations");
@@ -325,7 +329,7 @@ export const family = {
       s.endDate = endOf(s.cycle, addDays(s.endDate, 1));
       if (s.status === "SUSPENDED") { s.status = "ACTIVE"; e.status = "ACTIVE"; }
     } else if (inv.kind === "UPGRADE") {
-      const target = inv.lines[0].label.includes("Cao cấp") ? "PREMIUM" : "STANDARD";
+      const target = inv.upgradeTo ?? s.tier;
       s.tier = target;
       s.packageId = need(d.packages.find((x) => x.tier === target && x.cycle === s.cycle)).id;
       const w = d.waitlist.find((x) => x.elderlyId === e.id && x.tier === target && ["WAITING", "HOLDING"].includes(x.status));
@@ -343,7 +347,7 @@ export const family = {
     guard(me, s.elderlyId);
     const open = invoicesOf(s.id).find((i) => i.kind === "RENEWAL" && i.status === "UNPAID");
     if (open) return open.id;
-    if (s.cycle === "DAY") throw new Error("Gói ngày: đặt thêm ngày bằng cách đăng ký gói mới");
+    if (isDayCycle(s.cycle)) throw new Error("Gói ngày: đặt thêm ngày bằng cách đăng ký gói mới");
     const start = addDays(s.endDate, 1);
     const months = Math.max(1, CYCLE_MONTHS[s.cycle]);
     const lines = [{ label: `${pkgName(s)} (${start.slice(8)}/${start.slice(5, 7)}–${endOf(s.cycle, start).slice(8)}/${endOf(s.cycle, start).slice(5, 7)})`, amount: priceOfPkg(s.tier, s.cycle) }];
@@ -369,7 +373,7 @@ export const family = {
     const total = Math.max(1, daysBetween(s.startDate, s.endDate) + 1);
     const diff = Math.round(((priceOfPkg(tier, s.cycle) - priceOfPkg(s.tier, s.cycle)) * left) / total / 1000) * 1000;
     const id = nextId(d.invoices);
-    d.invoices.push({ id, subscriptionId: s.id, number: invNo(id), kind: "UPGRADE", lines: [{ label: `Nâng hạng ${TIER_LABEL[s.tier]} → ${TIER_LABEL[tier]} (${left} ngày còn lại)`, amount: diff }], creditUsed: 0, total: diff, issueDate: TODAY, dueDate: addDays(TODAY, 1), status: "UNPAID" });
+    d.invoices.push({ id, subscriptionId: s.id, number: invNo(id), kind: "UPGRADE", upgradeTo: tier, lines: [{ label: `Nâng hạng ${TIER_LABEL[s.tier]} → ${TIER_LABEL[tier]} (${left} ngày còn lại)`, amount: diff }], creditUsed: 0, total: diff, issueDate: TODAY, dueDate: addDays(TODAY, 1), status: "UNPAID" });
     commit();
     return { waitlisted: false as const, invoiceId: id };
   },
@@ -393,7 +397,7 @@ export const family = {
     const s = need(byId(d.subscriptions, subId));
     guard(me, s.elderlyId);
     const sv = need(lookups.service(serviceId));
-    if (sv.quota[s.tier] === null) throw new Error("Dịch vụ không áp dụng cho hạng này");
+    if (sv.quota[s.tier] == null) throw new Error("Dịch vụ không áp dụng cho hạng này");
     d.addOns.push({ id: nextId(d.addOns), subscriptionId: subId, serviceId, quantity, price: (sv.addonPrice ?? 0) * quantity, createdAt: stamp() });
     const id = nextId(d.invoices);
     d.invoices.push({ id, subscriptionId: subId, number: invNo(id), kind: "ADDON", lines: [{ label: `${sv.name} × ${quantity} ${sv.addonUnit}`, amount: (sv.addonPrice ?? 0) * quantity }], creditUsed: 0, total: (sv.addonPrice ?? 0) * quantity, issueDate: TODAY, dueDate: addDays(TODAY, 3), status: "UNPAID" });
@@ -443,14 +447,14 @@ export const family = {
     const s = activeSub(e.id);
     if (!s) throw new Error("Cụ chưa có gói đang hiệu lực");
     let credit = 0;
-    if (s.cycle === "DAY") {
+    if (isDayCycle(s.cycle)) {
       // BR-21: báo trước 17h ngày hôm trước → giữ tiền thành số dư
       const inTime = input.fromDate > addDays(TODAY, 1) || (input.fromDate === addDays(TODAY, 1) && clock() < d.centerSettings.dayCancelCutoff);
       const booked = (s.dayDates ?? []).filter((x) => x >= input.fromDate && x <= input.toDate);
-      if (inTime) credit = booked.length * priceOfPkg(s.tier, "DAY");
+      if (inTime) credit = booked.length * priceOfPkg(s.tier, s.cycle);
     }
     const id = nextId(d.absences);
-    d.absences.unshift({ id, ...input, requestedBy: me.id, createdAt: stamp(), creditAmount: credit, status: s.cycle === "DAY" && credit ? "APPROVED" : "PENDING" });
+    d.absences.unshift({ id, ...input, requestedBy: me.id, createdAt: stamp(), creditAmount: credit, status: isDayCycle(s.cycle) && credit ? "APPROVED" : "PENDING" });
     if (credit) d.credits.push({ id: nextId(d.credits), familyUserId: me.id, elderlyId: e.id, amount: credit, reason: `Báo nghỉ gói ngày ${input.fromDate} đúng hạn`, createdAt: stamp() });
     notifyManagers("ATTENDANCE", "Báo nghỉ từ gia đình", `${e.fullName} · ${input.fromDate.slice(8)}/${input.fromDate.slice(5, 7)}${input.toDate !== input.fromDate ? `–${input.toDate.slice(8)}/${input.toDate.slice(5, 7)}` : ""}`, "/manager/absences");
     commit();

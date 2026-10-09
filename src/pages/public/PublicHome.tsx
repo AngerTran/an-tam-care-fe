@@ -8,7 +8,7 @@ import { chatbot, publicSite } from "../../api";
 import { useAuth, HOME } from "../../auth/AuthContext";
 import { ServiceTerms } from "../../components/domain";
 import { Badge, Button, Card, Field, IconCircle, Note, Photo, TextArea, cn } from "../../components/ui";
-import { CYCLE_DESC, CYCLE_LABEL, CYCLES, GROUP_INFO, GROUP_LABEL, GROUPS, NOT_ACCEPTED, TIER_LABEL, ZONE_LABEL } from "../../domain/catalog";
+import { CYCLE_DESC, CYCLE_LABEL, CYCLES, GROUP_INFO, GROUP_LABEL, GROUPS, minTierFor, NOT_ACCEPTED, TIER_LABEL, TIER_TONE, TIERS, ZONE_LABEL } from "../../domain/catalog";
 import { vnd } from "../../lib/format";
 
 export function PublicHome() {
@@ -62,12 +62,12 @@ export function PublicHome() {
       </section>
 
       <section id="goi" className="mx-auto max-w-6xl px-4 py-12">
-        <h2 className="text-[24px] font-bold text-navy">Ba hạng gói</h2>
+        <h2 className="text-[24px] font-bold text-navy">{TIERS.length} hạng gói</h2>
         <p className="mt-1 text-[13px] text-muted">Giá tham khảo theo ngày. Nhóm bệnh cộng phụ phí cố định theo tháng (xem mục Đối tượng). Đăng nhập để xem chi tiết dịch vụ và tích chọn hoạt động.</p>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {data?.tiers.map((t) => (
-            <div key={t.tier} className={cn("relative rounded-2xl border-[1.5px] p-5", t.tier === "STANDARD" ? "border-orange shadow-lg" : "border-line")}>
-              {t.tier === "STANDARD" && <span className="absolute -top-3 left-5 rounded-full bg-orange px-3 py-0.5 text-[11px] font-bold text-white">Phổ biến</span>}
+            <div key={t.tier} className={cn("relative rounded-2xl border-[1.5px] p-5", t.highlight ? "border-orange shadow-lg" : "border-line")}>
+              {t.highlight && <span className="absolute -top-3 left-5 rounded-full bg-orange px-3 py-0.5 text-[11px] font-bold text-white">Phổ biến</span>}
               <div className="flex items-center justify-between">
                 <div className="text-[18px] font-bold text-navy">{TIER_LABEL[t.tier]}</div>
                 {t.full && <Badge tone="red">Đang hết chỗ</Badge>}
@@ -76,7 +76,7 @@ export function PublicHome() {
               <div className="text-[12px] text-subtle">Gói tháng {vnd(t.monthFrom)}</div>
               <ul className="mt-4 space-y-1.5 text-[12.5px]">{t.highlights.map((h) => <li key={h} className="flex gap-1.5"><CircleCheck size={15} className="mt-0.5 shrink-0 text-green" />{h}</li>)}</ul>
               <div className="mt-4 flex items-center gap-1.5 rounded-lg bg-canvas px-3 py-2 text-[11.5px] text-subtle"><Lock size={12} />Danh sách dịch vụ chi tiết hiện sau khi đăng nhập</div>
-              <Button className="mt-3" block variant={t.tier === "STANDARD" ? "primary" : "outline"} to={user?.role === "FAMILY" ? "/family/register" : "/login"}>{t.full ? "Vào danh sách chờ" : "Chọn hạng này"}</Button>
+              <Button className="mt-3" block variant={t.highlight ? "primary" : "outline"} to={user?.role === "FAMILY" ? "/family/register" : "/login"}>{t.full ? "Vào danh sách chờ" : "Chọn hạng này"}</Button>
             </div>
           ))}
         </div>
@@ -92,7 +92,7 @@ export function PublicHome() {
 
       <section id="doi-tuong" className="bg-canvas">
         <div className="mx-auto max-w-6xl px-4 py-12">
-          <h2 className="text-[24px] font-bold text-navy">Trung tâm nhận 5 nhóm đối tượng</h2>
+          <h2 className="text-[24px] font-bold text-navy">Trung tâm nhận {GROUPS.length} nhóm đối tượng</h2>
           <p className="mt-1 text-[13px] text-muted">Gia đình tự khai khi đăng ký, điều dưỡng đánh giá tại trung tâm (thang Barthel + giấy tờ khám), Quản lý chốt nhóm.</p>
           <div className="mt-5 grid gap-3 md:grid-cols-5">
             {GROUPS.map((g) => (
@@ -100,13 +100,13 @@ export function PublicHome() {
                 <div className="text-[13.5px] font-bold text-navy">{GROUP_LABEL[g]}</div>
                 <p className="mt-1 text-[11.5px] text-muted">{GROUP_INFO[g].who}</p>
                 {GROUP_INFO[g].care.length > 0 && <ul className="mt-2 space-y-1 text-[11.5px]">{GROUP_INFO[g].care.map((c) => <li key={c} className="flex gap-1"><CircleCheck size={12} className="mt-0.5 shrink-0 text-green" />{c}</li>)}</ul>}
-                <div className="mt-2 text-[11px] text-subtle">{g === "MOBILE" ? "Mọi hạng · không phụ phí" : <>Từ hạng Tiêu chuẩn · phụ phí <b className="text-orange">{vnd(data?.surcharges.find((x) => x.group === g)?.monthly ?? 0)}/tháng</b></>}</div>
+                <div className="mt-2 text-[11px] text-subtle">{minTierFor(g) === TIERS[0] ? "Mọi hạng" : <>Từ hạng {TIER_LABEL[minTierFor(g)]}</>} · {data?.surcharges.find((x) => x.group === g)?.monthly ? <>phụ phí <b className="text-orange">{vnd(data.surcharges.find((x) => x.group === g)!.monthly)}/tháng</b></> : "không phụ phí"}</div>
               </Card>
             ))}
           </div>
           <Note tone="red" className="mt-4"><b>Không nhận:</b> {NOT_ACCEPTED.join("; ")}. Các trường hợp này cần y tế 24/7, không hợp mô hình bán trú.</Note>
           <div className="mt-6 grid gap-2 md:grid-cols-5">
-            {["Tạo tài khoản, thêm hồ sơ cụ, tự khai tình trạng", "Chọn thời hạn → đối tượng → hạng, tích hoạt động", "Cụ đến đánh giá đầu vào với điều dưỡng", "Quản lý chốt nhóm và phụ phí, gia đình xác nhận giá", "Thanh toán online, cụ bắt đầu đi"].map((t, i) => (
+            {["Tạo tài khoản, thêm hồ sơ cụ, tự khai tình trạng", "Chọn thời hạn → đối tượng → hạng, tích hoạt động", "Cụ đến đánh giá đầu vào với điều dưỡng", "Điều dưỡng duyệt, hệ thống áp nhóm và phụ phí cố định", "Thanh toán online, cụ bắt đầu đi"].map((t, i) => (
               <div key={t} className="flex gap-2 rounded-xl bg-white p-3 text-[12px]"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-orange text-[11px] font-bold text-white">{i + 1}</span>{t}</div>
             ))}
           </div>
@@ -123,7 +123,7 @@ export function PublicHome() {
               <div className="p-3">
                 <div className="text-[13px] font-bold text-navy">{r.name}</div>
                 <div className="text-[11.5px] text-muted">{r.description}</div>
-                <div className="mt-1.5 flex flex-wrap gap-1">{r.tiers.length === 3 ? <Badge tone="gray">Mọi hạng</Badge> : r.tiers.map((t) => <Badge key={t} tone={t === "PREMIUM" ? "purple" : t === "STANDARD" ? "teal" : "blue"}>{TIER_LABEL[t]}</Badge>)}</div>
+                <div className="mt-1.5 flex flex-wrap gap-1">{TIERS.every((t) => r.tiers.includes(t)) ? <Badge tone="gray">Mọi hạng</Badge> : r.tiers.filter((t) => TIER_LABEL[t]).map((t) => <Badge key={t} tone={TIER_TONE[t]}>{TIER_LABEL[t]}</Badge>)}</div>
               </div>
             </div>
           ))}

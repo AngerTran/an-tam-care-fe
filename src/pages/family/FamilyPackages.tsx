@@ -9,7 +9,7 @@ import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { ElderlyCell, GroupBadge, ServiceTerms, SubBadge, TierBadge } from "../../components/domain";
 import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, IconCircle, KV, Loading, Modal, Note, SelectField, Table, TextArea, Toggle, cn } from "../../components/ui";
-import { CYCLE_DESC, CYCLE_LABEL, CYCLES, DISEASE_GROUPS, GROUP_INFO, GROUP_LABEL, GROUPS, M3_OPTIONS, minTierFor, NOT_ACCEPTED, TIER_LABEL, TIERS, tierRank, weekdaysLabel } from "../../domain/catalog";
+import { CYCLE_DESC, CYCLE_LABEL, cycleMonths, CYCLES, cycleUnit, defaultGroup, DISEASE_GROUPS, GROUP_INFO, GROUP_LABEL, GROUPS, isDayCycle, isWeeklyCycle, minTierFor, monthCycle, NOT_ACCEPTED, TIER_LABEL, tierDefs, TIERS, tierRank, topTier, weekdayOptionsOf, weekdaysLabel } from "../../domain/catalog";
 import { addDays, age, dm, dmy, hm, vnd, weekday } from "../../lib/format";
 import type { Cycle, PaymentMethod, Service, TargetGroup, Tier } from "../../types/models";
 import { INV_KIND, INV_STATUS } from "../manager/ManagerFinance";
@@ -75,7 +75,7 @@ export function RelativeFormPage() {
             <SelectField label="Giới tính" defaultValue={e?.gender ?? "Nữ"} onChange={(ev) => setF({ ...f, gender: ev.target.value })}><option>Nữ</option><option>Nam</option></SelectField>
             <Field label="Số điện thoại cụ (nếu có)" inputMode="tel" defaultValue={e?.phone} onChange={(ev) => setF({ ...f, phone: ev.target.value })} error={err("phone")} />
             <Field label="Địa chỉ" className="sm:col-span-2" required defaultValue={e?.address} onChange={(ev) => setF({ ...f, address: ev.target.value })} error={err("address")} />
-            <SelectField label={locked ? "Đối tượng (đã đánh giá — khóa)" : "Tự khai mức độ"} className="sm:col-span-2" disabled={locked} defaultValue={e?.targetGroup ?? e?.declaredGroup ?? "MOBILE"} onChange={(ev) => setF({ ...f, group: ev.target.value })}>{GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]} — {GROUP_INFO[g].who}</option>)}</SelectField>
+            <SelectField label={locked ? "Đối tượng (đã đánh giá — khóa)" : "Tự khai mức độ"} className="sm:col-span-2" disabled={locked} defaultValue={e?.targetGroup ?? e?.declaredGroup ?? defaultGroup()} onChange={(ev) => setF({ ...f, group: ev.target.value })}>{GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]} — {GROUP_INFO[g].who}</option>)}</SelectField>
             <Field label="Bệnh nền (phẩy)" defaultValue={e?.conditions.join(", ")} onChange={(ev) => setF({ ...f, cond: ev.target.value })} />
             <Field label="Dị ứng (phẩy)" defaultValue={e?.allergies.join(", ")} onChange={(ev) => setF({ ...f, all: ev.target.value })} />
             <Field label="Chế độ ăn" defaultValue={e?.diet} onChange={(ev) => setF({ ...f, diet: ev.target.value })} />
@@ -128,12 +128,12 @@ export function RegisterWizard() {
   const { data, isLoading } = useQuery({ queryKey: ["f-reg-opts", me.id], queryFn: () => family.registerOptions(me) });
   const [step, setStep] = useState(0);
   const [eid, setEid] = useState<number | undefined>(sp.get("e") ? Number(sp.get("e")) : undefined);
-  const [cycle, setCycle] = useState<Cycle>("MONTH");
-  const [weekdays, setWeekdays] = useState(M3_OPTIONS[0]);
+  const [cycle, setCycle] = useState<Cycle>(() => (CYCLES.includes(monthCycle()) ? monthCycle() : CYCLES[0]));
+  const [weekdays, setWeekdays] = useState<number[]>(() => weekdayOptionsOf(cycle)[0] ?? []);
   const [dayDates, setDayDates] = useState<string[]>([]);
   const [start, setStart] = useState("2026-10-12");
-  const [group, setGroup] = useState<TargetGroup>("MOBILE");
-  const [tier, setTier] = useState<Tier>("STANDARD");
+  const [group, setGroup] = useState<TargetGroup>(() => defaultGroup());
+  const [tier, setTier] = useState<Tier>(() => tierDefs().find((t) => t.highlight && t.status === "ACTIVE")?.id ?? TIERS[0]);
   const [choices, setChoices] = useState<number[]>([]);
   const [addons, setAddons] = useState<Record<number, number>>({});
   const [ack, setAck] = useState(false);
@@ -149,11 +149,11 @@ export function RegisterWizard() {
   const cap = data.capacity.find((c) => c.tier === tier)!;
   const disease = DISEASE_GROUPS.includes(g);
   const svc = (k: Service["kind"]) => data.services.filter((s) => s.kind === k);
-  const base = pkg ? (cycle === "DAY" ? pkg.basePrice * Math.max(1, dayDates.length) : pkg.basePrice) : 0;
+  const base = pkg ? (isDayCycle(cycle) ? pkg.basePrice * Math.max(1, dayDates.length) : pkg.basePrice) : 0;
   const monthlyOf = (x: TargetGroup) => data.surcharges.find((s) => s.group === x)?.monthly ?? 0;
-  const surcharge = !monthlyOf(g) ? 0 : cycle === "DAY" ? Math.round(monthlyOf(g) / 26 / 1000) * 1000 * Math.max(1, dayDates.length) : monthlyOf(g) * (cycle === "Q" ? 3 : cycle === "Y" ? 12 : 1);
+  const surcharge = !monthlyOf(g) ? 0 : isDayCycle(cycle) ? Math.round(monthlyOf(g) / 26 / 1000) * 1000 * Math.max(1, dayDates.length) : monthlyOf(g) * Math.max(1, cycleMonths(cycle));
   const addonTotal = Object.entries(addons).reduce((s, [k, q]) => s + (data.services.find((x) => x.id === Number(k))?.addonPrice ?? 0) * q, 0);
-  const canNext = [!!eid && !(el?.sub && ["PENDING_ASSESSMENT", "AWAITING_PAYMENT"].includes(el.sub.status)), cycle === "DAY" ? dayDates.length > 0 : !validateStartDate(start), ack || !!el?.elderly.targetGroup, tierRank(tier) >= tierRank(minTierFor(g)) && choices.length <= ent.optionalMax, true][step];
+  const canNext = [!!eid && !(el?.sub && ["PENDING_ASSESSMENT", "AWAITING_PAYMENT"].includes(el.sub.status)), isDayCycle(cycle) ? dayDates.length > 0 : !validateStartDate(start), ack || !!el?.elderly.targetGroup, tierRank(tier) >= tierRank(minTierFor(g)) && choices.length <= ent.optionalMax, true][step];
   const fullErr = submit.error instanceof Error && submit.error.message.startsWith("FULL:");
   if (submit.isSuccess && !submit.data.invoiceId) {
     return (
@@ -194,17 +194,17 @@ export function RegisterWizard() {
       {step === 1 && (
         <Card title="2. Thời hạn">
           <div className="grid gap-2 md:grid-cols-5">
-            {CYCLES.map((c) => <button key={c} onClick={() => setCycle(c)} className={cn("rounded-xl border p-3 text-left", cycle === c ? "border-[2px] border-orange bg-orange-soft" : "border-line")}><div className="text-[13px] font-bold text-navy">{CYCLE_LABEL[c]}</div><div className="mt-0.5 text-[11.5px] text-muted">{CYCLE_DESC[c]}</div></button>)}
+            {CYCLES.map((c) => <button key={c} onClick={() => { setCycle(c); setWeekdays(weekdayOptionsOf(c)[0] ?? []); }} className={cn("rounded-xl border p-3 text-left", cycle === c ? "border-[2px] border-orange bg-orange-soft" : "border-line")}><div className="text-[13px] font-bold text-navy">{CYCLE_LABEL[c]}</div><div className="mt-0.5 text-[11.5px] text-muted">{CYCLE_DESC[c]}</div></button>)}
           </div>
-          {cycle === "M3" && <div className="mt-3 flex items-center gap-2"><span className="text-[12px] text-subtle">Ngày cố định:</span>{M3_OPTIONS.map((w) => <Chip key={w.join()} active={weekdays.join() === w.join()} onClick={() => setWeekdays(w)}>{weekdaysLabel(w)}</Chip>)}</div>}
-          {cycle === "DAY" ? (
+          {isWeeklyCycle(cycle) && <div className="mt-3 flex items-center gap-2"><span className="text-[12px] text-subtle">Ngày cố định:</span>{weekdayOptionsOf(cycle).map((w) => <Chip key={w.join()} active={weekdays.join() === w.join()} onClick={() => setWeekdays(w)}>{weekdaysLabel(w)}</Chip>)}</div>}
+          {isDayCycle(cycle) ? (
             <div className="mt-3">
               <div className="mb-1 text-[12px] text-subtle">Chọn ngày (đặt trước, trả trước)</div>
               <div className="flex flex-wrap gap-1.5">{dayOptions().map((d) => <Chip key={d} active={dayDates.includes(d)} onClick={() => setDayDates(dayDates.includes(d) ? dayDates.filter((x) => x !== d) : [...dayDates, d])}>{weekday(d)} {dm(d)}</Chip>)}</div>
               <Note className="mt-2">Báo nghỉ trước 17h hôm trước: không mất tiền, tiền giữ thành số dư (BR-21). {data.credit > 0 && `Bạn đang có số dư ${vnd(data.credit)}.`}</Note>
             </div>
           ) : <Field className="mt-3 w-72" label="Ngày bắt đầu" type="date" min={TODAY} max={addDays(TODAY, 60)} value={start} onChange={(e) => setStart(e.target.value)} error={validateStartDate(start) || undefined} />}
-          {cycle !== "DAY" && <Note className="mt-2">Gói tháng/quý/năm: nghỉ vẫn tính tiền; giá tháng cố định, ngày lễ được cộng bù.</Note>}
+          {!isDayCycle(cycle) && <Note className="mt-2">Gói theo tháng: nghỉ vẫn tính tiền; giá tháng cố định, ngày lễ được cộng bù.</Note>}
         </Card>
       )}
       {step === 2 && (
@@ -215,7 +215,7 @@ export function RegisterWizard() {
               <button key={x} disabled={!!el?.elderly.targetGroup} onClick={() => { setGroup(x); if (tierRank(tier) < tierRank(minTierFor(x))) setTier(minTierFor(x)); }} className={cn("rounded-xl border p-3 text-left disabled:cursor-not-allowed", g === x ? "border-[2px] border-orange bg-orange-soft" : "border-line", el?.elderly.targetGroup && g !== x && "opacity-40")}>
                 <div className="text-[13px] font-bold text-navy">{GROUP_LABEL[x]}</div>
                 <div className="mt-0.5 text-[11.5px] text-muted">{GROUP_INFO[x].who}</div>
-                <div className="mt-1 text-[10.5px] text-subtle">{x === "MOBILE" ? "Không phụ phí" : `Phụ phí ${vnd(monthlyOf(x))}/tháng · từ Tiêu chuẩn`}</div>
+                <div className="mt-1 text-[10.5px] text-subtle">{monthlyOf(x) ? `Phụ phí ${vnd(monthlyOf(x))}/tháng` : "Không phụ phí"} · từ {TIER_LABEL[minTierFor(x)]}</div>
               </button>
             ))}
           </div>
@@ -234,7 +234,7 @@ export function RegisterWizard() {
                 return (
                   <button key={t} disabled={no} onClick={() => { setTier(t); setChoices(choices.filter((id) => data.services.find((s) => s.id === id)?.quota[t] != null).slice(0, e.optionalMax)); }} className={cn("rounded-xl border p-3 text-left disabled:opacity-40", tier === t ? "border-[2px] border-orange bg-orange-soft" : "border-line")}>
                     <div className="flex items-center justify-between"><TierBadge tier={t} />{c.full && cycle !== "DAY" ? <Badge tone="red">Hết chỗ</Badge> : <Badge tone="green">Còn chỗ</Badge>}</div>
-                    <div className="mt-1 text-[16px] font-bold text-orange">{p ? vnd(p.basePrice) : "—"}<span className="text-[11px] font-normal text-subtle">/{cycle === "DAY" ? "ngày" : cycle === "Q" ? "quý" : cycle === "Y" ? "năm" : "tháng"}</span></div>
+                    <div className="mt-1 text-[16px] font-bold text-orange">{p ? vnd(p.basePrice) : "—"}<span className="text-[11px] font-normal text-subtle">/{cycleUnit(cycle)}</span></div>
                     <ul className="mt-1 space-y-0.5 text-[11.5px] text-muted"><li>Bữa: {e.meals}</li><li>Nghỉ trưa: {e.napRoom}{e.fixedBed ? ", giường cố định" : ""}</li><li>Đo chỉ số {e.vitalsPerDay} lần/ngày · 1 staff : {e.staffRatio} cụ</li><li>Ảnh: {e.photoPerDay ?? "không giới hạn"}/ngày · cảnh báo AI {e.aiAlertFamily === "ALL" ? "có" : "chỉ khẩn cấp"}</li></ul>
                     {no && <div className="mt-1 text-[11px] text-red-ink">Nhóm bệnh không mua được hạng Cơ bản (BR-11)</div>}
                   </button>
@@ -245,7 +245,7 @@ export function RegisterWizard() {
           </Card>
           {disease && GROUP_INFO[g].care.length > 0 && <Card title={`Chăm sóc riêng nhóm ${GROUP_LABEL[g]}`}><ul className="grid gap-1 text-[12.5px] sm:grid-cols-2">{GROUP_INFO[g].care.map((c) => <li key={c} className="flex gap-1.5"><CircleCheck size={14} className="mt-0.5 text-green" />{c}</li>)}</ul></Card>}
           <Card title="4b. Có sẵn trong gói">
-            <ul className="grid gap-1 text-[12.5px] sm:grid-cols-2">{svc("INCLUDED").filter((s) => s.quota[tier] !== null).map((s) => <li key={s.id} className="flex gap-1.5"><CircleCheck size={14} className="mt-0.5 shrink-0 text-green" />{s.name} <span className="text-subtle">· {s.quota[tier]}</span></li>)}</ul>
+            <ul className="grid gap-1 text-[12.5px] sm:grid-cols-2">{svc("INCLUDED").filter((s) => s.quota[tier] != null).map((s) => <li key={s.id} className="flex gap-1.5"><CircleCheck size={14} className="mt-0.5 shrink-0 text-green" />{s.name} <span className="text-subtle">· {s.quota[tier]}</span></li>)}</ul>
           </Card>
           <Card title="4c. Hoạt động tự chọn" actions={<Badge tone={choices.length > ent.optionalMax ? "red" : "blue"}>Đã chọn {choices.length}/{ent.optionalMax}</Badge>}>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -265,7 +265,7 @@ export function RegisterWizard() {
           </Card>
           <Card title="4d. Mua thêm (tính tiền riêng)">
             <div className="grid gap-2 sm:grid-cols-2">
-              {svc("ADDON").filter((s) => s.quota[tier] !== null && !(cycle === "DAY" && s.addonUnit === "tháng")).map((s) => (
+              {svc("ADDON").filter((s) => s.quota[tier] != null && !(isDayCycle(cycle) && s.addonUnit === "tháng")).map((s) => (
                 <div key={s.id} className="flex items-center gap-2 rounded-xl border border-line p-2.5 text-[12.5px]">
                   <span className="flex-1"><b className="text-navy">{s.name}</b><span className="block text-[11px] text-muted">{vnd(s.addonPrice ?? 0)}/{s.addonUnit}</span></span>
                   <input type="number" min={0} value={addons[s.id] ?? 0} onChange={(e) => setAddons({ ...addons, [s.id]: Number(e.target.value) })} className="h-8 w-16 rounded-lg border-[1.5px] border-input-line px-2 outline-none focus:border-orange" />
@@ -278,13 +278,13 @@ export function RegisterWizard() {
       {step === 4 && el && (
         <Card title="5. Tóm tắt và giá" className="mx-auto max-w-2xl">
           <KV label="Cụ">{el.elderly.fullName}</KV>
-          <KV label="Thời hạn">{CYCLE_LABEL[cycle]}{cycle === "M3" ? ` · ${weekdaysLabel(weekdays)}` : ""}{cycle === "DAY" ? ` · ${dayDates.sort().map(dm).join(", ")}` : ` · từ ${dmy(start)}`}</KV>
-          <KV label="Đối tượng"><GroupBadge group={g} /> {el.elderly.targetGroup ? "(đã đánh giá)" : g === "MOBILE" ? "(tự khai, điều dưỡng kiểm tra sáng ngày đầu)" : "(tự khai, điều dưỡng kiểm tra sáng ngày đầu)"}</KV>
+          <KV label="Thời hạn">{CYCLE_LABEL[cycle]}{isWeeklyCycle(cycle) ? ` · ${weekdaysLabel(weekdays)}` : ""}{isDayCycle(cycle) ? ` · ${dayDates.sort().map(dm).join(", ")}` : ` · từ ${dmy(start)}`}</KV>
+          <KV label="Đối tượng"><GroupBadge group={g} /> {el.elderly.targetGroup ? "(đã đánh giá)" : "(tự khai, điều dưỡng kiểm tra sáng ngày đầu)"}</KV>
           <KV label="Hạng"><TierBadge tier={tier} /></KV>
           <KV label="Hoạt động">{choices.map((id) => data.services.find((s) => s.id === id)?.name).join(", ") || "—"}</KV>
           <div className="mt-3 rounded-xl bg-canvas p-3">
             <KV label="Giá gói" w={200}>{vnd(base)}</KV>
-            <KV label={`Phụ phí nhóm ${GROUP_LABEL[g]}`} w={200}>{surcharge ? `${vnd(surcharge)}${cycle === "DAY" ? ` (${vnd(Math.round(monthlyOf(g) / 26 / 1000) * 1000)}/ngày)` : cycle === "Q" ? " (3 tháng)" : cycle === "Y" ? " (12 tháng)" : ""}` : "Không có"}</KV>
+            <KV label={`Phụ phí nhóm ${GROUP_LABEL[g]}`} w={200}>{surcharge ? `${vnd(surcharge)}${isDayCycle(cycle) ? ` (${vnd(Math.round(monthlyOf(g) / 26 / 1000) * 1000)}/ngày)` : cycleMonths(cycle) > 1 ? ` (${cycleMonths(cycle)} tháng)` : ""}` : "Không có"}</KV>
             <KV label="Dịch vụ mua thêm" w={200}>{vnd(addonTotal)}</KV>
             <KV label="Tổng thanh toán" w={200}><span className="text-[16px] text-orange">{vnd(base + surcharge + addonTotal)}</span></KV>
           </div>
@@ -296,15 +296,15 @@ export function RegisterWizard() {
             <input type="checkbox" checked={commit} onChange={(e) => setCommit(e.target.checked)} className="mt-0.5" />
             <span><b className="text-navy">Tôi đã đọc Quy định dịch vụ và cam kết thông tin khai là đúng sự thật.</b> Nếu khai sai là vi phạm hợp đồng và được xử lý theo mục 4 của Quy định (BR-79, BR-80).</span>
           </label>
-          {!el.elderly.targetGroup && <Note tone="green" className="mt-2">Thanh toán ngay, không chờ duyệt. Gói hiệu lực từ {cycle === "DAY" ? dm([...dayDates].sort()[0] ?? start) : dmy(start)}. Sáng ngày đầu điều dưỡng kiểm tra chỉ số, Barthel và giấy tờ.</Note>}
-          {cap.full && cycle !== "DAY" && <Note tone="red" className="mt-2">Hạng {TIER_LABEL[tier]} đang hết chỗ. Bạn có thể vào danh sách chờ: có chỗ trung tâm giữ 24 giờ để thanh toán. {data.entitlements.find((x) => x.tier === tier)?.waitlistPriority && "Hạng Cao cấp được xếp đầu danh sách chờ."}</Note>}
+          {!el.elderly.targetGroup && <Note tone="green" className="mt-2">Thanh toán ngay, không chờ duyệt. Gói hiệu lực từ {isDayCycle(cycle) ? dm([...dayDates].sort()[0] ?? start) : dmy(start)}. Sáng ngày đầu điều dưỡng kiểm tra chỉ số, Barthel và giấy tờ.</Note>}
+          {cap.full && !isDayCycle(cycle) && <Note tone="red" className="mt-2">Hạng {TIER_LABEL[tier]} đang hết chỗ. Bạn có thể vào danh sách chờ: có chỗ trung tâm giữ 24 giờ để thanh toán. {data.entitlements.find((x) => x.tier === tier)?.waitlistPriority && `Hạng ${TIER_LABEL[tier]} được xếp đầu danh sách chờ.`}</Note>}
           {wait.isSuccess && <Note tone="green" className="mt-2">Đã vào danh sách chờ, vị trí {wait.data}.</Note>}
           <ErrorText error={fullErr ? null : submit.error ?? wait.error} />
         </Card>
       )}
       <div className="flex justify-between">
         <Button variant="neutral" disabled={step === 0} onClick={() => setStep(step - 1)}>Quay lại</Button>
-        {step < 4 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Tiếp tục</Button> : cap.full && cycle !== "DAY" ? <Button icon={Hourglass} loading={wait.isPending} disabled={wait.isSuccess} onClick={() => wait.mutate()}>Vào danh sách chờ</Button> : <Button icon={CreditCard} disabled={!commit} loading={submit.isPending} onClick={() => submit.mutate()}>Thanh toán ngay</Button>}
+        {step < 4 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Tiếp tục</Button> : cap.full && !isDayCycle(cycle) ? <Button icon={Hourglass} loading={wait.isPending} disabled={wait.isSuccess} onClick={() => wait.mutate()}>Vào danh sách chờ</Button> : <Button icon={CreditCard} disabled={!commit} loading={submit.isPending} onClick={() => submit.mutate()}>Thanh toán ngay</Button>}
       </div>
     </Page>
   );
@@ -348,7 +348,7 @@ export function MyPackagesPage() {
                     <KV label="Thời hạn">{s.dayDates ? s.dayDates.map(dm).join(", ") : `${dmy(s.startDate)} – ${dmy(s.endDate)}`}</KV>
                     <KV label="Giá gói">{vnd(s.basePrice)}</KV>
                     <KV label="Phụ phí">{s.surchargeAmount ? `${vnd(s.surchargeAmount)} · ${s.surchargeNote ?? ""}` : s.status === "PENDING_ASSESSMENT" && DISEASE_GROUPS.includes(s.targetGroup) ? "Báo sau đánh giá" : "Không"}</KV>
-                    {s.status === "ACTIVE" && s.cycle !== "DAY" && <KV label="Còn lại">{r.daysLeft} ngày {r.daysLeft <= 7 && <Badge tone="orange">Sắp hết hạn</Badge>}</KV>}
+                    {s.status === "ACTIVE" && !isDayCycle(s.cycle) && <KV label="Còn lại">{r.daysLeft} ngày {r.daysLeft <= 7 && <Badge tone="orange">Sắp hết hạn</Badge>}</KV>}
                     {r.bed && <KV label="Giường cố định">{r.bed.code}</KV>}
                   </div>
                   {s.status === "PENDING_ASSESSMENT" && <Note>{r.assessment?.status === "SCHEDULED" ? `Lịch đánh giá đầu vào: ${dmy(r.assessment.scheduledAt.slice(0, 10))} lúc ${hm(r.assessment.scheduledAt)} tại phòng y tế. Mang theo giấy ra viện / sổ khám nếu có.` : "Điều dưỡng đã đánh giá, chờ Quản lý chốt nhóm và phụ phí."}</Note>}
@@ -380,8 +380,8 @@ export function MyPackagesPage() {
                 <div className="space-y-2">
                   {s.status === "ACTIVE" && (
                     <>
-                      {s.cycle !== "DAY" && <Button block icon={CalendarDays} loading={renew.isPending} onClick={() => renew.mutate(s.id)}>Gia hạn kỳ sau</Button>}
-                      {s.tier !== "PREMIUM" && <Button block variant="outline" icon={ArrowUpRight} onClick={() => setUp({ subId: s.id, from: s.tier })}>Nâng hạng</Button>}
+                      {!isDayCycle(s.cycle) && <Button block icon={CalendarDays} loading={renew.isPending} onClick={() => renew.mutate(s.id)}>Gia hạn kỳ sau</Button>}
+                      {s.tier !== topTier() && tierRank(s.tier) < tierRank(topTier()) && <Button block variant="outline" icon={ArrowUpRight} onClick={() => setUp({ subId: s.id, from: s.tier })}>Nâng hạng</Button>}
                       <Button block variant="neutral" icon={Pencil} onClick={() => setChoose({ subId: s.id, tier: s.tier, ids: r.choices.map((c) => c.id) })}>Đổi hoạt động tự chọn</Button>
                       <Button block variant="neutral" icon={Plus} onClick={() => setAddon({ subId: s.id, tier: s.tier, qty: 1 })}>Mua thêm dịch vụ</Button>
                       <Button block variant="neutral" onClick={() => setPause({ subId: s.id, kind: "HOSPITAL", fromDate: TODAY, toDate: addDays(TODAY, 14), document: "", note: "" })}>Bảo lưu khi nhập viện</Button>
@@ -562,7 +562,7 @@ export function FamilyAbsencePage() {
             <div className="grid grid-cols-2 gap-2"><Field label="Từ ngày" type="date" min={TODAY} value={f.fromDate} onChange={(e) => setF({ ...f, fromDate: e.target.value, toDate: e.target.value > f.toDate ? e.target.value : f.toDate })} error={absErrs.fromDate} /><Field label="Đến ngày" type="date" min={f.fromDate} value={f.toDate} onChange={(e) => setF({ ...f, toDate: e.target.value })} error={absErrs.toDate} /></div>
             <SelectField label="Lý do" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })}>{["Ốm", "Đi khám", "Việc gia đình", "Khác"].map((x) => <option key={x}>{x}</option>)}</SelectField>
             <TextArea label="Ghi chú" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
-            {sub && (sub.cycle === "DAY" ? <Note tone="green">Gói ngày: báo trước 17h hôm trước thì không mất tiền, tiền ngày đó giữ thành số dư (BR-21).</Note> : <Note>Gói {CYCLE_LABEL[sub.cycle].toLowerCase()}: vẫn tính tiền. Báo nghỉ để trung tâm chuẩn bị nhân sự và suất ăn. Nhập viện nhiều ngày thì dùng Bảo lưu.</Note>)}
+            {sub && (isDayCycle(sub.cycle) ? <Note tone="green">Gói ngày: báo trước 17h hôm trước thì không mất tiền, tiền ngày đó giữ thành số dư (BR-21).</Note> : <Note>Gói {CYCLE_LABEL[sub.cycle].toLowerCase()}: vẫn tính tiền. Báo nghỉ để trung tâm chuẩn bị nhân sự và suất ăn. Nhập viện nhiều ngày thì dùng Bảo lưu.</Note>)}
             {send.isSuccess && <Note tone="green">Đã gửi báo nghỉ.{send.data.credit ? ` Đã cộng số dư ${vnd(send.data.credit)}.` : ""}</Note>}
             <ErrorText error={send.error} />
             <Button icon={CalendarDays} disabled={!eid || Object.keys(absErrs).length > 0} loading={send.isPending} onClick={() => send.mutate()}>Gửi báo nghỉ</Button>

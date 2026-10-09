@@ -1,11 +1,11 @@
 // Staff API (điều dưỡng + hộ lý). Screens S1–S10 of mục 5.11, plus assessment, shifts,
 // damage reports and personal belongings. Staff only see their assigned elderly (BR-33).
 import type { CareLogEntry, DailyTask, HealthMetric, Incident, LeaveRequest, TargetGroup, Tier, User } from "../types/models";
-import { GROUP_LABEL, minTierFor, POSITION_LABEL, TIER_LABEL, tierRank } from "../domain/catalog";
-import { assertValid, validateVitals } from "../lib/validate";
+import { GROUP_INFO, GROUP_LABEL, isDayCycle, minTierFor, POSITION_LABEL, TIER_LABEL, tierRank } from "../domain/catalog";
+import { assertValid, BARTHEL_NOT_ACCEPTED, validateBarthel, validateVitals } from "../lib/validate";
 import { manager } from "./manager";
 import {
-  activeSub, attendanceOn, byId, capacity, fixedSurcharge, surchargeMonthly, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, isNurse, lookups, metricsOf,
+  activeSub, attendanceOn, audit, byId, capacity, fixedSurcharge, surchargeMonthly, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, isNurse, lookups, metricsOf,
   need, nextId, notify, notifyManagers, NOW, outOfRange, scheduledOn, stamp, staffOf, TODAY, usable, wait,
 } from "./core";
 
@@ -82,6 +82,7 @@ export const staff = {
     Object.assign(a, { checkIn: clock(), status: "PRESENT", checkedInBy: me.id, manualReason });
     if (!d.careLogDays.some((c) => c.elderlyId === elderlyId && c.date === TODAY)) d.careLogDays.push({ elderlyId, date: TODAY, status: "OPEN" });
     entry(me, elderlyId, "CHECKIN", "Đã đến trung tâm", manualReason ? `Check-in hộ (${manualReason})` : "Check-in bằng QR");
+    if (manualReason) audit(me.id, `Check-in thủ công ${e.fullName}: ${manualReason}`, "attendance", a.id);
     d.alerts.filter((x) => x.elderlyId === elderlyId && x.source === "RULE" && x.title.includes("chưa đến") && x.status !== "CLOSED").forEach((x) => Object.assign(x, { status: "CLOSED", result: `Cụ đến lúc ${a!.checkIn}` }));
     notify(e.familyUserId, "ATTENDANCE", `${honor(e)} ${e.fullName} đã đến trung tâm`, `Check-in lúc ${a.checkIn}`, "/family");
     commit();
@@ -132,6 +133,44 @@ export const staff = {
         day: d.careLogDays.find((c) => c.elderlyId === e.id && c.date === TODAY),
       };
     });
+  },
+  /** Lịch hôm nay theo hoạt động: gom việc của các cụ mình phụ trách theo giờ + tên việc, kèm lưu ý riêng từng cụ. */
+  async schedule(me: User) {
+    await wait();
+    const d = db();
+    const mine = staffOf(me).filter((e) => attendanceOn(e.id)?.status !== "ABSENT" && (scheduledOn(e.id, TODAY) || !!attendanceOn(e.id)));
+    const ids = new Set(mine.map((e) => e.id));
+    const tasks = d.dailyTasks.filter((t) => t.date === TODAY && ids.has(t.elderlyId)).sort((a, b) => a.time.localeCompare(b.time) || a.title.localeCompare(b.title));
+    const groups = new Map<string, { key: string; time: string; title: string; type: DailyTask["type"]; owner: DailyTask["owner"]; items: ReturnType<typeof row>[] }>();
+    function row(t: DailyTask) {
+      const e = need(lookups.elderly(t.elderlyId));
+      const notes: string[] = [];
+      let blocked = "";
+      const perm = t.serviceId ? d.servicePermissions.find((p) => p.elderlyId === e.id && p.serviceId === t.serviceId) : undefined;
+      if (perm && !perm.allowed) blocked = `Điều dưỡng không cho phép${perm.reason ? `: ${perm.reason}` : ""}`;
+      if (t.type === "MEAL") {
+        if (e.diet && e.diet !== "Bình thường") notes.push(`Ăn: ${e.diet}`);
+        if (e.allergies.length) notes.push(`Dị ứng: ${e.allergies.join(", ")}`);
+        if (e.targetGroup === "STROKE") notes.push("Thức ăn mềm, hỗ trợ khi ăn để phòng sặc");
+      } else if (t.type === "MEDICATION") {
+        const meds = d.medPlans.filter((m) => m.elderlyId === e.id && m.active && m.times.includes(t.time));
+        if (meds.length) notes.push(meds.map((m) => `${m.name} ${m.dose}`).join(" · "));
+      } else if (t.type === "VITALS" || t.type === "GLUCOSE") {
+        if (e.conditions.length) notes.push(`Bệnh nền: ${e.conditions.join(", ")}`);
+        if (e.targetGroup === "STROKE") notes.push("Làm checklist dấu hiệu tái phát");
+      } else if (t.type === "ACTIVITY") {
+        const lim = e.targetGroup ? GROUP_INFO[e.targetGroup]?.limits : "";
+        if (lim && lim !== "—") notes.push(`Hạn chế nhóm: ${lim}`);
+      } else if (t.type === "CHECKOUT" && e.targetGroup === "DEMENTIA") notes.push("Kiểm tra kỹ người đón");
+      if (e.careNote) notes.push(e.careNote);
+      return { task: t, by: lookups.user(t.doneBy), elderly: e, attendance: attendanceOn(e.id)?.status ?? "EXPECTED", notes, blocked };
+    }
+    for (const t of tasks) {
+      const key = `${t.time}|${t.title}|${t.owner}`;
+      if (!groups.has(key)) groups.set(key, { key, time: t.time, title: t.title, type: t.type, owner: t.owner, items: [] });
+      groups.get(key)!.items.push(row(t));
+    }
+    return { position: need(lookups.position(me.id)), now: NOW, groups: [...groups.values()], thresholds: d.centerSettings.thresholds };
   },
   async careLog(me: User, elderlyId: number) {
     await wait();
@@ -319,7 +358,9 @@ export const staff = {
     const d = db();
     const a = need(byId(d.assessments, id));
     if (a.status === "APPROVED" && a.kind !== "PERIODIC") throw new Error(`Đã duyệt bởi ${lookups.user(a.approvedBy)?.fullName ?? "—"}, không sửa được`);
-    const notAccepted = !!input.notAccepted || input.barthel < 20;
+    const bErr = validateBarthel(input.barthel);
+    if (bErr) throw new Error(bErr);
+    const notAccepted = !!input.notAccepted || input.barthel <= BARTHEL_NOT_ACCEPTED;
     Object.assign(a, { barthel: input.barthel, proposedGroup: input.group, baseline: input.baseline, diagnosisDocs: input.docs, nurseNote: input.note, notAccepted, doneAt: stamp(), status: "APPROVED", approvedBy: me.id, approvedAt: stamp() });
     for (const p of input.permissions) {
       d.servicePermissions = d.servicePermissions.filter((x) => !(x.elderlyId === a.elderlyId && x.serviceId === p.serviceId));
@@ -352,7 +393,7 @@ export const staff = {
         outcome = "Không tiếp nhận";
       } else {
         const tier: Tier = tierRank(sub.tier) < tierRank(minTierFor(input.group)) ? minTierFor(input.group) : sub.tier;
-        const full = sub.cycle !== "DAY" && capacity().find((c) => c.tier === tier)!.full;
+        const full = !isDayCycle(sub.cycle) && capacity().find((c) => c.tier === tier)!.full;
         if (full) {
           Object.assign(sub, { targetGroup: input.group, tier });
           e.targetGroup = input.group;

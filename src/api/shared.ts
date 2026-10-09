@@ -1,5 +1,5 @@
 import type { Message, User } from "../types/models";
-import { GROUP_LABEL, TIERS, TIER_LABEL } from "../domain/catalog";
+import { GROUP_LABEL, monthCycle, tierDef, TIERS, TIER_LABEL } from "../domain/catalog";
 import { audit, capacity, commit, db, entitlement, lookups, need, nextId, notify, notifyManagers, stamp, wait } from "./core";
 
 // ---------------------------------------------------------------- auth & profile
@@ -139,7 +139,7 @@ export const publicSite = {
       surcharges: d.groupSurcharges,
       tiers: TIERS.map((tier) => {
         const e = entitlement(tier);
-        return { tier, from: e.dailyPrice, monthFrom: need(d.packages.find((p) => p.tier === tier && p.cycle === "MONTH")).basePrice, full: cap.find((c) => c.tier === tier)?.full ?? false, highlights: [`Bữa ${e.meals.toLowerCase()}`, e.napRoom, `Đo chỉ số ${e.vitalsPerDay} lần/ngày`, e.optionalMax === e.optionalPool ? `Cả ${e.optionalPool} hoạt động tự chọn` : `Chọn ${e.optionalMax} trong ${e.optionalPool} hoạt động`] };
+        return { tier, highlight: !!tierDef(tier)?.highlight, from: e.dailyPrice, monthFrom: d.packages.find((p) => p.tier === tier && p.cycle === monthCycle())?.basePrice ?? 0, full: cap.find((c) => c.tier === tier)?.full ?? false, highlights: [`Bữa ${e.meals.toLowerCase()}`, e.napRoom, `Đo chỉ số ${e.vitalsPerDay} lần/ngày`, e.optionalMax === e.optionalPool ? `Cả ${e.optionalPool} hoạt động tự chọn` : `Chọn ${e.optionalMax} trong ${e.optionalPool} hoạt động`] };
       }),
       rooms: d.rooms.filter((r) => r.zone !== "NAP" || r.status === "ACTIVE"),
       schedule: d.schedules.filter((s) => s.date === "2026-10-09"),

@@ -71,6 +71,8 @@ export function StaffCheckin() {
   const me = useMe();
   const qc = useQueryClient();
   const [tab, setTab] = useState<"wait" | "in" | "out">("wait");
+  const [mode, setMode] = useState<"qr" | "manual">("qr");
+  const [q, setQ] = useState("");
   const [code, setCode] = useState("");
   const [manual, setManual] = useState<number>();
   const [reason, setReason] = useState("Quên thẻ QR");
@@ -91,9 +93,40 @@ export function StaffCheckin() {
   const left = rows.filter((r) => r.a?.status === "LEFT" || r.a?.status === "ABSENT");
   const outRow = rows.find((r) => r.elderly.id === out);
   const list = tab === "wait" ? wait : tab === "in" ? inside : left;
+  const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[\s.]/g, "");
+  const found = !q.trim() ? rows : rows.filter((r) => [r.elderly.fullName, r.elderly.qrCode, ...r.pickups.map((x) => x.phone), ...r.pickups.map((x) => x.fullName)].some((v) => norm(v ?? "").includes(norm(q))));
   return (
-    <Page title="Check-in / check-out" sub="Quét QR của cụ (BR-35). Chỉ giao cụ cho người có trong danh sách người được phép đón (BR-30).">
-      <Card>
+    <Page title="Check-in / check-out" sub="Quét QR của cụ (BR-35) hoặc làm thủ công khi quên thẻ, thẻ hỏng. Chỉ giao cụ cho người có trong danh sách người được phép đón (BR-30).">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Chip active={mode === "qr"} onClick={() => setMode("qr")}>Quét QR</Chip>
+        <Chip active={mode === "manual"} onClick={() => setMode("manual")}>Thủ công</Chip>
+      </div>
+      {mode === "manual" && (
+        <Card>
+          <Field label="Tìm cụ theo tên, mã thẻ, tên hoặc SĐT người đón" placeholder="VD: Lan, ATC-0004, 0903…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md" autoFocus />
+          <ul className="mt-2 divide-y divide-line-soft">
+            {found.length === 0 && <li className="py-3 text-[12.5px] text-subtle">Không tìm thấy cụ nào trong danh sách bạn phụ trách hôm nay</li>}
+            {found.map((r) => {
+              const st = r.a?.status;
+              return (
+                <li key={r.elderly.id} className="flex flex-wrap items-center gap-3 py-2.5">
+                  <ElderlyCell e={r.elderly} sub={<span className="text-[11px] text-subtle">{r.elderly.qrCode}</span>} />
+                  <span className="ml-auto flex flex-wrap items-center gap-2">
+                    {r.absence && <Badge tone="purple">Báo nghỉ: {r.absence.reason}</Badge>}
+                    <AttBadge a={r.a} />
+                    {(!st || st === "EXPECTED") && !r.absence && <><Button size="sm" variant="success" icon={LogIn} onClick={() => { checkIn.reset(); setManual(r.elderly.id); }}>Check-in thủ công</Button><Button size="sm" variant="danger" onClick={() => absent.mutate(r.elderly.id)}>Vắng</Button></>}
+                    {st === "PRESENT" && <Button size="sm" icon={DoorOpen} onClick={() => { setOut(r.elderly.id); setPickup(undefined); }}>Check-out</Button>}
+                    {st === "LEFT" && <span className="text-[11.5px] text-subtle">về {r.a?.checkOut}</span>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <Note className="mt-2">Check-in thủ công phải chọn lý do và được ghi vào nhật ký hệ thống (ai bấm, lúc nào). Check-out vẫn phải chọn đúng người đón trong danh sách.</Note>
+          <ErrorText error={checkIn.error ?? absent.error} />
+        </Card>
+      )}
+      {mode === "qr" && <Card>
         <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); scan.mutate(); }}>
           <span className="flex size-12 items-center justify-center rounded-xl bg-navy text-white"><ScanLine size={22} /></span>
           <Field label="Mã QR trên thẻ cụ (VD: ATC-0004)" value={code} onChange={(e) => setCode(e.target.value)} className="w-72" />
@@ -101,7 +134,7 @@ export function StaffCheckin() {
           <span className="text-[11.5px] text-subtle">Đã có mặt → mở check-out. Chưa đến → check-in.</span>
         </form>
         <ErrorText error={scan.error ?? checkIn.error} />
-      </Card>
+      </Card>}
       <Tabs value={tab} onChange={setTab} items={[{ value: "wait", label: `Chưa đến (${wait.length})` }, { value: "in", label: `Đang ở (${inside.length})` }, { value: "out", label: `Đã về / vắng (${left.length})` }]} />
       <Card>
         {isLoading ? <Loading /> : list.length === 0 ? <EmptyState icon={CircleCheck} title="Không có cụ nào" /> : (
@@ -123,8 +156,10 @@ export function StaffCheckin() {
         )}
         <ErrorText error={close.error ?? absent.error} />
       </Card>
-      <Modal open={!!manual} onClose={() => setManual(undefined)} title="Check-in hộ" footer={<><Button variant="neutral" onClick={() => setManual(undefined)}>Hủy</Button><Button loading={checkIn.isPending} onClick={() => checkIn.mutate({ id: manual!, r: reason })}>Check-in</Button></>}>
+      <Modal open={!!manual} onClose={() => setManual(undefined)} title={`Check-in thủ công · ${rows.find((r) => r.elderly.id === manual)?.elderly.fullName ?? ""}`} footer={<><Button variant="neutral" onClick={() => setManual(undefined)}>Hủy</Button><Button loading={checkIn.isPending} onClick={() => checkIn.mutate({ id: manual!, r: reason })}>Check-in</Button></>}>
         <SelectField label="Lý do" value={reason} onChange={(e) => setReason(e.target.value)}>{["Quên thẻ QR", "Thẻ hỏng", "Máy quét lỗi", "Khác"].map((x) => <option key={x}>{x}</option>)}</SelectField>
+        <Note className="mt-2">Đối chiếu mặt cụ với ảnh hồ sơ trước khi xác nhận.</Note>
+        <ErrorText error={checkIn.error} />
       </Modal>
       <Modal open={!!outRow} onClose={() => setOut(undefined)} title={`Check-out · ${outRow?.elderly.fullName ?? ""}`} width={520} footer={<><Button variant="neutral" onClick={() => setOut(undefined)}>Hủy</Button><Button icon={DoorOpen} disabled={!pickup} loading={checkOut.isPending} onClick={() => checkOut.mutate()}>Giao cụ</Button></>}>
         {outRow && (

@@ -1,16 +1,16 @@
 // Manager · packages & schedule: price matrix + entitlements (4.1), target groups, service catalogue (4.2),
 // weekly activities + AI menu (5.5), therapy & massage slots (4.9), holidays & announcements (BR-25).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, CircleCheck, Megaphone, Pencil, Plus, Sparkles, Trash2, UserPlus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarPlus, CircleCheck, ListChecks, Megaphone, Pencil, Plus, Sparkles, Trash2, UserPlus, X } from "lucide-react";
 import { useState } from "react";
 import { manager, TODAY } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { GroupBadge, TierBadge } from "../../components/domain";
 import { Badge, Button, Card, Chip, ErrorText, Field, KV, Loading, Modal, Note, SelectField, Table, Tabs, TextArea, Toggle, cn } from "../../components/ui";
-import { CYCLE_DESC, CYCLE_LABEL, CYCLES, GROUP_INFO, GROUP_LABEL, GROUPS, minTierFor, POSITION_LABEL, TIER_LABEL, TIERS } from "../../domain/catalog";
+import { CYCLE_DESC, CYCLE_LABEL, CYCLES, cycleUnit, GROUP_INFO, GROUP_LABEL, GROUPS, minTierFor, monthCycle, POSITION_LABEL, TIER_LABEL, TIERS, WEEKDAY_LABEL, weekdaysLabel } from "../../domain/catalog";
 import { dm, dmy, hm, vnd, weekday } from "../../lib/format";
-import type { ActivitySchedule, Menu, Service, ServiceKind, TargetGroup, Tier, TierEntitlement } from "../../types/models";
+import type { ActivitySchedule, Cycle, CycleDef, GroupDef, Menu, Service, ServiceKind, TargetGroup, Tier, TierDef, TierEntitlement } from "../../types/models";
 
 // ------------------------------------------------------------------ packages
 const ENT_ROWS: [keyof TierEntitlement, string, "money" | "num" | "text" | "bool" | "nullnum"][] = [
@@ -19,42 +19,106 @@ const ENT_ROWS: [keyof TierEntitlement, string, "money" | "num" | "text" | "bool
   ["glucose", "Đo đường huyết (cụ tiểu đường)", "text"], ["weight", "Theo dõi cân nặng", "text"], ["optionalPool", "Số hoạt động tự chọn có trong hạng", "num"], ["optionalMax", "Được tích tối đa", "num"],
   ["photoPerDay", "Ảnh trên app / ngày (trống = không giới hạn)", "nullnum"], ["chat", "Nhắn tin với staff", "text"], ["waitlistPriority", "Ưu tiên đầu danh sách chờ", "bool"],
 ];
+const TONES: TierDef["tone"][] = ["blue", "teal", "purple", "orange", "green", "red", "gray"];
+const KIND_LABEL: Record<CycleDef["kind"], string> = { DAY: "Theo ngày (chọn từng ngày)", WEEKLY: "Theo buổi cố định trong tuần (tính theo tháng)", PERIOD: "Theo tháng (đi T2–T7)" };
+const DOW = [1, 2, 3, 4, 5, 6];
+const cycleMeta = (c: CycleDef) => [c.kind === "DAY" ? "Theo ngày" : c.kind === "WEEKLY" ? `${(c.weekdayOptions ?? []).map(weekdaysLabel).join(" hoặc ")}` : `${c.months} tháng`, c.discount ? `giảm ${Math.round(c.discount * 100)}%` : ""].filter(Boolean).join(" · ");
+
+type TierForm = { id?: Tier; label: string; tone: TierDef["tone"]; highlight: boolean; hidden: boolean; copyFrom?: Tier; monthlyPrice: string };
+type CycleForm = { id?: Cycle; label: string; desc: string; kind: CycleDef["kind"]; months: string; discount: string; weekdayOptions: number[][]; hidden: boolean; reprice: boolean; used: boolean };
+type GroupForm = Omit<GroupDef, "id" | "rank" | "care" | "status" | "reassessMonths"> & { id?: TargetGroup; care: string; hidden: boolean; monthly: string; reassessMonths: string };
+type DelTarget = { kind: "tier" | "cycle" | "group" | "perk"; id: string; label: string; blocker: string };
+
+function ToneChips({ value, onChange }: { value: string; onChange: (t: TierDef["tone"]) => void }) {
+  return (
+    <div><div className="mb-1 text-[11.5px] font-semibold text-muted">Màu nhãn</div>
+      <div className="flex flex-wrap gap-1.5">{TONES.map((t) => <button key={t} type="button" onClick={() => onChange(t)} className={cn("rounded-full p-0.5", value === t && "ring-2 ring-orange")}><Badge tone={t}>{t === "gray" ? "xám" : t}</Badge></button>)}</div>
+    </div>
+  );
+}
+
 export function PackagesPage() {
   const me = useMe();
   const qc = useQueryClient();
   const [tab, setTab] = useState<"price" | "ent" | "groups">("price");
   const [edit, setEdit] = useState<{ id: number; price: string; hidden: boolean }>();
   const [entEdit, setEntEdit] = useState<Tier>();
-  const [sur, setSur] = useState<{ group: TargetGroup; monthly: string }>();
-  const saveSur = useMutation({ mutationFn: () => manager.saveSurcharge(me, sur!.group, Number(sur!.monthly) || 0), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-pkgs"] }); setSur(undefined); } });
   const [ent, setEnt] = useState<Partial<TierEntitlement>>({});
+  const [tf, setTf] = useState<TierForm>();
+  const [cf, setCf] = useState<CycleForm>();
+  const [gf, setGf] = useState<GroupForm>();
+  const [pf, setPf] = useState<{ id?: number; label: string; values: Record<Tier, string> }>();
+  const [del, setDel] = useState<DelTarget>();
   const { data, isLoading } = useQuery({ queryKey: ["m-pkgs"], queryFn: () => manager.packages() });
-  const savePrice = useMutation({ mutationFn: () => manager.savePrice(me, edit!.id, Number(edit!.price), edit!.hidden ? "HIDDEN" : "ACTIVE"), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-pkgs"] }); setEdit(undefined); } });
-  const saveEnt = useMutation({ mutationFn: () => manager.saveEntitlement(me, entEdit!, ent), onSuccess: () => { qc.invalidateQueries({ queryKey: ["m-pkgs"] }); setEntEdit(undefined); } });
+  const done = () => qc.invalidateQueries();
+  const savePrice = useMutation({ mutationFn: () => manager.savePrice(me, edit!.id, Number(edit!.price), edit!.hidden ? "HIDDEN" : "ACTIVE"), onSuccess: () => { done(); setEdit(undefined); } });
+  const saveEnt = useMutation({ mutationFn: () => manager.saveEntitlement(me, entEdit!, ent), onSuccess: () => { done(); setEntEdit(undefined); } });
+  const saveTier = useMutation({ mutationFn: () => manager.saveTier(me, { id: tf!.id, label: tf!.label, tone: tf!.tone, highlight: tf!.highlight, status: tf!.hidden ? "HIDDEN" : "ACTIVE", copyFrom: tf!.copyFrom, monthlyPrice: tf!.id ? undefined : Number(tf!.monthlyPrice) }), onSuccess: () => { done(); setTf(undefined); } });
+  const moveTier = useMutation({ mutationFn: (x: { id: Tier; dir: -1 | 1 }) => manager.moveTier(me, x.id, x.dir), onSuccess: done });
+  const saveCycle = useMutation({ mutationFn: () => manager.saveCycle(me, { id: cf!.id, label: cf!.label, desc: cf!.desc, kind: cf!.kind, months: Number(cf!.months), discount: Number(cf!.discount) / 100, weekdayOptions: cf!.weekdayOptions, status: cf!.hidden ? "HIDDEN" : "ACTIVE", reprice: cf!.reprice }), onSuccess: () => { done(); setCf(undefined); } });
+  const saveGroup = useMutation({ mutationFn: () => manager.saveGroup(me, { ...gf!, care: gf!.care.split("\n"), status: gf!.hidden ? "HIDDEN" : "ACTIVE", monthly: Number(gf!.monthly), reassessMonths: Number(gf!.reassessMonths) }), onSuccess: () => { done(); setGf(undefined); } });
+  const savePerk = useMutation({ mutationFn: () => manager.savePerk(me, pf!), onSuccess: () => { done(); setPf(undefined); } });
+  const remove = useMutation({
+    mutationFn: (t: DelTarget) => (t.kind === "tier" ? manager.deleteTier(me, t.id) : t.kind === "cycle" ? manager.deleteCycle(me, t.id) : t.kind === "group" ? manager.deleteGroup(me, t.id) : manager.deletePerk(me, Number(t.id))),
+    onSuccess: () => { done(); setDel(undefined); },
+  });
+  /** Already used → offer to stop selling instead of deleting. */
+  const stop = useMutation({
+    mutationFn: async (t: DelTarget) => {
+      if (t.kind === "tier") { const x = data!.tiers.find((r) => r.def.id === t.id)!.def; return manager.saveTier(me, { ...x, status: "HIDDEN" }); }
+      if (t.kind === "cycle") { const x = data!.cycles.find((r) => r.def.id === t.id)!.def; return manager.saveCycle(me, { ...x, status: "HIDDEN" }); }
+      const x = data!.groups.find((r) => r.def.id === t.id)!;
+      return manager.saveGroup(me, { ...x.def, status: "HIDDEN", monthly: x.monthly });
+    },
+    onSuccess: () => { done(); setDel(undefined); },
+  });
   if (isLoading || !data) return <Page title="Gói & quyền lợi"><Loading /></Page>;
-  const cell = (tier: Tier, cycle: string) => data.packages.find((p) => p.pkg.tier === tier && p.pkg.cycle === cycle)!;
+  const tiers = data.tiers;
+  const cell = (tier: Tier, cycle: Cycle) => data.packages.find((p) => p.pkg.tier === tier && p.pkg.cycle === cycle);
+  const monthPrice = (t: Tier) => cell(t, monthCycle())?.pkg.basePrice ?? 0;
+  const openTier = (t?: (typeof tiers)[number]) => setTf(t ? { id: t.def.id, label: t.def.label, tone: t.def.tone, highlight: !!t.def.highlight, hidden: t.def.status === "HIDDEN", monthlyPrice: "" } : { label: "", tone: "orange", highlight: false, hidden: false, copyFrom: tiers[tiers.length - 1]?.def.id, monthlyPrice: String(monthPrice(tiers[tiers.length - 1]?.def.id)) });
+  const openCycle = (c?: (typeof data.cycles)[number]) => setCf(c
+    ? { id: c.def.id, label: c.def.label, desc: c.def.desc, kind: c.def.kind, months: String(c.def.months || 1), discount: String(Math.round(c.def.discount * 100)), weekdayOptions: c.def.weekdayOptions ?? [[1, 3, 5]], hidden: c.def.status === "HIDDEN", reprice: false, used: c.used > 0 }
+    : { label: "", desc: "", kind: "PERIOD", months: "6", discount: "7", weekdayOptions: [[1, 3, 5]], hidden: false, reprice: false, used: false });
+  const openGroup = (g?: (typeof data.groups)[number]) => setGf(g
+    ? { ...g.def, care: g.def.care.join("\n"), hidden: g.def.status === "HIDDEN", monthly: String(g.monthly), reassessMonths: String(g.def.reassessMonths) }
+    : { label: "", tone: "teal", who: "", care: "", watch: "", report: "", limits: "", owner: "Điều dưỡng", reassessMonths: "3", minTier: TIERS[1] ?? TIERS[0], disease: true, hidden: false, monthly: "500000" });
+  const askDel = (kind: DelTarget["kind"], id: string, label: string, blocker = "") => { remove.reset(); stop.reset(); setDel({ kind, id, label, blocker }); };
+  const off = <Badge tone="gray">Ngừng</Badge>;
+  const cfMonths = cf?.kind === "PERIOD" ? Number(cf.months) : 1;
+  const cfPreview = cf && !cf.id ? tiers.filter((t) => t.def.status === "ACTIVE").map((t) => [t.def.id, cf.kind === "DAY" ? data.entitlements.find((e) => e.tier === t.def.id)?.dailyPrice ?? 0 : Math.round((monthPrice(t.def.id) * (cf.kind === "WEEKLY" ? (cf.weekdayOptions[0]?.length ?? 3) / 6 : cfMonths) * (1 - Number(cf.discount) / 100)) / 1000) * 1000] as const) : [];
   return (
-    <Page title="Gói & quyền lợi" sub="Gói = Thời hạn × Hạng, áp dụng theo Đối tượng. Quản lý tạo gói và đặt giá; các con số mẫu sửa được toàn bộ (mục 4.1).">
-      <Tabs value={tab} onChange={setTab} items={[{ value: "price", label: "Bảng giá (hạng × thời hạn)" }, { value: "ent", label: "Quyền lợi theo hạng" }, { value: "groups", label: "5 nhóm đối tượng" }]} />
+    <Page title="Gói & quyền lợi" sub="Gói = Thời hạn × Hạng, áp dụng theo Nhóm đối tượng. Quản lý thêm, sửa, ngừng bán hoặc xóa cả ba (mục 4.1). Đã có cụ dùng thì chỉ ngừng, không xóa.">
+      <Tabs value={tab} onChange={setTab} items={[{ value: "price", label: `Bảng giá (${data.cycles.length} thời hạn × ${tiers.length} hạng)` }, { value: "ent", label: "Hạng & quyền lợi" }, { value: "groups", label: `Nhóm đối tượng (${data.groups.length})` }]} />
       {tab === "price" && (
         <>
-          <Card>
+          <Card title="Bảng giá" actions={<Button size="sm" icon={Plus} onClick={() => { saveCycle.reset(); openCycle(); }}>Thêm thời hạn</Button>}>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-[12.5px]">
-                <thead><tr className="border-b-[1.5px] border-line text-left"><th className="px-2 py-2 text-[10.5px] text-subtle uppercase">Thời hạn</th>{TIERS.map((t) => <th key={t} className="px-2 py-2"><TierBadge tier={t} /> <span className="text-[11px] text-subtle">{data.capacity.find((c) => c.tier === t)?.held}/{data.capacity.find((c) => c.tier === t)?.beds} chỗ</span></th>)}</tr></thead>
+              <table className="w-full min-w-[760px] text-[12.5px]">
+                <thead><tr className="border-b-[1.5px] border-line text-left"><th className="px-2 py-2 text-[10.5px] text-subtle uppercase">Thời hạn</th>{tiers.map((t) => <th key={t.def.id} className={cn("px-2 py-2", t.def.status === "HIDDEN" && "opacity-50")}><TierBadge tier={t.def.id} /> <span className="text-[11px] text-subtle">{data.capacity.find((c) => c.tier === t.def.id)?.held ?? 0}/{data.capacity.find((c) => c.tier === t.def.id)?.beds ?? 0} chỗ</span></th>)}</tr></thead>
                 <tbody>
-                  {CYCLES.map((c) => (
-                    <tr key={c} className="border-b border-line-soft">
-                      <td className="px-2 py-2.5"><b className="text-navy">{CYCLE_LABEL[c]}</b><span className="block max-w-56 text-[11px] text-subtle">{CYCLE_DESC[c]}</span></td>
-                      {TIERS.map((t) => {
-                        const p = cell(t, c);
-                        const month = cell(t, "MONTH").pkg.basePrice;
-                        const disc = c === "Q" ? 1 - p.pkg.basePrice / (month * 3) : c === "Y" ? 1 - p.pkg.basePrice / (month * 12) : 0;
+                  {data.cycles.map(({ def: c, used, blocker }) => (
+                    <tr key={c.id} className="border-b border-line-soft align-top">
+                      <td className="px-2 py-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <span><b className="text-navy">{c.label}</b> {c.status === "HIDDEN" && off}<span className="block text-[11px] text-orange">{cycleMeta(c)}</span><span className="block max-w-60 text-[11px] text-subtle">{c.desc}</span></span>
+                          <span className="flex shrink-0 gap-1">
+                            <button aria-label={`Sửa ${c.label}`} title="Sửa" onClick={() => { saveCycle.reset(); openCycle(data.cycles.find((x) => x.def.id === c.id)); }} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-orange"><Pencil size={13} /></button>
+                            <button aria-label={`Xóa ${c.label}`} title={blocker || (c.id === monthCycle() ? "Giá tham chiếu, không xóa" : "Xóa")} onClick={() => askDel("cycle", c.id, c.label, blocker || (c.id === monthCycle() ? "là giá tham chiếu 1 tháng cho các thời hạn khác" : ""))} className="rounded-md p-1 text-faint hover:bg-red-soft/50 hover:text-red-ink"><Trash2 size={13} /></button>
+                          </span>
+                        </div>
+                        {used > 0 && <span className="text-[10.5px] text-subtle">{used} đăng ký</span>}
+                      </td>
+                      {tiers.map((t) => {
+                        const p = cell(t.def.id, c.id);
+                        if (!p) return <td key={t.def.id} className="px-2 py-2.5 text-faint">—</td>;
+                        const base = c.kind === "PERIOD" && c.months > 1 ? monthPrice(t.def.id) * c.months : 0;
+                        const disc = base ? 1 - p.pkg.basePrice / base : 0;
                         return (
-                          <td key={t} className="px-2 py-2.5">
-                            <button onClick={() => setEdit({ id: p.pkg.id, price: String(p.pkg.basePrice), hidden: p.pkg.status === "HIDDEN" })} className={cn("group w-full rounded-lg border border-transparent px-2 py-1 text-left hover:border-orange", p.pkg.status === "HIDDEN" && "opacity-50")}>
+                          <td key={t.def.id} className="px-2 py-2.5">
+                            <button onClick={() => { savePrice.reset(); setEdit({ id: p.pkg.id, price: String(p.pkg.basePrice), hidden: p.pkg.status === "HIDDEN" }); }} className={cn("group w-full rounded-lg border border-transparent px-2 py-1 text-left hover:border-orange", (p.pkg.status === "HIDDEN" || c.status === "HIDDEN" || t.def.status === "HIDDEN") && "opacity-50")}>
                               <span className="flex items-center gap-1 font-bold text-navy">{vnd(p.pkg.basePrice)}<Pencil size={11} className="text-faint group-hover:text-orange" /></span>
-                              <span className="block text-[11px] text-subtle">/{c === "DAY" ? "ngày" : c === "Q" ? "quý" : c === "Y" ? "năm" : "tháng"}{disc > 0 ? ` · giảm ${Math.round(disc * 100)}%` : ""}{p.pkg.status === "HIDDEN" ? " · đang ẩn" : ""}</span>
+                              <span className="block text-[11px] text-subtle">/{cycleUnit(c.id)}{disc > 0.005 ? ` · giảm ${Math.round(disc * 100)}%` : ""}{p.pkg.status === "HIDDEN" ? " · ngừng bán" : ""}</span>
                               <span className="block text-[11px] text-subtle">{p.active} cụ đang dùng</span>
                             </button>
                           </td>
@@ -69,75 +133,203 @@ export function PackagesPage() {
           <Card title="Công thức giá (mục 4.4)">
             <div className="rounded-lg bg-canvas px-3 py-2 font-mono text-[12px] text-navy">Giá kỳ = Giá gốc (hạng × thời hạn) − giảm giá thời hạn + phụ phí cố định theo nhóm + dịch vụ lẻ</div>
             <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[12px] text-muted">
-              <li>Nhóm bệnh không mua được hạng Cơ bản (BR-11). Web hiển thị giá chưa gồm phụ phí.</li>
+              <li>Thêm thời hạn: hệ thống gợi ý giá = giá {CYCLE_LABEL[monthCycle()]?.toLowerCase()} × số tháng × (1 − % giảm) cho mọi hạng, Quản lý sửa lại từng ô.</li>
+              <li>Mỗi nhóm có hạng tối thiểu (BR-11). Web hiển thị giá chưa gồm phụ phí.</li>
               <li>Nâng hạng có hiệu lực ngay, trả chênh lệch cho số ngày còn lại. Hạ hạng có hiệu lực từ kỳ sau.</li>
-              <li>Gói tháng giá cố định, không phụ thuộc tháng có bao nhiêu ngày (BR-26). Ngày lễ được cộng bù (BR-25).</li>
-              <li>Không thu đặt cọc, chỉ thanh toán qua cổng (BR-19, BR-24).</li>
+              <li>Ngừng bán: ẩn khỏi trang đăng ký, cụ đang dùng không bị ảnh hưởng. Chỉ xóa được khi chưa có đăng ký nào.</li>
             </ul>
           </Card>
         </>
       )}
       {tab === "ent" && (
-        <Card>
+        <Card title="Hạng & quyền lợi" actions={<span className="flex gap-1.5"><Button size="sm" variant="outline" icon={Plus} onClick={() => { savePerk.reset(); setPf({ label: "", values: Object.fromEntries(tiers.map((t) => [t.def.id, ""])) }); }}>Thêm dòng quyền lợi</Button><Button size="sm" icon={Plus} onClick={() => { saveTier.reset(); openTier(); }}>Thêm hạng</Button></span>}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-[12.5px]">
-              <thead><tr className="border-b-[1.5px] border-line text-left"><th className="px-2 py-2 text-[10.5px] text-subtle uppercase">Quyền lợi</th>{TIERS.map((t) => <th key={t} className="px-2 py-2"><span className="flex items-center gap-2"><TierBadge tier={t} /><Button size="sm" variant="neutral" icon={Pencil} onClick={() => { setEntEdit(t); setEnt({ ...data.entitlements.find((e) => e.tier === t) }); }}>Sửa</Button></span></th>)}</tr></thead>
+            <table className="w-full min-w-[760px] text-[12.5px]">
+              <thead>
+                <tr className="border-b-[1.5px] border-line text-left">
+                  <th className="px-2 py-2 text-[10.5px] text-subtle uppercase">Quyền lợi</th>
+                  {tiers.map((t, i) => (
+                    <th key={t.def.id} className={cn("px-2 py-2", t.def.status === "HIDDEN" && "opacity-60")}>
+                      <div className="flex flex-wrap items-center gap-1"><TierBadge tier={t.def.id} />{t.def.highlight && <Badge tone="orange">Phổ biến</Badge>}{t.def.status === "HIDDEN" && off}</div>
+                      <div className="mt-1 flex gap-0.5">
+                        <button title="Hạng thấp hơn" aria-label="Chuyển sang trái" disabled={i === 0} onClick={() => moveTier.mutate({ id: t.def.id, dir: -1 })} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-navy disabled:opacity-30"><ArrowLeft size={13} /></button>
+                        <button title="Hạng cao hơn" aria-label="Chuyển sang phải" disabled={i === tiers.length - 1} onClick={() => moveTier.mutate({ id: t.def.id, dir: 1 })} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-navy disabled:opacity-30"><ArrowRight size={13} /></button>
+                        <button title="Sửa tên, màu, trạng thái" aria-label={`Sửa hạng ${t.def.label}`} onClick={() => { saveTier.reset(); openTier(t); }} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-orange"><Pencil size={13} /></button>
+                        <button title="Sửa quyền lợi" aria-label={`Sửa quyền lợi ${t.def.label}`} onClick={() => { saveEnt.reset(); setEntEdit(t.def.id); setEnt({ ...data.entitlements.find((e) => e.tier === t.def.id) }); }} className="rounded-md p-1 text-faint hover:bg-canvas hover:text-orange"><ListChecks size={13} /></button>
+                        <button title={t.blocker || "Xóa hạng"} aria-label={`Xóa hạng ${t.def.label}`} onClick={() => askDel("tier", t.def.id, `hạng ${t.def.label}`, t.blocker)} className="rounded-md p-1 text-faint hover:bg-red-soft/50 hover:text-red-ink"><Trash2 size={13} /></button>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
               <tbody>
+                <tr className="border-b border-line-soft"><td className="px-2 py-2 text-muted">Số chỗ (giường nghỉ trưa)</td>{tiers.map((t) => <td key={t.def.id} className="px-2 py-2 font-semibold">{data.capacity.find((c) => c.tier === t.def.id)?.beds ?? 0} <span className="font-normal text-subtle">· {t.active} cụ đang dùng</span></td>)}</tr>
                 {ENT_ROWS.map(([k, label, type]) => (
                   <tr key={k} className="border-b border-line-soft">
                     <td className="px-2 py-2 text-muted">{label}</td>
-                    {TIERS.map((t) => {
-                      const v = data.entitlements.find((e) => e.tier === t)![k];
-                      return <td key={t} className="px-2 py-2 font-semibold text-ink">{type === "money" ? vnd(v as number) : type === "bool" ? (v ? <CircleCheck size={15} className="text-green" /> : "—") : type === "nullnum" ? (v === null ? "Không giới hạn" : String(v)) : String(v)}</td>;
+                    {tiers.map((t) => {
+                      const v = data.entitlements.find((e) => e.tier === t.def.id)?.[k];
+                      return <td key={t.def.id} className="px-2 py-2 font-semibold text-ink">{v === undefined ? "—" : type === "money" ? vnd(v as number) : type === "bool" ? (v ? <CircleCheck size={15} className="text-green" /> : "—") : type === "nullnum" ? (v === null ? "Không giới hạn" : String(v)) : String(v)}</td>;
                     })}
                   </tr>
                 ))}
-                <tr className="border-b border-line-soft"><td className="px-2 py-2 text-muted">Cảnh báo sức khỏe AI tới gia đình</td>{TIERS.map((t) => <td key={t} className="px-2 py-2 font-semibold">{data.entitlements.find((e) => e.tier === t)!.aiAlertFamily === "ALL" ? "Có" : "Chỉ khi khẩn cấp"}</td>)}</tr>
+                <tr className="border-b border-line-soft"><td className="px-2 py-2 text-muted">Cảnh báo sức khỏe AI tới gia đình</td>{tiers.map((t) => <td key={t.def.id} className="px-2 py-2 font-semibold">{data.entitlements.find((e) => e.tier === t.def.id)?.aiAlertFamily === "ALL" ? "Có" : "Chỉ khi khẩn cấp"}</td>)}</tr>
+                {data.perks.map((pk) => (
+                  <tr key={pk.id} className="border-b border-line-soft bg-orange-soft/30">
+                    <td className="px-2 py-2 text-muted">
+                      <span className="flex items-center gap-1">{pk.label}
+                        <button aria-label={`Sửa ${pk.label}`} onClick={() => { savePerk.reset(); setPf({ id: pk.id, label: pk.label, values: { ...pk.values } }); }} className="rounded-md p-1 text-faint hover:text-orange"><Pencil size={12} /></button>
+                        <button aria-label={`Xóa ${pk.label}`} onClick={() => askDel("perk", String(pk.id), `quyền lợi "${pk.label}"`)} className="rounded-md p-1 text-faint hover:text-red-ink"><Trash2 size={12} /></button>
+                      </span>
+                    </td>
+                    {tiers.map((t) => <td key={t.def.id} className="px-2 py-2 font-semibold text-ink">{pk.values[t.def.id] || "—"}</td>)}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-          <Note className="mt-3">Hệ thống bật/tắt tính năng theo quyền lợi của gói đang hiệu lực (BR-04): giới hạn ảnh (CL-04), cảnh báo AI, giường cố định, số hoạt động được tích.</Note>
+          <Note className="mt-3">Thứ tự cột = thứ tự hạng từ thấp đến cao (dùng cho nâng hạng và hạng tối thiểu của nhóm). Hệ thống bật/tắt tính năng theo quyền lợi của gói đang hiệu lực (BR-04). Hạng mới cần thêm giường ở Cơ sở vật chất → Giường nghỉ trưa thì mới có chỗ bán gói dài hạn.</Note>
         </Card>
       )}
       {tab === "groups" && (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {GROUPS.map((g) => {
-            const i = GROUP_INFO[g];
-            return (
-              <Card key={g} title={<span className="flex items-center gap-2"><GroupBadge group={g} /><span className="text-[12px] font-normal text-subtle">{data.groups.find((x) => x.group === g)?.count} cụ</span></span>} actions={<span className="text-[11.5px] text-muted">Hạng tối thiểu: <b>{TIER_LABEL[minTierFor(g)]}</b></span>}>
-                <KV label="Dành cho" w={110}>{i.who}</KV>
-                {i.care.length > 0 && <KV label="Chăm sóc riêng" w={110}>{i.care.join(" · ")}</KV>}
-                <KV label="Theo dõi" w={110}>{i.watch}</KV>
-                <KV label="Báo cáo GĐ" w={110}>{i.report}</KV>
-                <KV label="Hạn chế" w={110}>{i.limits}</KV>
-                <KV label="Phụ trách" w={110}>{i.owner}</KV>
-                <KV label="Đánh giá lại" w={110}>{i.reassessMonths === 1 ? "Mỗi tháng" : "3 tháng/lần"}</KV>
-                <KV label="Phụ phí" w={110}>{g === "MOBILE" ? "Không có" : <span className="flex items-center gap-2">{vnd(data.groups.find((x) => x.group === g)?.monthly ?? 0)}/tháng <Button size="sm" variant="neutral" icon={Pencil} onClick={() => setSur({ group: g, monthly: String(data.groups.find((x) => x.group === g)?.monthly ?? 0) })}>Sửa</Button></span>}</KV>
-              </Card>
-            );
-          })}
-        </div>
+        <>
+          <div className="flex justify-end"><Button icon={Plus} onClick={() => { saveGroup.reset(); openGroup(); }}>Thêm nhóm</Button></div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {data.groups.map((row) => {
+              const i = row.def;
+              return (
+                <Card key={i.id} className={cn(i.status === "HIDDEN" && "opacity-70")} title={<span className="flex items-center gap-2"><GroupBadge group={i.id} />{i.status === "HIDDEN" && <Badge tone="gray">Ngừng nhận</Badge>}<span className="text-[12px] font-normal text-subtle">{row.count} cụ</span></span>}
+                  actions={<span className="flex gap-1"><Button size="sm" variant="neutral" icon={Pencil} onClick={() => { saveGroup.reset(); openGroup(row); }}>Sửa</Button><Button size="sm" variant="danger" icon={Trash2} aria-label={`Xóa nhóm ${i.label}`} title={row.blocker || "Xóa nhóm"} onClick={() => askDel("group", i.id, `nhóm ${i.label}`, row.blocker)} /></span>}>
+                  <KV label="Dành cho" w={110}>{i.who}</KV>
+                  {i.care.length > 0 && <KV label="Chăm sóc riêng" w={110}>{i.care.join(" · ")}</KV>}
+                  <KV label="Theo dõi" w={110}>{i.watch || "—"}</KV>
+                  <KV label="Báo cáo GĐ" w={110}>{i.report || "—"}</KV>
+                  <KV label="Hạn chế" w={110}>{i.limits}</KV>
+                  <KV label="Phụ trách" w={110}>{i.owner || "—"}</KV>
+                  <KV label="Đánh giá lại" w={110}>{i.reassessMonths === 1 ? "Mỗi tháng" : `${i.reassessMonths} tháng/lần`}</KV>
+                  <KV label="Hạng tối thiểu" w={110}><TierBadge tier={i.minTier} /></KV>
+                  <KV label="Phụ phí" w={110}>{row.monthly ? <b className="text-orange">{vnd(row.monthly)}/tháng</b> : "Không có"}{i.disease && <Badge tone="orange" className="ml-2">Nhóm bệnh · dịch vụ ⚠ cần điều dưỡng cho phép</Badge>}</KV>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
-      <Modal open={!!edit} onClose={() => setEdit(undefined)} title="Sửa giá gói" footer={<><Button variant="neutral" onClick={() => setEdit(undefined)}>Hủy</Button><Button loading={savePrice.isPending} onClick={() => savePrice.mutate()}>Lưu</Button></>}>
+
+      {/* ---- giá một ô */}
+      <Modal open={!!edit} onClose={() => setEdit(undefined)} title="Sửa giá gói" footer={<><Button variant="neutral" onClick={() => setEdit(undefined)}>Hủy</Button><Button disabled={!(Number(edit?.price) > 0)} loading={savePrice.isPending} onClick={() => savePrice.mutate()}>Lưu</Button></>}>
         {edit && (
           <div className="space-y-3">
             <div className="text-[13px] font-semibold text-navy">{(() => { const p = data.packages.find((x) => x.pkg.id === edit.id)!.pkg; return `${CYCLE_LABEL[p.cycle]} · ${TIER_LABEL[p.tier]}`; })()}</div>
-            <Field label="Giá gốc (đ)" type="number" step={10000} value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} />
-            <Toggle checked={edit.hidden} onChange={(v) => setEdit({ ...edit, hidden: v })} label="Ẩn gói (ngừng bán)" sub="Cụ đang dùng không bị ảnh hưởng" />
+            <Field label="Giá gốc (đ)" type="number" min={0} step={10000} value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} error={Number(edit.price) > 0 ? undefined : "Giá phải lớn hơn 0"} />
+            <Toggle checked={edit.hidden} onChange={(v) => setEdit({ ...edit, hidden: v })} label="Ngừng bán ô này" sub="Cụ đang dùng không bị ảnh hưởng" />
             <Note>Giá mới áp dụng cho đăng ký và gia hạn từ bây giờ. Đăng ký đã thanh toán giữ giá cũ.</Note>
+            <ErrorText error={savePrice.error} />
           </div>
         )}
       </Modal>
-      <Modal open={!!sur} onClose={() => setSur(undefined)} title={sur ? `Phụ phí nhóm ${GROUP_LABEL[sur.group]}` : ""} footer={<><Button variant="neutral" onClick={() => setSur(undefined)}>Hủy</Button><Button loading={saveSur.isPending} onClick={() => saveSur.mutate()}>Lưu</Button></>}>
-        {sur && <div className="space-y-2"><Field label="Phụ phí (đ/tháng)" type="number" step={50000} value={sur.monthly} onChange={(e) => setSur({ ...sur, monthly: e.target.value })} /><Note>Mức cố định công bố trên web (BR-17). Gói quý tính × 3, gói năm × 12, gói ngày = mức tháng / 26 mỗi ngày. Áp dụng cho đăng ký và gia hạn từ bây giờ.</Note></div>}
+
+      {/* ---- thời hạn */}
+      <Modal open={!!cf} onClose={() => setCf(undefined)} title={cf?.id ? `Sửa thời hạn · ${CYCLE_LABEL[cf.id]}` : "Thêm thời hạn"} width={560} footer={<><Button variant="neutral" onClick={() => setCf(undefined)}>Hủy</Button><Button loading={saveCycle.isPending} onClick={() => saveCycle.mutate()}>{cf?.id ? "Lưu" : "Thêm"}</Button></>}>
+        {cf && (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field label="Tên thời hạn" required className="sm:col-span-2" placeholder="VD: Gói 6 tháng" value={cf.label} onChange={(e) => setCf({ ...cf, label: e.target.value })} />
+            <TextArea label="Mô tả cho gia đình" className="sm:col-span-2" value={cf.desc} onChange={(e) => setCf({ ...cf, desc: e.target.value })} />
+            <SelectField label="Cách tính" className="sm:col-span-2" disabled={cf.used || cf.id === monthCycle()} value={cf.kind} onChange={(e) => setCf({ ...cf, kind: e.target.value as CycleDef["kind"] })}>{(Object.keys(KIND_LABEL) as CycleDef["kind"][]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</SelectField>
+            {cf.kind === "PERIOD" && <Field label="Số tháng mỗi kỳ (1–24)" type="number" min={1} max={24} disabled={cf.used || cf.id === monthCycle()} value={cf.months} onChange={(e) => setCf({ ...cf, months: e.target.value })} />}
+            {cf.kind !== "DAY" && <Field label="Giảm giá (%)" type="number" min={0} max={50} value={cf.discount} onChange={(e) => setCf({ ...cf, discount: e.target.value })} />}
+            {cf.kind === "WEEKLY" && (
+              <div className="sm:col-span-2">
+                <div className="mb-1 text-[11.5px] font-semibold text-muted">Bộ ngày cố định gia đình được chọn</div>
+                {cf.weekdayOptions.map((w, i) => (
+                  <div key={i} className="mb-1.5 flex flex-wrap items-center gap-1">
+                    {DOW.map((dw) => <Chip key={dw} active={w.includes(dw)} onClick={() => setCf({ ...cf, weekdayOptions: cf.weekdayOptions.map((x, j) => (j === i ? (x.includes(dw) ? x.filter((y) => y !== dw) : [...x, dw].sort()) : x)) })}>{WEEKDAY_LABEL[dw]}</Chip>)}
+                    {cf.weekdayOptions.length > 1 && <button aria-label="Bỏ bộ ngày" onClick={() => setCf({ ...cf, weekdayOptions: cf.weekdayOptions.filter((_, j) => j !== i) })} className="p-1 text-faint hover:text-red-ink"><X size={13} /></button>}
+                  </div>
+                ))}
+                <Button size="sm" variant="neutral" icon={Plus} onClick={() => setCf({ ...cf, weekdayOptions: [...cf.weekdayOptions, [2, 4, 6]] })}>Thêm bộ ngày</Button>
+              </div>
+            )}
+            <div className="sm:col-span-2"><Toggle checked={cf.hidden} onChange={(v) => setCf({ ...cf, hidden: v })} label="Ngừng bán" sub="Ẩn khỏi trang đăng ký, cụ đang dùng vẫn chạy bình thường" /></div>
+            {cf.id && cf.id !== monthCycle() && cf.kind !== "DAY" && <div className="sm:col-span-2"><Toggle checked={cf.reprice} onChange={(v) => setCf({ ...cf, reprice: v })} label="Tính lại giá mọi hạng theo % giảm" sub={`Giá = giá ${CYCLE_LABEL[monthCycle()]?.toLowerCase()} × số tháng × (1 − % giảm). Tắt để giữ giá đang nhập tay.`} /></div>}
+            {cf.used && <Note className="sm:col-span-2">Đã có cụ đăng ký thời hạn này: chỉ sửa được tên, mô tả, % giảm và trạng thái.</Note>}
+            {cfPreview.length > 0 && <Note tone="green" className="sm:col-span-2">Giá gợi ý sẽ tạo: {cfPreview.map(([t, v]) => `${TIER_LABEL[t]} ${vnd(v)}`).join(" · ")}. Sửa từng ô sau ở bảng giá.</Note>}
+            <div className="sm:col-span-2"><ErrorText error={saveCycle.error} /></div>
+          </div>
+        )}
       </Modal>
+
+      {/* ---- hạng */}
+      <Modal open={!!tf} onClose={() => setTf(undefined)} title={tf?.id ? `Sửa hạng · ${TIER_LABEL[tf.id]}` : "Thêm hạng"} width={520} footer={<><Button variant="neutral" onClick={() => setTf(undefined)}>Hủy</Button><Button loading={saveTier.isPending} onClick={() => saveTier.mutate()}>{tf?.id ? "Lưu" : "Thêm"}</Button></>}>
+        {tf && (
+          <div className="space-y-2.5">
+            <Field label="Tên hạng" required placeholder="VD: Đặc biệt" value={tf.label} onChange={(e) => setTf({ ...tf, label: e.target.value })} />
+            <ToneChips value={tf.tone} onChange={(tone) => setTf({ ...tf, tone })} />
+            {!tf.id && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <SelectField label="Sao chép quyền lợi từ" value={tf.copyFrom} onChange={(e) => setTf({ ...tf, copyFrom: e.target.value, monthlyPrice: String(monthPrice(e.target.value)) })}>{tiers.map((t) => <option key={t.def.id} value={t.def.id}>{t.def.label}</option>)}</SelectField>
+                <Field label={`Giá ${CYCLE_LABEL[monthCycle()]?.toLowerCase()} (đ)`} type="number" min={0} step={100000} value={tf.monthlyPrice} onChange={(e) => setTf({ ...tf, monthlyPrice: e.target.value })} error={Number(tf.monthlyPrice) > 0 ? undefined : "Nhập giá"} />
+              </div>
+            )}
+            <Toggle checked={tf.highlight} onChange={(v) => setTf({ ...tf, highlight: v })} label="Gắn nhãn “Phổ biến” trên trang giới thiệu" sub="Chỉ một hạng được gắn" />
+            <Toggle checked={tf.hidden} onChange={(v) => setTf({ ...tf, hidden: v })} label="Ngừng bán hạng này" sub="Cụ đang dùng không bị ảnh hưởng" />
+            {!tf.id && <Note>Hạng mới đứng cao nhất (đổi thứ tự bằng mũi tên ở đầu cột). Hệ thống tạo giá cho mọi thời hạn theo tỷ lệ giá tháng so với hạng sao chép, chép quyền lợi và định mức dịch vụ. Nhớ thêm giường nghỉ trưa cho hạng mới.</Note>}
+            <ErrorText error={saveTier.error} />
+          </div>
+        )}
+      </Modal>
+
+      {/* ---- quyền lợi chuẩn của một hạng */}
       <Modal open={!!entEdit} onClose={() => setEntEdit(undefined)} title={`Quyền lợi hạng ${entEdit ? TIER_LABEL[entEdit] : ""}`} width={560} footer={<><Button variant="neutral" onClick={() => setEntEdit(undefined)}>Hủy</Button><Button loading={saveEnt.isPending} onClick={() => saveEnt.mutate()}>Lưu</Button></>}>
         <div className="grid gap-2 sm:grid-cols-2">
           {ENT_ROWS.map(([k, label, type]) => type === "bool"
             ? <div key={k} className="sm:col-span-2"><Toggle checked={!!ent[k]} onChange={(v) => setEnt({ ...ent, [k]: v })} label={label} /></div>
-            : <Field key={k} label={label} type={type === "text" ? "text" : "number"} value={ent[k] === null || ent[k] === undefined ? "" : String(ent[k])} onChange={(e) => setEnt({ ...ent, [k]: type === "text" ? e.target.value : type === "nullnum" && e.target.value === "" ? null : Number(e.target.value) })} />)}
+            : <Field key={k} label={label} type={type === "text" ? "text" : "number"} min={type === "text" ? undefined : 0} value={ent[k] === null || ent[k] === undefined ? "" : String(ent[k])} onChange={(e) => setEnt({ ...ent, [k]: type === "text" ? e.target.value : type === "nullnum" && e.target.value === "" ? null : Number(e.target.value) })} />)}
           <SelectField label="Cảnh báo AI tới gia đình" value={ent.aiAlertFamily} onChange={(e) => setEnt({ ...ent, aiAlertFamily: e.target.value as "ALL" })}><option value="ALL">Có</option><option value="URGENT_ONLY">Chỉ khi khẩn cấp</option></SelectField>
+          <div className="sm:col-span-2"><ErrorText error={saveEnt.error} /></div>
         </div>
+      </Modal>
+
+      {/* ---- dòng quyền lợi tự thêm */}
+      <Modal open={!!pf} onClose={() => setPf(undefined)} title={pf?.id ? "Sửa dòng quyền lợi" : "Thêm dòng quyền lợi"} width={480} footer={<><Button variant="neutral" onClick={() => setPf(undefined)}>Hủy</Button><Button loading={savePerk.isPending} onClick={() => savePerk.mutate()}>Lưu</Button></>}>
+        {pf && (
+          <div className="space-y-2">
+            <Field label="Tên quyền lợi" required placeholder="VD: Cắt tóc miễn phí" value={pf.label} onChange={(e) => setPf({ ...pf, label: e.target.value })} />
+            {tiers.map((t) => <Field key={t.def.id} label={`Hạng ${t.def.label}`} placeholder="Để trống = không có" value={pf.values[t.def.id] ?? ""} onChange={(e) => setPf({ ...pf, values: { ...pf.values, [t.def.id]: e.target.value } })} />)}
+            <ErrorText error={savePerk.error} />
+          </div>
+        )}
+      </Modal>
+
+      {/* ---- nhóm đối tượng */}
+      <Modal open={!!gf} onClose={() => setGf(undefined)} title={gf?.id ? `Sửa nhóm · ${GROUP_LABEL[gf.id]}` : "Thêm nhóm đối tượng"} width={620} footer={<><Button variant="neutral" onClick={() => setGf(undefined)}>Hủy</Button><Button loading={saveGroup.isPending} onClick={() => saveGroup.mutate()}>{gf?.id ? "Lưu" : "Thêm"}</Button></>}>
+        {gf && (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field label="Tên nhóm" required className="sm:col-span-2" placeholder="VD: Parkinson nhẹ" value={gf.label} onChange={(e) => setGf({ ...gf, label: e.target.value })} />
+            <div className="sm:col-span-2"><ToneChips value={gf.tone} onChange={(tone) => setGf({ ...gf, tone })} /></div>
+            <TextArea label="Dành cho ai" required className="sm:col-span-2" value={gf.who} onChange={(e) => setGf({ ...gf, who: e.target.value })} />
+            <TextArea label="Chăm sóc riêng (mỗi dòng một ý)" className="sm:col-span-2" value={gf.care} onChange={(e) => setGf({ ...gf, care: e.target.value })} />
+            <Field label="Cần theo dõi" value={gf.watch} onChange={(e) => setGf({ ...gf, watch: e.target.value })} />
+            <Field label="Báo cáo cho gia đình" value={gf.report} onChange={(e) => setGf({ ...gf, report: e.target.value })} />
+            <Field label="Hạn chế" value={gf.limits} onChange={(e) => setGf({ ...gf, limits: e.target.value })} />
+            <Field label="Phụ trách" value={gf.owner} onChange={(e) => setGf({ ...gf, owner: e.target.value })} />
+            <SelectField label="Hạng tối thiểu (BR-11)" value={gf.minTier} onChange={(e) => setGf({ ...gf, minTier: e.target.value })}>{tiers.map((t) => <option key={t.def.id} value={t.def.id}>{t.def.label}{t.def.status === "HIDDEN" ? " (ngừng bán)" : ""}</option>)}</SelectField>
+            <Field label="Đánh giá lại sau (tháng)" type="number" min={1} max={12} value={gf.reassessMonths} onChange={(e) => setGf({ ...gf, reassessMonths: e.target.value })} />
+            <Field label="Phụ phí cố định (đ/tháng)" type="number" min={0} step={50000} value={gf.monthly} onChange={(e) => setGf({ ...gf, monthly: e.target.value })} error={Number(gf.monthly) >= 0 && Number(gf.monthly) % 1000 === 0 ? undefined : "Số tiền ≥ 0, tròn nghìn"} />
+            <div className="self-end pb-1"><Toggle checked={gf.disease} onChange={(v) => setGf({ ...gf, disease: v })} label="Nhóm bệnh" sub="Dịch vụ ⚠ cần điều dưỡng cho phép" /></div>
+            <div className="sm:col-span-2"><Toggle checked={gf.hidden} onChange={(v) => setGf({ ...gf, hidden: v })} label="Ngừng nhận nhóm này" sub="Ẩn khỏi trang đăng ký, cụ đang thuộc nhóm vẫn được chăm sóc" /></div>
+            <Note className="sm:col-span-2">Phụ phí công bố trên web (BR-17): gói nhiều tháng tính × số tháng, gói ngày = mức tháng / 26 mỗi ngày. Áp dụng cho đăng ký và gia hạn từ bây giờ.</Note>
+            <div className="sm:col-span-2"><ErrorText error={saveGroup.error} /></div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ---- xóa / ngừng */}
+      <Modal open={!!del} onClose={() => setDel(undefined)} title={del ? `Xóa ${del.label}?` : ""} footer={del && <><Button variant="neutral" onClick={() => setDel(undefined)}>Hủy</Button>{del.blocker && del.kind !== "perk" && !del.blocker.includes("tham chiếu") ? <Button loading={stop.isPending} onClick={() => stop.mutate(del)}>{del.kind === "group" ? "Ngừng nhận" : "Ngừng bán"}</Button> : !del.blocker && <Button variant="danger" icon={Trash2} loading={remove.isPending} onClick={() => remove.mutate(del)}>Xóa hẳn</Button>}</>}>
+        {del && (del.blocker
+          ? <Note tone="red">Không xóa được vì {del.blocker}. {!del.blocker.includes("tham chiếu") && `Bạn có thể ${del.kind === "group" ? "ngừng nhận" : "ngừng bán"}: ẩn khỏi trang đăng ký, dữ liệu và hóa đơn cũ vẫn giữ.`}</Note>
+          : <Note tone="red">Xóa hẳn {del.label}. {del.kind === "tier" ? "Giá, quyền lợi và định mức dịch vụ của hạng này cũng bị xóa." : del.kind === "cycle" ? "Giá của thời hạn này ở mọi hạng cũng bị xóa." : ""} Không hoàn tác được.</Note>)}
+        <ErrorText error={remove.error ?? stop.error} />
       </Modal>
     </Page>
   );
@@ -145,7 +337,7 @@ export function PackagesPage() {
 
 // ------------------------------------------------------------------ services
 const KIND: Record<ServiceKind, string> = { INCLUDED: "Có sẵn trong mọi gói", OPTIONAL: "Tự chọn trong gói", ADDON: "Mua thêm" };
-const empty: Omit<Service, "id"> = { name: "", kind: "OPTIONAL", description: "", equipmentIds: [], owner: "CAREGIVER", needsNurseOk: false, quota: { BASIC: "1 lượt/tuần", STANDARD: "3 lượt/tuần", PREMIUM: "Hằng ngày" }, status: "ACTIVE" };
+const empty: Omit<Service, "id"> = { name: "", kind: "OPTIONAL", description: "", equipmentIds: [], owner: "CAREGIVER", needsNurseOk: false, quota: {}, status: "ACTIVE" };
 export function ServicesPage() {
   const me = useMe();
   const qc = useQueryClient();

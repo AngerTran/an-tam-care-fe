@@ -3,7 +3,7 @@
 import { commit, db, nextId, wait } from "../mock/db";
 import { DEMO_NOW, DEMO_TODAY } from "../mock/seed";
 import type { Cycle, ElderlyMember, Notification, Position, Subscription, TargetGroup, Tier, User } from "../types/models";
-import { CYCLE_LABEL, TIERS, TIER_LABEL } from "../domain/catalog";
+import { ALL_TIERS, CYCLE_LABEL, cycleMonths, isDayCycle, isWeeklyCycle, TIERS, TIER_LABEL } from "../domain/catalog";
 
 export { commit, db, nextId, wait };
 export const TODAY = DEMO_TODAY;
@@ -67,8 +67,8 @@ export function scheduledOn(elderlyId: number, date: string) {
   if (!s || date < s.startDate || date > s.endDate) return false;
   const dow = new Date(date + "T00:00:00").getDay();
   if (dow === 0 || db().holidays.some((h) => h.date === date)) return false;
-  if (s.cycle === "DAY") return !!s.dayDates?.includes(date) && !db().absences.some((a) => a.elderlyId === elderlyId && a.status === "APPROVED" && a.fromDate <= date && a.toDate >= date);
-  if (s.cycle === "M3") return !!s.weekdays?.includes(dow);
+  if (isDayCycle(s.cycle)) return !!s.dayDates?.includes(date) && !db().absences.some((a) => a.elderlyId === elderlyId && a.status === "APPROVED" && a.fromDate <= date && a.toDate >= date);
+  if (isWeeklyCycle(s.cycle)) return !!s.weekdays?.includes(dow);
   return true;
 }
 
@@ -77,10 +77,10 @@ export const usable = (e: { total: number; broken: number; repairing: number }) 
 /** Seats per tier = active nap beds in open rooms (BR-74). Long-term subs (incl. paused Premium, BR-76) hold a seat. */
 export function capacity() {
   const d = db();
-  return TIERS.map((tier) => {
+  return ALL_TIERS.map((tier) => {
     const beds = d.beds.filter((b) => b.tier === tier && b.status === "ACTIVE" && lookups.room(b.roomId)?.status === "ACTIVE").length;
-    const holding = d.subscriptions.filter((s) => s.tier === tier && s.cycle !== "DAY" && ["ACTIVE", "PAUSED", "AWAITING_PAYMENT"].includes(s.status));
-    const todayDay = d.subscriptions.filter((s) => s.tier === tier && s.cycle === "DAY" && s.status === "ACTIVE" && s.dayDates?.includes(TODAY)).length;
+    const holding = d.subscriptions.filter((s) => s.tier === tier && !isDayCycle(s.cycle) && ["ACTIVE", "PAUSED", "AWAITING_PAYMENT"].includes(s.status));
+    const todayDay = d.subscriptions.filter((s) => s.tier === tier && isDayCycle(s.cycle) && s.status === "ACTIVE" && s.dayDates?.includes(TODAY)).length;
     const waiting = d.waitlist.filter((w) => w.tier === tier && (w.status === "WAITING" || w.status === "HOLDING")).length;
     return { tier, beds, held: holding.length, free: Math.max(0, beds - holding.length), todayDay, waiting, full: holding.length >= beds };
   });
@@ -91,8 +91,8 @@ export const surchargeMonthly = (group: TargetGroup) => db().groupSurcharges.fin
 export function fixedSurcharge(group: TargetGroup, cycle: Cycle, days = 1) {
   const m = surchargeMonthly(group);
   if (!m) return 0;
-  if (cycle === "DAY") return Math.round(m / 26 / 1000) * 1000 * days;
-  return m * (cycle === "Q" ? 3 : cycle === "Y" ? 12 : 1);
+  if (isDayCycle(cycle)) return Math.round(m / 26 / 1000) * 1000 * days;
+  return m * Math.max(1, cycleMonths(cycle));
 }
 
 export const isNurse = (me: User) => lookups.position(me.id) === "NURSE";

@@ -56,6 +56,7 @@ export const NAV: Record<Role, NavSection[]> = {
     { title: "Ca hôm nay", items: [
       { label: "Ca hôm nay", to: "/staff", icon: ChartColumn, end: true },
       { label: "Check-in / check-out", to: "/staff/checkin", icon: QrCode },
+      { label: "Lịch hôm nay", to: "/staff/schedule", icon: CalendarDays },
       { label: "Cụ hôm nay", to: "/staff/elderly", icon: UserRound },
       { label: "Ghi nhanh cả nhóm", to: "/staff/group-log", icon: Users },
       { label: "Đo chỉ số", to: "/staff/vitals", icon: Activity, only: "NURSE" },

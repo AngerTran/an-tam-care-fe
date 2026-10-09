@@ -8,6 +8,7 @@ import { auth } from "../../api";
 import { resetDb } from "../../mock/db";
 import { HOME, useAuth } from "../../auth/AuthContext";
 import { Button, ErrorText, Field, IconCircle, Tabs } from "../../components/ui";
+import { GROUPS, TIERS } from "../../domain/catalog";
 
 function Split({ children, family }: { children: ReactNode; family?: boolean }) {
   return (
@@ -20,7 +21,7 @@ function Split({ children, family }: { children: ReactNode; family?: boolean }) 
         </p>
         {!family && (
           <ul className="space-y-1 text-[13px] text-white/75">
-            <li>• 3 hạng gói · 5 nhóm đối tượng · thanh toán VNPay/MoMo</li>
+            <li>• {TIERS.length} hạng gói · {GROUPS.length} nhóm đối tượng · thanh toán VNPay/MoMo</li>
             <li>• Care log theo thời gian thực cho gia đình</li>
             <li>• AI gợi ý xếp ca, thực đơn, cảnh báo sức khỏe — người duyệt quyết định</li>
           </ul>

@@ -90,6 +90,16 @@ export function validatePause(v: { kind: "HOSPITAL" | "DEATH"; fromDate?: string
   return e;
 }
 
+/** Barthel Index chuẩn: 10 mục, mỗi mục 0/5/10/15 → tổng 0–100, luôn là bội số của 5. ≤ 20 = phụ thuộc hoàn toàn → không nhận (BR-18). */
+export const BARTHEL_NOT_ACCEPTED = 20;
+export function validateBarthel(v: string | number | undefined): string {
+  if (v === undefined || v === "") return "Nhập điểm Barthel";
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 0 || n > 100) return "Điểm Barthel từ 0 đến 100";
+  if (n % 5 !== 0) return "Điểm Barthel là bội số của 5 (cộng từ 10 mục)";
+  return "";
+}
+
 /** Throw the first message (used by the mock API). */
 export function assertValid(errors: Errors) {
   const first = Object.values(errors)[0];

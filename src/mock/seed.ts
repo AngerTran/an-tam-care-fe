@@ -4,7 +4,7 @@
 import type {
   AbsenceRequest, AccountCredit, ActivitySchedule, AddOn, Announcement, Assessment, Attendance, AuditLog, AuthorizedPickup, Availability,
   BedAssignment, Belonging, CareLogDay, CareLogEdit, CareLogEntry, CenterSettings, Compensation, DailyTask, DamageReport, ElderlyMember,
-  Equipment, GroupSurcharge, HealthAlert, HealthMetric, Holiday, Incident, InventoryCheck, Invoice, LeaveRequest, ManagerReport, MedicationDose,
+  CustomPerk, CycleDef, Equipment, GroupDef, GroupSurcharge, TierDef, HealthAlert, HealthMetric, Holiday, Incident, InventoryCheck, Invoice, LeaveRequest, ManagerReport, MedicationDose,
   MedicationPlan, Menu, Message, NapBed, Notification, NotificationPref, PauseRequest, Payment, Refund, Room, Service, ServiceChoice,
   ServicePackage, ServicePermission, Shift, ShiftAssignment, StaffProfile, Subscription, SystemSettings, TherapySlot, TierEntitlement,
   User, VisitBooking, WaitlistEntry,
@@ -748,6 +748,37 @@ const groupSurcharges: GroupSurcharge[] = [
   { group: "DEMENTIA", monthly: 800000 },
   { group: "STROKE", monthly: 1200000 },
 ];
+// ------------------------------------------------------------------ catalog: hạng, thời hạn, nhóm (Quản lý CRUD, mục 4.1)
+const tierDefs: TierDef[] = [
+  { id: "BASIC", label: "Cơ bản", tone: "blue", rank: 1, status: "ACTIVE" },
+  { id: "STANDARD", label: "Tiêu chuẩn", tone: "teal", rank: 2, highlight: true, status: "ACTIVE" },
+  { id: "PREMIUM", label: "Cao cấp", tone: "purple", rank: 3, status: "ACTIVE" },
+];
+const cycleDefs: CycleDef[] = [
+  { id: "DAY", label: "Gói ngày", desc: "Đặt trước từng ngày. Báo nghỉ trước 17h hôm trước thì giữ tiền thành số dư.", kind: "DAY", months: 0, discount: 0, rank: 1, status: "ACTIVE" },
+  { id: "M3", label: "Tháng 3 buổi/tuần", desc: "12–13 buổi/tháng, cố định T2-4-6 hoặc T3-5-7. Hợp cụ mới làm quen.", kind: "WEEKLY", months: 1, discount: 0, weekdayOptions: [[1, 3, 5], [2, 4, 6]], rank: 2, status: "ACTIVE" },
+  { id: "MONTH", label: "Gói tháng", desc: "Đi cả tháng, thứ 2 đến thứ 7. Giá cố định, nghỉ vẫn tính tiền.", kind: "PERIOD", months: 1, discount: 0, rank: 3, status: "ACTIVE" },
+  { id: "Q", label: "Gói quý", desc: "Như gói tháng, giảm 5%.", kind: "PERIOD", months: 3, discount: 0.05, rank: 4, status: "ACTIVE" },
+  { id: "Y", label: "Gói năm", desc: "Như gói tháng, giảm 10%.", kind: "PERIOD", months: 12, discount: 0.1, rank: 5, status: "ACTIVE" },
+];
+const groupDefs: GroupDef[] = [
+  { id: "MOBILE", label: "Vận động được", tone: "green", minTier: "BASIC", disease: false, rank: 1, status: "ACTIVE", reassessMonths: 3, owner: "Hộ lý",
+    who: "Tự đi lại, tự ăn, tự vệ sinh hoặc chỉ cần nhắc nhở; không có bệnh cần theo dõi đặc biệt.", care: [], watch: "Chỉ số định kỳ theo hạng", report: "Theo hạng", limits: "—" },
+  { id: "CHRONIC", label: "Bệnh mãn tính", tone: "orange", minTier: "STANDARD", disease: true, rank: 2, status: "ACTIVE", reassessMonths: 3, owner: "Điều dưỡng",
+    who: "Tiểu đường, cao huyết áp, tim mạch; cần theo dõi chỉ số và thuốc.", care: ["Đo chỉ số và đường huyết theo bệnh", "Nhắc thuốc đúng giờ", "Thực đơn ít đường, ít muối"],
+    watch: "Xu hướng chỉ số; AI cảnh báo khi vượt ngưỡng", report: "Biểu đồ chỉ số hằng tháng", limits: "Ngâm chân ⚠ nếu tiểu đường" },
+  { id: "REHAB", label: "Phục hồi chức năng", tone: "blue", minTier: "STANDARD", disease: true, rank: 3, status: "ACTIVE", reassessMonths: 1, owner: "Điều dưỡng hướng dẫn VLTL",
+    who: "Yếu cơ, thoái hóa khớp, sau gãy xương hoặc phẫu thuật, đi lại khó cần tập lại.", care: ["VLTL tăng cường: Tiêu chuẩn 3 buổi/tuần, Cao cấp hằng ngày", "Bài tập về nhà gửi qua app"],
+    watch: "Chấm lại Barthel, khả năng đi lại hằng tháng", report: "Báo cáo tiến triển hằng tháng", limits: "Massage, ngâm chân ⚠" },
+  { id: "DEMENTIA", label: "Sa sút trí tuệ nhẹ–vừa", tone: "purple", minTier: "STANDARD", disease: true, rank: 4, status: "ACTIVE", reassessMonths: 3, owner: "Điều dưỡng, hộ lý",
+    who: "Giảm trí nhớ, dễ đi lạc; còn đi lại được, không kích động nặng.", care: ["Sinh hoạt ở khu có kiểm soát ra vào", "Thẻ hoặc vòng tay nhận diện chống đi lạc", "Âm nhạc, đọc báo kể chuyện nhóm hằng ngày"],
+    watch: "Ghi hành vi: lo âu, kích động, đi lang thang", report: "Báo cáo hành vi và sinh hoạt hằng tuần", limits: "Không dùng vật sắc nhọn; check-out kiểm tra kỹ người đón" },
+  { id: "STROKE", label: "Sau tai biến", tone: "red", minTier: "STANDARD", disease: true, rank: 5, status: "ACTIVE", reassessMonths: 1, owner: "Điều dưỡng hướng dẫn VLTL",
+    who: "Đã qua giai đoạn cấp ở bệnh viện; còn yếu liệt một bên, nói hoặc nuốt khó.", care: ["VLTL phục hồi (tập đi, tập tay) hằng ngày", "Đo huyết áp 3 lần/ngày", "Thức ăn mềm, hỗ trợ khi ăn để phòng sặc"],
+    watch: "Dấu hiệu tái phát (méo miệng, yếu tay, nói khó): cảnh báo khẩn cấp", report: "Báo cáo huyết áp và tiến triển hằng tháng", limits: "Ghế massage ⚠, ngâm chân ⚠" },
+];
+const perks: CustomPerk[] = [];
+
 const systemSettings: SystemSettings = { vnpayMode: "PRODUCTION", momoMode: "PRODUCTION", sessionTimeoutMinutes: 30, lockAfterFailedLogins: true, llmDailyTokenLimit: 50000, llmMaskPersonalData: true, emailEnabled: true, pushEnabled: true };
 
 // ------------------------------------------------------------------ online registration with commitment (BR-79, BR-80)
@@ -787,6 +818,6 @@ export const seed = {
   assessments, waitlist, invoices, payments, refunds, credits, absences, pauses, rooms, beds, bedAssignments, equipment, damageReports,
   inventoryChecks, compensations, schedules, menus, therapySlots, attendance, dailyTasks, careLogEntries, careLogDays, careLogEdits,
   healthMetrics, alerts, incidents, medPlans, medDoses, belongings, shifts, shiftAssignments, availability, leaveRequests, messages,
-  notifications, auditLogs, holidays, announcements, reports, notificationPrefs, visits, centerSettings, systemSettings, groupSurcharges,
+  notifications, auditLogs, holidays, announcements, reports, notificationPrefs, visits, centerSettings, systemSettings, groupSurcharges, tierDefs, cycleDefs, groupDefs, perks,
 };
 export type DB = typeof seed;

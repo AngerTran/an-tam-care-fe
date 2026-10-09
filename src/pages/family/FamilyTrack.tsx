@@ -9,7 +9,7 @@ import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { AttBadge, ElderlyPicker, GroupBadge, LineChart, Stat, SubBadge, TierBadge, Timeline, useFamilyElderly } from "../../components/domain";
 import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, KV, Loading, Modal, Note, Photo, SelectField, Table, TextArea, Toggle, cn } from "../../components/ui";
-import { CYCLE_LABEL, TIER_LABEL } from "../../domain/catalog";
+import { CYCLE_LABEL, isDayCycle, TIER_LABEL, tierHasBreakfast } from "../../domain/catalog";
 import { addDays, daysBetween, dm, dmy, hm, weekday } from "../../lib/format";
 import { INC_TYPE, LEVEL, SEVERITY } from "../manager/ManagerOps";
 import { ChatWidget } from "../public/PublicHome";
@@ -86,7 +86,7 @@ export function FamilyHome() {
               })}
               <Note className="mt-2">Gia đình không bình luận vào care log; nhắn tin với nhân viên phụ trách.</Note>
             </Card>
-            {data.sub && daysBetween(TODAY, data.sub.endDate) <= 7 && data.sub.cycle !== "DAY" && <Note tone="orange">Gói {CYCLE_LABEL[data.sub.cycle]} hết hạn {dmy(data.sub.endDate)}. <Link to="/family/packages" className="font-semibold">Gia hạn</Link></Note>}
+            {data.sub && daysBetween(TODAY, data.sub.endDate) <= 7 && !isDayCycle(data.sub.cycle) && <Note tone="orange">Gói {CYCLE_LABEL[data.sub.cycle]} hết hạn {dmy(data.sub.endDate)}. <Link to="/family/packages" className="font-semibold">Gia hạn</Link></Note>}
           </div>
         </div>
       )}
@@ -281,7 +281,7 @@ export function FamilySchedule() {
               <Card title="Thực đơn">
                 {menu ? (
                   <>
-                    {data.sub?.tier !== "BASIC" && <KV label="Sáng" w={50}>{menu.breakfast}</KV>}
+                    {tierHasBreakfast(data.sub?.tier) && <KV label="Sáng" w={50}>{menu.breakfast}</KV>}
                     <KV label="Trưa" w={50}>{menu.lunch}</KV>
                     <KV label="Xế" w={50}>{menu.snack}</KV>
                     {data.diet && <Note className="mt-2">Món thay cho cụ: {menu[data.diet]}</Note>}

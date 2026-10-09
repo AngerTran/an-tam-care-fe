@@ -1,13 +1,13 @@
 // Center Manager API (web). Covers M1–M5, registrations & assessment approval, packages, facilities,
 // shifts, finance and reports (mục 3, 4, 5, 7).
 import type {
-  ActivitySchedule, CenterSettings, Cycle, ElderlyMember, Equipment, Incident, Menu, NapBed, Room, Service, TargetGroup,
-  Tier, TierEntitlement, User,
+  ActivitySchedule, CatalogStatus, CenterSettings, Cycle, CycleDef, GroupDef, ElderlyMember, Equipment, Incident, Menu, NapBed, Room, Service, TargetGroup,
+  Tier, TierDef, TierEntitlement, User,
 } from "../types/models";
-import { CYCLE_LABEL, GROUP_LABEL, minTierFor, TIER_LABEL, tierRank, VIOLATION_KEEP } from "../domain/catalog";
+import { ALL_CYCLES, ALL_GROUPS, ALL_TIERS, CYCLE_LABEL, cycleDef, cycleMonths, entitlementFixedBed, GROUP_LABEL, groupDef, isDayCycle, minTierFor, monthCycle, TIER_LABEL, tierDef, tierRank, VIOLATION_KEEP } from "../domain/catalog";
 import { addDays, daysBetween } from "../lib/format";
 import {
-  activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, honor, invoicesOf, lookups, metricsOf, need,
+  activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, entitlement, honor, invoicesOf, lookups, metricsOf, need,
   nextId, notify, NOW, paymentOf, pkgName, priceOfPkg, scheduledOn, stamp, surchargeMonthly, fixedSurcharge, TODAY, usable, wait,
 } from "./core";
 
@@ -21,6 +21,43 @@ const pending30 = (time: string) => {
   return nh * 60 + nm - (h * 60 + m) >= 30;
 };
 const invNo = (id: number) => `HD-2610-${String(100 + id).padStart(4, "0")}`;
+
+const round1k = (n: number) => Math.round(n / 1000) * 1000;
+const newCode = (prefix: string, taken: string[]) => { let i = taken.length + 1; while (taken.includes(`${prefix}${i}`)) i++; return `${prefix}${i}`; };
+function checkLabel(v: string, others: string[], what: string) {
+  const s = (v ?? "").trim();
+  if (s.length < 2) throw new Error(`${what} tối thiểu 2 ký tự`);
+  if (s.length > 40) throw new Error(`${what} tối đa 40 ký tự`);
+  if (others.some((o) => o.toLowerCase() === s.toLowerCase())) throw new Error(`${what} "${s}" đã có`);
+  return s;
+}
+/** Lý do không xóa được (đã có dữ liệu tham chiếu). Rỗng = xóa được. */
+const catalogUse = {
+  tier: (t: Tier) => {
+    const d = db();
+    const n = d.subscriptions.filter((s) => s.tier === t).length;
+    if (n) return `đã có ${n} đăng ký`;
+    const b = d.beds.filter((x) => x.tier === t).length;
+    if (b) return `còn ${b} giường gán cho hạng này`;
+    if (d.waitlist.some((w) => w.tier === t)) return "đang có trong danh sách chờ";
+    const g = d.groupDefs.filter((x) => x.minTier === t).map((x) => x.label);
+    if (g.length) return `là hạng tối thiểu của nhóm ${g.join(", ")}`;
+    return "";
+  },
+  cycle: (c: Cycle) => {
+    const n = db().subscriptions.filter((s) => s.cycle === c).length;
+    return n ? `đã có ${n} đăng ký` : "";
+  },
+  group: (g: TargetGroup) => {
+    const d = db();
+    const e = d.elderly.filter((x) => x.targetGroup === g || x.declaredGroup === g).length;
+    if (e) return `đang gắn với ${e} hồ sơ cụ`;
+    const s = d.subscriptions.filter((x) => x.targetGroup === g).length;
+    if (s) return `đã có ${s} đăng ký`;
+    if (d.assessments.some((a) => a.proposedGroup === g)) return "có trong kết quả đánh giá";
+    return "";
+  },
+};
 
 export const manager = {
   // ---------------------------------------------------------------- M1
@@ -179,11 +216,11 @@ export const manager = {
     const e = need(lookups.elderly(s.elderlyId));
     if (tierRank(input.tier) < tierRank(minTierFor(input.group))) throw new Error(`Nhóm ${GROUP_LABEL[input.group]} cần hạng từ ${TIER_LABEL[minTierFor(input.group)]} trở lên (BR-11)`);
     const cap = capacity().find((c) => c.tier === input.tier)!;
-    if (s.cycle !== "DAY" && cap.full) throw new Error(`Hạng ${TIER_LABEL[input.tier]} đã hết chỗ. Chuyển gia đình vào danh sách chờ (BR-71).`);
+    if (!isDayCycle(s.cycle) && cap.full) throw new Error(`Hạng ${TIER_LABEL[input.tier]} đã hết chỗ. Chuyển gia đình vào danh sách chờ (BR-71).`);
     const changedTier = input.tier !== s.tier;
     s.tier = input.tier;
     s.packageId = need(d.packages.find((p) => p.tier === input.tier && p.cycle === s.cycle)).id;
-    s.basePrice = s.cycle === "DAY" ? priceOfPkg(input.tier, "DAY") * (s.dayDates?.length ?? 1) : priceOfPkg(input.tier, s.cycle);
+    s.basePrice = isDayCycle(s.cycle) ? priceOfPkg(input.tier, s.cycle) * (s.dayDates?.length ?? 1) : priceOfPkg(input.tier, s.cycle);
     s.targetGroup = input.group;
     s.surchargeAmount = input.surcharge;
     s.surchargeNote = input.note;
@@ -217,7 +254,7 @@ export const manager = {
     const s = need(byId(d.subscriptions, subId));
     const total = Math.max(1, daysBetween(s.startDate, s.endDate) + 1);
     const left = Math.max(0, daysBetween(TODAY, s.endDate) + 1);
-    const months = Math.max(1, s.cycle === "Q" ? 3 : s.cycle === "Y" ? 12 : 1);
+    const months = Math.max(1, cycleMonths(s.cycle));
     const toTier: Tier = tierRank(s.tier) < tierRank(minTierFor(group)) ? minTierFor(group) : s.tier;
     const round = (n: number) => Math.round(n / 1000) * 1000;
     const surcharge = round((monthlySurcharge * months * left) / total);
@@ -388,12 +425,178 @@ export const manager = {
   async packages() {
     await wait();
     const d = db();
+    const subsUsing = (f: (x: (typeof d.subscriptions)[number]) => boolean) => d.subscriptions.filter(f).length;
     return {
-      packages: d.packages.map((p) => ({ pkg: p, active: d.subscriptions.filter((s) => s.packageId === p.id && s.status === "ACTIVE").length })),
+      packages: d.packages.map((p) => ({ pkg: p, active: d.subscriptions.filter((s) => s.packageId === p.id && s.status === "ACTIVE").length, used: subsUsing((s) => s.packageId === p.id) })),
       entitlements: d.entitlements,
+      perks: d.perks,
       capacity: capacity(),
-      groups: (["MOBILE", "CHRONIC", "REHAB", "DEMENTIA", "STROKE"] as TargetGroup[]).map((g) => ({ group: g, count: d.elderly.filter((e) => e.targetGroup === g && ["ACTIVE", "PAUSED"].includes(e.status)).length, monthly: surchargeMonthly(g) })),
+      tiers: ALL_TIERS.map((t) => ({ def: need(tierDef(t)), used: subsUsing((s) => s.tier === t), active: subsUsing((s) => s.tier === t && s.status === "ACTIVE"), beds: d.beds.filter((b) => b.tier === t).length, blocker: catalogUse.tier(t) })),
+      cycles: ALL_CYCLES.map((c) => ({ def: need(cycleDef(c)), used: subsUsing((s) => s.cycle === c), active: subsUsing((s) => s.cycle === c && s.status === "ACTIVE"), blocker: catalogUse.cycle(c) })),
+      groups: ALL_GROUPS.map((g) => ({ def: need(groupDef(g)), group: g, count: d.elderly.filter((e) => e.targetGroup === g && ["ACTIVE", "PAUSED"].includes(e.status)).length, blocker: catalogUse.group(g), monthly: surchargeMonthly(g) })),
     };
+  },
+
+  // ---- CRUD hạng / thời hạn / nhóm / quyền lợi (mục 4.1). Đã có người dùng → chỉ ngừng, không xóa.
+  async saveTier(me: User, input: { id?: Tier; label: string; tone: TierDef["tone"]; highlight?: boolean; status: CatalogStatus; copyFrom?: Tier; monthlyPrice?: number }) {
+    await wait();
+    const d = db();
+    const label = checkLabel(input.label, d.tierDefs.filter((x) => x.id !== input.id).map((x) => x.label), "Tên hạng");
+    if (input.highlight) d.tierDefs.forEach((x) => (x.highlight = false));
+    if (input.id) {
+      const t = need(tierDef(input.id));
+      if (input.status === "HIDDEN" && t.status === "ACTIVE" && d.tierDefs.filter((x) => x.status === "ACTIVE").length <= 1) throw new Error("Phải còn ít nhất một hạng đang bán");
+      Object.assign(t, { label, tone: input.tone, highlight: !!input.highlight, status: input.status });
+      audit(me.id, `Sửa hạng ${label}`, "tiers");
+      commit();
+      return t.id;
+    }
+    const src = input.copyFrom ?? [...d.tierDefs].sort((a, b) => b.rank - a.rank)[0]?.id;
+    if (input.monthlyPrice !== undefined && !(input.monthlyPrice > 0)) throw new Error("Nhập giá gói tháng của hạng mới");
+    const id = newCode("TIER", d.tierDefs.map((x) => x.id));
+    d.tierDefs.push({ id, label, tone: input.tone, rank: Math.max(0, ...d.tierDefs.map((x) => x.rank)) + 1, highlight: !!input.highlight, status: input.status });
+    const srcEnt = d.entitlements.find((e) => e.tier === src) ?? d.entitlements[0];
+    const srcMonth = d.packages.find((p) => p.tier === src && p.cycle === monthCycle())?.basePrice || 0;
+    const ratio = input.monthlyPrice && srcMonth ? input.monthlyPrice / srcMonth : 1;
+    d.entitlements.push({ ...srcEnt, tier: id, dailyPrice: round1k(srcEnt.dailyPrice * ratio) });
+    for (const c of d.cycleDefs) {
+      const sp = d.packages.find((p) => p.tier === src && p.cycle === c.id);
+      d.packages.push({ id: nextId(d.packages), tier: id, cycle: c.id, basePrice: round1k((sp?.basePrice ?? 0) * ratio), weekdayOptions: sp?.weekdayOptions, status: "ACTIVE" });
+    }
+    d.services.forEach((sv) => (sv.quota[id] = src ? sv.quota[src] ?? null : null));
+    d.perks.forEach((pk) => (pk.values[id] = src ? pk.values[src] ?? "" : ""));
+    audit(me.id, `Thêm hạng ${label} (sao chép quyền lợi từ ${src ? TIER_LABEL[src] : "—"})`, "tiers");
+    commit();
+    return id;
+  },
+  async moveTier(me: User, id: Tier, dir: -1 | 1) {
+    await wait();
+    const list = [...db().tierDefs].sort((a, b) => a.rank - b.rank);
+    const i = list.findIndex((x) => x.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i].rank, list[j].rank] = [list[j].rank, list[i].rank];
+    audit(me.id, `Đổi thứ tự hạng ${list[i].label}`, "tiers");
+    commit();
+  },
+  async deleteTier(me: User, id: Tier) {
+    await wait();
+    const d = db();
+    const t = need(tierDef(id));
+    const why = catalogUse.tier(id);
+    if (why) throw new Error(`Không xóa được hạng ${t.label}: ${why}. Hãy chuyển sang "Ngừng bán".`);
+    if (t.status === "ACTIVE" && d.tierDefs.filter((x) => x.status === "ACTIVE").length <= 1) throw new Error("Phải còn ít nhất một hạng đang bán");
+    d.tierDefs = d.tierDefs.filter((x) => x.id !== id);
+    d.entitlements = d.entitlements.filter((x) => x.tier !== id);
+    d.packages = d.packages.filter((x) => x.tier !== id);
+    d.services.forEach((sv) => delete sv.quota[id]);
+    d.perks.forEach((pk) => delete pk.values[id]);
+    audit(me.id, `Xóa hạng ${t.label}`, "tiers");
+    commit();
+  },
+
+  async saveCycle(me: User, input: { id?: Cycle; label: string; desc: string; kind: CycleDef["kind"]; months: number; discount: number; weekdayOptions?: number[][]; status: CatalogStatus; reprice?: boolean }) {
+    await wait();
+    const d = db();
+    const label = checkLabel(input.label, d.cycleDefs.filter((x) => x.id !== input.id).map((x) => x.label), "Tên thời hạn");
+    if (input.kind === "PERIOD" && (!Number.isInteger(input.months) || input.months < 1 || input.months > 24)) throw new Error("Số tháng từ 1 đến 24");
+    const months = input.kind === "DAY" ? 0 : input.kind === "WEEKLY" ? 1 : input.months;
+    if (!(input.discount >= 0 && input.discount <= 0.5)) throw new Error("Giảm giá từ 0% đến 50%");
+    const weekdayOptions = input.kind === "WEEKLY" ? (input.weekdayOptions ?? []).filter((w) => w.length) : undefined;
+    if (input.kind === "WEEKLY" && !weekdayOptions?.length) throw new Error("Chọn ít nhất một bộ ngày cố định trong tuần");
+    if (weekdayOptions?.some((w) => w.some((x) => x < 1 || x > 6))) throw new Error("Ngày trong tuần chỉ từ T2 đến T7");
+    const month = (t: Tier) => d.packages.find((p) => p.tier === t && p.cycle === monthCycle())?.basePrice ?? 0;
+    const suggest = (t: Tier) =>
+      input.kind === "DAY" ? entitlement(t).dailyPrice
+      : input.kind === "WEEKLY" ? round1k(month(t) * (weekdayOptions![0].length / 6) * (1 - input.discount))
+      : round1k(month(t) * months * (1 - input.discount));
+    if (input.id) {
+      const c = need(cycleDef(input.id));
+      if (catalogUse.cycle(c.id) && (c.kind !== input.kind || c.months !== months)) throw new Error(`Đã có cụ dùng ${c.label}: không đổi được loại hoặc số tháng, chỉ sửa tên, mô tả, giảm giá, trạng thái`);
+      if (c.id === monthCycle() && (input.kind !== "PERIOD" || months !== 1)) throw new Error(`${c.label} là giá tham chiếu (1 tháng), không đổi loại hoặc số tháng`);
+      if (input.status === "HIDDEN" && c.status === "ACTIVE" && d.cycleDefs.filter((x) => x.status === "ACTIVE").length <= 1) throw new Error("Phải còn ít nhất một thời hạn đang bán");
+      Object.assign(c, { label, desc: input.desc.trim(), kind: input.kind, months, discount: input.discount, weekdayOptions, status: input.status });
+      const rows = d.packages.filter((p) => p.cycle === c.id);
+      rows.forEach((p) => (p.weekdayOptions = weekdayOptions));
+      if (input.reprice && c.id !== monthCycle()) rows.forEach((p) => (p.basePrice = suggest(p.tier)));
+      audit(me.id, `Sửa thời hạn ${label}${input.reprice ? " (tính lại giá)" : ""}`, "cycles");
+      commit();
+      return c.id;
+    }
+    const id = newCode("CYCLE", d.cycleDefs.map((x) => x.id));
+    d.cycleDefs.push({ id, label, desc: input.desc.trim(), kind: input.kind, months, discount: input.discount, weekdayOptions, rank: Math.max(0, ...d.cycleDefs.map((x) => x.rank)) + 1, status: input.status });
+    for (const t of d.tierDefs) d.packages.push({ id: nextId(d.packages), tier: t.id, cycle: id, basePrice: suggest(t.id), weekdayOptions, status: "ACTIVE" });
+    audit(me.id, `Thêm thời hạn ${label}`, "cycles");
+    commit();
+    return id;
+  },
+  async deleteCycle(me: User, id: Cycle) {
+    await wait();
+    const d = db();
+    const c = need(cycleDef(id));
+    if (catalogUse.cycle(id)) throw new Error(`Không xóa được ${c.label}: ${catalogUse.cycle(id)}. Hãy chuyển sang "Ngừng bán".`);
+    if (id === monthCycle()) throw new Error(`${c.label} là giá tham chiếu cho các thời hạn khác, không xóa được`);
+    if (c.status === "ACTIVE" && d.cycleDefs.filter((x) => x.status === "ACTIVE").length <= 1) throw new Error("Phải còn ít nhất một thời hạn đang bán");
+    d.cycleDefs = d.cycleDefs.filter((x) => x.id !== id);
+    d.packages = d.packages.filter((x) => x.cycle !== id);
+    audit(me.id, `Xóa thời hạn ${c.label}`, "cycles");
+    commit();
+  },
+
+  async saveGroup(me: User, input: Omit<GroupDef, "id" | "rank"> & { id?: TargetGroup; monthly: number }) {
+    await wait();
+    const d = db();
+    const label = checkLabel(input.label, d.groupDefs.filter((x) => x.id !== input.id).map((x) => x.label), "Tên nhóm");
+    if (!tierDef(input.minTier)) throw new Error("Chọn hạng tối thiểu");
+    if (!input.who.trim()) throw new Error("Nhập mô tả nhóm dành cho ai");
+    if (!(input.monthly >= 0) || input.monthly % 1000) throw new Error("Phụ phí tháng là số tiền ≥ 0, làm tròn nghìn đồng");
+    if (!(Number.isInteger(input.reassessMonths) && input.reassessMonths >= 1 && input.reassessMonths <= 12)) throw new Error("Chu kỳ đánh giá lại từ 1 đến 12 tháng");
+    const fields = { label, tone: input.tone, who: input.who.trim(), care: input.care.map((x) => x.trim()).filter(Boolean), watch: input.watch.trim(), report: input.report.trim(), limits: input.limits.trim() || "—", owner: input.owner.trim(), reassessMonths: input.reassessMonths, minTier: input.minTier, disease: input.disease, status: input.status };
+    let id = input.id;
+    if (id) {
+      const g = need(groupDef(id));
+      if (input.status === "HIDDEN" && g.status === "ACTIVE" && d.groupDefs.filter((x) => x.status === "ACTIVE").length <= 1) throw new Error("Phải còn ít nhất một nhóm đang nhận");
+      Object.assign(g, fields);
+    } else {
+      id = newCode("GROUP", d.groupDefs.map((x) => x.id));
+      d.groupDefs.push({ id, rank: Math.max(0, ...d.groupDefs.map((x) => x.rank)) + 1, ...fields });
+    }
+    const row = d.groupSurcharges.find((x) => x.group === id);
+    if (row) row.monthly = input.monthly;
+    else d.groupSurcharges.push({ group: id, monthly: input.monthly });
+    audit(me.id, `${input.id ? "Sửa" : "Thêm"} nhóm ${label} · phụ phí ${input.monthly.toLocaleString("vi-VN")}đ/tháng`, "target_groups");
+    commit();
+    return id;
+  },
+  async deleteGroup(me: User, id: TargetGroup) {
+    await wait();
+    const d = db();
+    const g = need(groupDef(id));
+    const why = catalogUse.group(id);
+    if (why) throw new Error(`Không xóa được nhóm ${g.label}: ${why}. Hãy chuyển sang "Ngừng nhận".`);
+    if (g.status === "ACTIVE" && d.groupDefs.filter((x) => x.status === "ACTIVE").length <= 1) throw new Error("Phải còn ít nhất một nhóm đang nhận");
+    d.groupDefs = d.groupDefs.filter((x) => x.id !== id);
+    d.groupSurcharges = d.groupSurcharges.filter((x) => x.group !== id);
+    audit(me.id, `Xóa nhóm ${g.label}`, "target_groups");
+    commit();
+  },
+
+  async savePerk(me: User, input: { id?: number; label: string; values: Record<Tier, string> }) {
+    await wait();
+    const d = db();
+    const label = checkLabel(input.label, d.perks.filter((x) => x.id !== input.id).map((x) => x.label), "Tên quyền lợi");
+    if (input.id) Object.assign(need(byId(d.perks, input.id)), { label, values: input.values });
+    else d.perks.push({ id: nextId(d.perks), label, values: input.values });
+    audit(me.id, `${input.id ? "Sửa" : "Thêm"} quyền lợi "${label}"`, "package_entitlements");
+    commit();
+  },
+  async deletePerk(me: User, id: number) {
+    await wait();
+    const d = db();
+    const pk = need(byId(d.perks, id));
+    d.perks = d.perks.filter((x) => x.id !== id);
+    audit(me.id, `Xóa quyền lợi "${pk.label}"`, "package_entitlements");
+    commit();
   },
   async savePrice(me: User, pkgId: number, price: number, status: "ACTIVE" | "HIDDEN") {
     await wait();
@@ -842,7 +1045,7 @@ export const manager = {
         const today = d.bedAssignments.find((a) => a.bedId === b.id && a.date === TODAY);
         return { bed: b, fixed: lookups.elderly(b.fixedElderlyId), today: lookups.elderly(today?.elderlyId) };
       }),
-      premium: d.elderly.filter((e) => currentSub(e.id)?.tier === "PREMIUM" && ["ACTIVE", "PAUSED"].includes(e.status)),
+      premium: d.elderly.filter((e) => entitlementFixedBed(currentSub(e.id)?.tier) && ["ACTIVE", "PAUSED"].includes(e.status)),
       unassigned: d.elderly.filter((e) => scheduledOn(e.id, TODAY) && !d.bedAssignments.some((a) => a.date === TODAY && a.elderlyId === e.id) && !d.beds.some((b) => b.fixedElderlyId === e.id)),
     };
   },

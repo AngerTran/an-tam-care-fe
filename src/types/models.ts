@@ -3,9 +3,61 @@
 
 export type Role = "ADMIN" | "MANAGER" | "STAFF" | "FAMILY";
 export type Position = "NURSE" | "CAREGIVER";
-export type Tier = "BASIC" | "STANDARD" | "PREMIUM";
-export type Cycle = "DAY" | "M3" | "MONTH" | "Q" | "Y";
-export type TargetGroup = "MOBILE" | "CHRONIC" | "REHAB" | "DEMENTIA" | "STROKE";
+/** Hạng, thời hạn, nhóm đối tượng do Quản lý thêm/sửa/xóa (mục 4.1) → id là chuỗi. Bản mẫu: BASIC/STANDARD/PREMIUM, DAY/M3/MONTH/Q/Y, MOBILE/CHRONIC/REHAB/DEMENTIA/STROKE. */
+export type Tier = string;
+export type Cycle = string;
+export type TargetGroup = string;
+export type CatalogStatus = "ACTIVE" | "HIDDEN";
+/** Hạng dịch vụ. rank: thấp → cao. */
+export interface TierDef {
+  id: Tier;
+  label: string;
+  tone: "blue" | "teal" | "purple" | "orange" | "green" | "red" | "gray";
+  rank: number;
+  /** "Phổ biến" trên trang giới thiệu */
+  highlight?: boolean;
+  status: CatalogStatus;
+}
+/** Thời hạn gói. DAY = chọn từng ngày; WEEKLY = số buổi cố định mỗi tuần (tính theo tháng); PERIOD = đi T2–T7 trong N tháng. */
+export interface CycleDef {
+  id: Cycle;
+  label: string;
+  desc: string;
+  kind: "DAY" | "WEEKLY" | "PERIOD";
+  /** số tháng của một kỳ (DAY = 0) */
+  months: number;
+  /** % giảm so với giá tháng × số tháng (0–0.5) */
+  discount: number;
+  /** WEEKLY: các bộ ngày cố định (1 = T2 … 6 = T7) */
+  weekdayOptions?: number[][];
+  rank: number;
+  status: CatalogStatus;
+}
+/** Nhóm đối tượng (mục 4.1). Phụ phí cố định nằm ở groupSurcharges. */
+export interface GroupDef {
+  id: TargetGroup;
+  label: string;
+  tone: "blue" | "teal" | "purple" | "orange" | "green" | "red" | "gray";
+  who: string;
+  care: string[];
+  watch: string;
+  report: string;
+  limits: string;
+  owner: string;
+  reassessMonths: number;
+  /** hạng tối thiểu được mua (BR-11) */
+  minTier: Tier;
+  /** nhóm bệnh: dịch vụ ⚠ cần điều dưỡng cho phép */
+  disease: boolean;
+  rank: number;
+  status: CatalogStatus;
+}
+/** Dòng quyền lợi tự thêm (ngoài các quyền lợi chuẩn của TierEntitlement). */
+export interface CustomPerk {
+  id: number;
+  label: string;
+  values: Record<Tier, string>;
+}
 
 export interface User {
   id: number;
@@ -221,6 +273,8 @@ export interface Invoice {
   subscriptionId: number;
   number: string;
   kind: "NEW" | "RENEWAL" | "UPGRADE" | "ADDON" | "DAY_BOOKING" | "VIOLATION";
+  /** UPGRADE: hạng đích */
+  upgradeTo?: Tier;
   lines: InvoiceLine[];
   creditUsed: number;
   total: number;

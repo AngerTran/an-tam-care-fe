@@ -7,8 +7,9 @@ import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { ElderlyCell, GroupBadge, SubBadge, TierBadge } from "../../components/domain";
 import { Badge, Button, Card, Chip, EmptyState, ErrorText, Field, KV, Loading, Modal, Note, SelectField, Table, TextArea, cn } from "../../components/ui";
-import { CYCLE_LABEL, GROUP_INFO, GROUP_LABEL, GROUPS, minTierFor, NOT_ACCEPTED, TIER_LABEL } from "../../domain/catalog";
+import { CYCLE_LABEL, defaultGroup, GROUP_INFO, GROUP_LABEL, GROUPS, minTierFor, NOT_ACCEPTED, TIER_LABEL } from "../../domain/catalog";
 import { dm, dmy, hm } from "../../lib/format";
+import { BARTHEL_NOT_ACCEPTED, validateBarthel } from "../../lib/validate";
 import type { TargetGroup } from "../../types/models";
 import { INC_TYPE, LEVEL, SEVERITY, SOURCE } from "../manager/ManagerOps";
 import { IncidentModal, VitalsModal } from "./StaffForms";
@@ -151,7 +152,7 @@ export function StaffAssessments() {
   const qc = useQueryClient();
   const [cur, setCur] = useState<number>();
   const [done, setDone] = useState<{ name: string; outcome: string }>();
-  const [f, setF] = useState({ barthel: "", group: "MOBILE" as TargetGroup, baseline: "", docs: "", note: "", notAccepted: false });
+  const [f, setF] = useState({ barthel: "", group: defaultGroup() as TargetGroup, baseline: "", docs: "", note: "", notAccepted: false });
   const [perm, setPerm] = useState<Record<number, { allowed: boolean; reason: string }>>({});
   const { data, isLoading } = useQuery({ queryKey: ["s-assess", me.id], queryFn: () => staff.assessments(me) });
   const submit = useMutation({ mutationFn: () => staff.submitAssessment(me, cur!, { barthel: Number(f.barthel), group: f.group, baseline: f.baseline, docs: f.docs, note: f.note, notAccepted: f.notAccepted, permissions: Object.entries(perm).map(([k, v]) => ({ serviceId: Number(k), ...v })) }), onSuccess: (outcome) => { qc.invalidateQueries(); setDone({ name: sel?.elderly.fullName ?? "", outcome: outcome || "Đã lưu kết quả" }); setCur(undefined); } });
@@ -161,7 +162,7 @@ export function StaffAssessments() {
   const open = (id: number) => {
     const r = data!.find((x) => x.assessment.id === id)!;
     setCur(id);
-    setF({ barthel: r.assessment.barthel ? String(r.assessment.barthel) : "", group: r.assessment.proposedGroup ?? r.elderly.declaredGroup, baseline: r.assessment.baseline ?? "", docs: r.assessment.diagnosisDocs ?? "", note: r.assessment.nurseNote ?? "", notAccepted: !!r.assessment.notAccepted });
+    setF({ barthel: r.assessment.barthel != null ? String(r.assessment.barthel) : "", group: r.assessment.proposedGroup ?? r.elderly.declaredGroup, baseline: r.assessment.baseline ?? "", docs: r.assessment.diagnosisDocs ?? "", note: r.assessment.nurseNote ?? "", notAccepted: !!r.assessment.notAccepted });
     setPerm(Object.fromEntries(r.permissions.map((p) => [p.serviceId, { allowed: p.allowed, reason: p.reason }])));
   };
   return (
@@ -182,7 +183,7 @@ export function StaffAssessments() {
           ]} />
         )}
       </Card>
-      <Modal open={!!sel} onClose={() => setCur(undefined)} title={sel ? `Đánh giá · ${sel.elderly.fullName}` : ""} width={680} footer={sel && (sel.assessment.status !== "APPROVED" || sel.assessment.kind === "PERIODIC") ? <><Button variant="neutral" onClick={() => setCur(undefined)}>Hủy</Button><Button icon={CircleCheck} disabled={!f.barthel} loading={submit.isPending} onClick={() => submit.mutate()}>Duyệt kết quả</Button></> : undefined}>
+      <Modal open={!!sel} onClose={() => setCur(undefined)} title={sel ? `Đánh giá · ${sel.elderly.fullName}` : ""} width={680} footer={sel && (sel.assessment.status !== "APPROVED" || sel.assessment.kind === "PERIODIC") ? <><Button variant="neutral" onClick={() => setCur(undefined)}>Hủy</Button><Button icon={CircleCheck} disabled={!!validateBarthel(f.barthel)} loading={submit.isPending} onClick={() => submit.mutate()}>Duyệt kết quả</Button></> : undefined}>
         {sel && (
           <div className="space-y-3">
             {sel.assessment.status === "APPROVED" && <Note tone="green">Đã duyệt bởi <b>{sel.approver?.fullName ?? "—"}</b>{sel.assessment.approvedAt && ` lúc ${hm(sel.assessment.approvedAt)} ${dmy(sel.assessment.approvedAt.slice(0, 10))}`}. {sel.assessment.kind !== "PERIODIC" && "Kết quả đã áp dụng, không sửa được."}</Note>}
@@ -193,7 +194,7 @@ export function StaffAssessments() {
               <KV label="Hoạt động tích" w={100}>{sel.choices.map((c) => c.name).join(", ")}</KV>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Field label="Điểm Barthel (0–100)" type="number" min={0} max={100} value={f.barthel} onChange={(e) => { const v = e.target.value; setF({ ...f, barthel: v, notAccepted: sel.assessment.kind !== "PERIODIC" && v !== "" && Number(v) < 20 ? true : f.notAccepted }); }} error={b > 0 && b < 20 ? "Không nhận" : undefined} />
+              <Field label="Điểm Barthel (0–100, bội số của 5)" type="number" min={0} max={100} step={5} value={f.barthel} onChange={(e) => { const v = e.target.value; setF({ ...f, barthel: v, notAccepted: sel.assessment.kind !== "PERIODIC" && v !== "" && !validateBarthel(v) && Number(v) <= BARTHEL_NOT_ACCEPTED ? true : f.notAccepted }); }} error={f.barthel === "" ? undefined : validateBarthel(f.barthel) || (b <= BARTHEL_NOT_ACCEPTED ? `≤ ${BARTHEL_NOT_ACCEPTED}: không nhận (BR-18)` : undefined)} />
               <div className="self-center text-[12px] text-muted">{band}</div>
               <SelectField label="Đề xuất nhóm chính (BR-16)" value={f.group} onChange={(e) => setF({ ...f, group: e.target.value as TargetGroup })}>{GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABEL[g]} (từ hạng {TIER_LABEL[minTierFor(g)]})</option>)}</SelectField>
               <Field label="Chỉ số nền (HA, cân nặng, …)" value={f.baseline} onChange={(e) => setF({ ...f, baseline: e.target.value })} />
