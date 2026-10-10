@@ -69,10 +69,10 @@ const elderly: ElderlyMember[] = [
   em({ id: 6, fullName: "Đỗ Văn Hải", familyUserId: 15, dateOfBirth: "1949-11-30", gender: "Nam", address: "19 Phạm Hùng, Q.8", declaredGroup: "MOBILE", targetGroup: "MOBILE", hobbies: "Đọc báo", careNote: "Đi theo gói ngày khi con đi công tác.", caregiverId: 7, nurseId: 5, tone: "orange" }),
   em({ id: 7, fullName: "Hoàng Thị Mai", familyUserId: 13, dateOfBirth: "1947-04-18", gender: "Nữ", address: "60 Huỳnh Tấn Phát, Q.7", declaredGroup: "DEMENTIA", targetGroup: "DEMENTIA", conditions: ["Alzheimer giai đoạn nhẹ"], diet: "Bình thường", hobbies: "Âm nhạc, cắm hoa", careNote: "Đeo vòng tay nhận diện. Hay hỏi giờ về, cần trấn an. Không để một mình gần cửa ra vào.", caregiverId: 4, nurseId: 3, tone: "purple" }),
   em({ id: 8, fullName: "Lê Thị Huệ", familyUserId: 10, dateOfBirth: "1951-08-08", gender: "Nữ", address: "45 Lê Văn Lương, Q.7", declaredGroup: "MOBILE", hobbies: "Làm bánh, xem phim", status: "PENDING", tone: "green" }),
-  em({ id: 9, fullName: "Bùi Văn Tâm", familyUserId: 16, dateOfBirth: "1945-02-08", gender: "Nam", address: "88 Trần Hưng Đạo, Q.5", declaredGroup: "MOBILE", conditions: ["Cao huyết áp"], diet: "Ăn mềm", careNote: "Gia đình khai đi lại được; điều dưỡng ghi nhận huyết áp không ổn định.", status: "PENDING", tone: "blue" }),
+  em({ id: 9, fullName: "Bùi Văn Tâm", familyUserId: 16, dateOfBirth: "1945-02-08", gender: "Nam", address: "88 Trần Hưng Đạo, Q.5", declaredGroup: "MOBILE", conditions: ["Cao huyết áp"], diet: "Ăn mềm", careNote: "Gia đình khai đi lại được, có ghi cao huyết áp. Điều dưỡng kiểm tra kỹ ở buổi kiểm tra ngày đầu.", status: "PENDING", tone: "blue" }),
   em({ id: 10, fullName: "Ngô Thị Sen", familyUserId: 17, dateOfBirth: "1950-12-01", gender: "Nữ", address: "5 Lý Thường Kiệt, Q.10", declaredGroup: "REHAB", targetGroup: "REHAB", conditions: ["Sau gãy cổ xương đùi (06/2026)"], careNote: "Đi bằng nạng, cần tập đi.", status: "PENDING", tone: "orange" }),
   em({ id: 11, fullName: "Võ Văn Long", familyUserId: 12, dateOfBirth: "1943-07-15", gender: "Nam", address: "3 Nguyễn Hữu Thọ, Q.7", declaredGroup: "MOBILE", targetGroup: "MOBILE", careNote: "Gói tháng 9 đã hết hạn, chưa gia hạn.", caregiverId: 6, nurseId: 5, status: "SUSPENDED", tone: "green" }),
-  em({ id: 12, fullName: "Trịnh Văn Phước", familyUserId: 18, dateOfBirth: "1948-03-03", gender: "Nam", address: "21 Nguyễn Văn Linh, Q.7", declaredGroup: "MOBILE", targetGroup: "MOBILE", conditions: [], careNote: "Muốn hạng Cao cấp (phòng 2 người). Đang trong danh sách chờ.", status: "PENDING", tone: "blue" }),
+  em({ id: 12, fullName: "Trịnh Văn Phước", familyUserId: 18, dateOfBirth: "1948-03-03", gender: "Nam", address: "21 Nguyễn Văn Linh, Q.7", declaredGroup: "MOBILE", conditions: [], careNote: "Muốn hạng Cao cấp (phòng 2 người). Đang trong danh sách chờ, chưa có đăng ký.", status: "PENDING", tone: "blue" }),
   em({ id: 13, fullName: "Lê Văn Thịnh", familyUserId: 11, dateOfBirth: "1938-01-01", gender: "Nam", address: "12 Lê Lợi, Q.1", declaredGroup: "CHRONIC", targetGroup: "CHRONIC", conditions: ["Suy tim"], status: "TERMINATED", tone: "blue" }),
 ];
 
@@ -153,20 +153,19 @@ const sub = (s: SubInput): Subscription => {
   return { packageId: p.id, basePrice: base, discount: 0, createdBy: 0, ...s } as Subscription;
 };
 const subscriptions: Subscription[] = [
-  sub({ id: 1, elderlyId: 1, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "MONTH", startDate: "2026-10-01", endDate: "2026-10-31", surchargeAmount: 600000, surchargeNote: "Theo dõi đường huyết + huyết áp, nhắc thuốc 2 lần/ngày", familyConfirmedAt: t("2026-09-27", "20:10"), status: "ACTIVE", createdAt: t("2026-09-26", "09:00"), createdBy: 10, previousId: 21 }),
-  sub({ id: 2, elderlyId: 2, targetGroup: "REHAB", tier: "PREMIUM", cycle: "MONTH", startDate: "2026-09-15", endDate: "2026-10-14", surchargeAmount: 1000000, surchargeNote: "VLTL phục hồi sau thay khớp háng, cần 1 người đỡ", familyConfirmedAt: t("2026-09-12", "19:40"), status: "ACTIVE", createdAt: t("2026-09-08", "10:00"), createdBy: 10 }),
-  sub({ id: 3, elderlyId: 3, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "Q", startDate: "2026-09-01", endDate: "2026-11-30", surchargeAmount: 1500000, surchargeNote: "500.000đ/tháng · theo dõi huyết áp 2 lần/ngày", familyConfirmedAt: t("2026-08-29", "21:00"), status: "ACTIVE", createdAt: t("2026-08-25", "09:00"), createdBy: 11 }),
+  sub({ id: 1, elderlyId: 1, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "MONTH", startDate: "2026-10-01", endDate: "2026-10-31", surchargeAmount: 600000, surchargeNote: "Phụ phí cố định nhóm Bệnh mãn tính", familyConfirmedAt: t("2026-09-27", "20:10"), status: "ACTIVE", createdAt: t("2026-09-26", "09:00"), createdBy: 10, previousId: 21 }),
+  sub({ id: 2, elderlyId: 2, targetGroup: "REHAB", tier: "PREMIUM", cycle: "MONTH", startDate: "2026-09-15", endDate: "2026-10-14", surchargeAmount: 1000000, surchargeNote: "Phụ phí cố định nhóm Phục hồi chức năng", familyConfirmedAt: t("2026-09-12", "19:40"), status: "ACTIVE", createdAt: t("2026-09-08", "10:00"), createdBy: 10 }),
+  sub({ id: 3, elderlyId: 3, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "Q", startDate: "2026-09-01", endDate: "2026-11-30", surchargeAmount: 1800000, surchargeNote: "Phụ phí cố định nhóm Bệnh mãn tính (600.000đ × 3 tháng)", familyConfirmedAt: t("2026-08-29", "21:00"), status: "ACTIVE", createdAt: t("2026-08-25", "09:00"), createdBy: 11 }),
   sub({ id: 4, elderlyId: 4, targetGroup: "MOBILE", tier: "BASIC", cycle: "M3", weekdays: [1, 3, 5], startDate: "2026-10-01", endDate: "2026-10-31", surchargeAmount: 0, familyConfirmedAt: t("2026-09-28", "18:00"), status: "ACTIVE", createdAt: t("2026-09-26", "11:00"), createdBy: 14 }),
-  sub({ id: 5, elderlyId: 5, targetGroup: "STROKE", tier: "PREMIUM", cycle: "MONTH", startDate: "2026-10-01", endDate: "2026-11-18", surchargeAmount: 1200000, surchargeNote: "VLTL phục hồi hằng ngày, đo huyết áp 3 lần/ngày, hỗ trợ ăn", familyConfirmedAt: t("2026-09-29", "20:00"), status: "PAUSED", pausedUntil: "2026-10-20", createdAt: t("2026-09-25", "09:00"), createdBy: 12 }),
-  sub({ id: 6, elderlyId: 6, targetGroup: "MOBILE", tier: "BASIC", cycle: "DAY", dayDates: ["2026-10-07", "2026-10-09", "2026-10-14"], startDate: "2026-10-07", endDate: "2026-10-14", surchargeAmount: 0, familyConfirmedAt: t("2026-10-05", "08:00"), status: "ACTIVE", createdAt: t("2026-10-05", "07:50"), createdBy: 15 }),
-  sub({ id: 7, elderlyId: 7, targetGroup: "DEMENTIA", tier: "STANDARD", cycle: "MONTH", startDate: "2026-09-20", endDate: "2026-10-19", surchargeAmount: 800000, surchargeNote: "Khu kiểm soát ra vào, vòng tay nhận diện, ghi hành vi", familyConfirmedAt: t("2026-09-17", "21:30"), status: "ACTIVE", createdAt: t("2026-09-14", "09:00"), createdBy: 13 }),
-  sub({ id: 8, elderlyId: 8, targetGroup: "MOBILE", tier: "BASIC", cycle: "MONTH", startDate: "2026-10-15", endDate: "2026-11-14", surchargeAmount: 0, status: "PENDING_ASSESSMENT", createdAt: t("2026-10-07", "21:05"), createdBy: 10 }),
-  sub({ id: 9, elderlyId: 9, targetGroup: "MOBILE", tier: "BASIC", cycle: "MONTH", startDate: "2026-10-12", endDate: "2026-11-11", surchargeAmount: 0, status: "PENDING_ASSESSMENT", createdAt: t("2026-10-03", "10:10"), createdBy: 16 }),
-  sub({ id: 10, elderlyId: 10, targetGroup: "REHAB", tier: "STANDARD", cycle: "MONTH", startDate: "2026-10-12", endDate: "2026-11-11", surchargeAmount: 800000, surchargeNote: "Tập đi với nạng 3 buổi/tuần, điều dưỡng hướng dẫn", status: "AWAITING_PAYMENT", createdAt: t("2026-10-01", "10:58"), createdBy: 17 }),
+  sub({ id: 5, elderlyId: 5, targetGroup: "STROKE", tier: "PREMIUM", cycle: "MONTH", startDate: "2026-10-01", endDate: "2026-11-18", surchargeAmount: 1200000, surchargeNote: "Phụ phí cố định nhóm Sau tai biến", familyConfirmedAt: t("2026-09-29", "20:00"), status: "PAUSED", pausedUntil: "2026-10-20", createdAt: t("2026-09-25", "09:00"), createdBy: 12 }),
+  sub({ id: 6, elderlyId: 6, targetGroup: "MOBILE", tier: "BASIC", cycle: "DAY", dayDates: ["2026-10-07", "2026-10-09", "2026-10-14"], startDate: "2026-10-07", endDate: "2026-10-14", surchargeAmount: 0, commitmentAt: t("2026-10-05", "07:55"), familyConfirmedAt: t("2026-10-05", "07:55"), status: "ACTIVE", createdAt: t("2026-10-05", "07:50"), createdBy: 15 }),
+  sub({ id: 7, elderlyId: 7, targetGroup: "DEMENTIA", tier: "STANDARD", cycle: "MONTH", startDate: "2026-09-20", endDate: "2026-10-19", surchargeAmount: 800000, surchargeNote: "Phụ phí cố định nhóm Sa sút trí tuệ", familyConfirmedAt: t("2026-09-17", "21:30"), status: "ACTIVE", createdAt: t("2026-09-14", "09:00"), createdBy: 13 }),
+  sub({ id: 8, elderlyId: 8, targetGroup: "MOBILE", tier: "BASIC", cycle: "MONTH", startDate: "2026-10-15", endDate: "2026-11-14", surchargeAmount: 0, commitmentAt: t("2026-10-07", "21:06"), familyConfirmedAt: t("2026-10-07", "21:06"), status: "AWAITING_PAYMENT", createdAt: t("2026-10-07", "21:05"), createdBy: 10 }),
+  sub({ id: 9, elderlyId: 9, targetGroup: "MOBILE", tier: "BASIC", cycle: "MONTH", startDate: "2026-10-12", endDate: "2026-11-11", surchargeAmount: 0, commitmentAt: t("2026-10-03", "10:12"), familyConfirmedAt: t("2026-10-03", "10:12"), status: "AWAITING_PAYMENT", createdAt: t("2026-10-03", "10:10"), createdBy: 16 }),
+  sub({ id: 10, elderlyId: 10, targetGroup: "REHAB", tier: "STANDARD", cycle: "MONTH", startDate: "2026-10-12", endDate: "2026-11-11", surchargeAmount: 1000000, surchargeNote: "Phụ phí cố định nhóm Phục hồi chức năng", commitmentAt: t("2026-10-03", "10:00"), familyConfirmedAt: t("2026-10-03", "10:00"), status: "AWAITING_PAYMENT", createdAt: t("2026-10-01", "10:58"), createdBy: 17 }),
   sub({ id: 11, elderlyId: 11, targetGroup: "MOBILE", tier: "BASIC", cycle: "MONTH", startDate: "2026-09-01", endDate: "2026-09-30", surchargeAmount: 0, familyConfirmedAt: t("2026-08-28", "09:00"), status: "SUSPENDED", createdAt: t("2026-08-27", "09:00"), createdBy: 12 }),
-  sub({ id: 12, elderlyId: 12, targetGroup: "MOBILE", tier: "PREMIUM", cycle: "MONTH", startDate: "2026-10-15", endDate: "2026-11-14", surchargeAmount: 0, status: "PENDING_ASSESSMENT", createdAt: t("2026-10-01", "08:30"), createdBy: 18 }),
-  sub({ id: 13, elderlyId: 13, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "Q", startDate: "2026-07-01", endDate: "2026-09-30", surchargeAmount: 1500000, familyConfirmedAt: t("2026-06-28", "09:00"), status: "TERMINATED", createdAt: t("2026-06-25", "09:00"), createdBy: 11 }),
-  sub({ id: 21, elderlyId: 1, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "MONTH", startDate: "2026-09-01", endDate: "2026-09-30", surchargeAmount: 600000, familyConfirmedAt: t("2026-08-28", "09:00"), status: "EXPIRED", createdAt: t("2026-08-26", "09:00"), createdBy: 10 }),
+  sub({ id: 13, elderlyId: 13, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "Q", startDate: "2026-07-01", endDate: "2026-09-30", surchargeAmount: 1800000, surchargeNote: "Phụ phí cố định nhóm Bệnh mãn tính (600.000đ × 3 tháng)", familyConfirmedAt: t("2026-06-28", "09:00"), status: "TERMINATED", createdAt: t("2026-06-25", "09:00"), createdBy: 11 }),
+  sub({ id: 21, elderlyId: 1, targetGroup: "CHRONIC", tier: "STANDARD", cycle: "MONTH", startDate: "2026-09-01", endDate: "2026-09-30", surchargeAmount: 600000, surchargeNote: "Phụ phí cố định nhóm Bệnh mãn tính", familyConfirmedAt: t("2026-08-28", "09:00"), status: "EXPIRED", createdAt: t("2026-08-26", "09:00"), createdBy: 10 }),
 ];
 
 const choose = (subscriptionId: number, ids: number[], effectiveFrom: string) => ids.map((serviceId) => ({ subscriptionId, serviceId, effectiveFrom }));
@@ -182,7 +181,6 @@ const serviceChoices: ServiceChoice[] = [
   ...choose(9, [12, 13, 15, 16, 17], "2026-10-12"),
   ...choose(10, [11, 13, 15, 16, 17, 18, 20], "2026-10-12"),
   ...choose(11, [15, 16, 18, 20], "2026-09-01"),
-  ...choose(12, [11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "2026-10-15"),
 ];
 const addOns: AddOn[] = [
   { id: 1, subscriptionId: 1, serviceId: 34, quantity: 1, price: 60000, createdAt: t("2026-09-26", "09:00") },
@@ -201,6 +199,8 @@ const servicePermissions: ServicePermission[] = [
   { elderlyId: 5, serviceId: 13, allowed: true, reason: "Chân trái, chế độ nhẹ", nurseId: 5, date: "2026-09-28" },
   { elderlyId: 5, serviceId: 14, allowed: false, reason: "Giảm cảm giác bên liệt, nguy cơ bỏng", nurseId: 5, date: "2026-09-28" },
   { elderlyId: 7, serviceId: 13, allowed: true, reason: "Không chống chỉ định", nurseId: 3, date: "2026-09-18" },
+  { elderlyId: 15, serviceId: 12, allowed: false, reason: "HA 172/98 ở buổi kiểm tra ngày đầu, chờ ổn định", nurseId: 3, date: "2026-10-08" },
+  { elderlyId: 15, serviceId: 13, allowed: true, reason: "Chế độ nhẹ, không chống chỉ định", nurseId: 3, date: "2026-10-08" },
 ];
 
 const assessments: Assessment[] = [
@@ -211,11 +211,12 @@ const assessments: Assessment[] = [
   { id: 5, elderlyId: 5, subscriptionId: 5, kind: "INITIAL", scheduledAt: t("2026-09-26", "09:00"), nurseId: 5, barthel: 55, proposedGroup: "STROKE", baseline: "HA 150/90 · 48kg · yếu tay chân phải", diagnosisDocs: "Giấy ra viện BV Nhân dân 115 (12/2025)", nurseNote: "Nói chậm, nuốt chậm. Cần thức ăn mềm.", doneAt: t("2026-09-26", "09:50"), status: "APPROVED", approvedBy: 5, approvedAt: t("2026-09-26", "09:50") },
   { id: 6, elderlyId: 6, subscriptionId: 6, kind: "INITIAL", scheduledAt: t("2026-10-05", "07:30"), nurseId: 5, barthel: 100, proposedGroup: "MOBILE", baseline: "HA 122/80 · 66kg", nurseNote: "Đi thử gói ngày.", doneAt: t("2026-10-05", "07:45"), status: "APPROVED", approvedBy: 5, approvedAt: t("2026-10-05", "07:45") },
   { id: 7, elderlyId: 7, subscriptionId: 7, kind: "INITIAL", scheduledAt: t("2026-09-15", "09:00"), nurseId: 3, barthel: 85, proposedGroup: "DEMENTIA", baseline: "MMSE 21/30 · HA 130/80", diagnosisDocs: "Kết luận BV Đại học Y Dược", nurseNote: "Hay hỏi lặp lại, có lúc muốn đi về. Không kích động.", doneAt: t("2026-09-15", "09:45"), status: "APPROVED", approvedBy: 3, approvedAt: t("2026-09-15", "09:45") },
-  { id: 8, elderlyId: 8, subscriptionId: 8, kind: "INITIAL", scheduledAt: t("2026-10-10", "09:00"), nurseId: 3, status: "SCHEDULED" },
-  { id: 9, elderlyId: 9, subscriptionId: 9, kind: "INITIAL", scheduledAt: t(DEMO_TODAY, "10:30"), nurseId: 3, status: "SCHEDULED" },
+  { id: 8, elderlyId: 8, subscriptionId: 8, kind: "FIRST_DAY", scheduledAt: t("2026-10-15", "08:00"), nurseId: 3, status: "SCHEDULED" },
+  { id: 9, elderlyId: 9, subscriptionId: 9, kind: "FIRST_DAY", scheduledAt: t("2026-10-12", "08:00"), nurseId: 3, status: "SCHEDULED" },
   { id: 10, elderlyId: 10, subscriptionId: 10, kind: "INITIAL", scheduledAt: t("2026-10-03", "09:00"), nurseId: 5, barthel: 75, proposedGroup: "REHAB", baseline: "HA 130/85 · 55kg · đi 15m với nạng", diagnosisDocs: "Giấy ra viện BV Chấn thương chỉnh hình", nurseNote: "Tập đi 3 buổi/tuần.", doneAt: t("2026-10-03", "09:40"), status: "APPROVED", approvedBy: 5, approvedAt: t("2026-10-03", "09:40") },
-  { id: 11, elderlyId: 12, subscriptionId: 12, kind: "INITIAL", scheduledAt: t("2026-10-13", "09:00"), nurseId: 5, status: "SCHEDULED" },
   { id: 12, elderlyId: 2, kind: "PERIODIC", scheduledAt: t("2026-10-12", "09:00"), nurseId: 3, status: "SCHEDULED" },
+  { id: 15, elderlyId: 11, subscriptionId: 11, kind: "INITIAL", scheduledAt: t("2026-08-26", "09:00"), nurseId: 5, barthel: 100, proposedGroup: "MOBILE", baseline: "HA 124/78 · 62kg", nurseNote: "Tự lập hoàn toàn.", doneAt: t("2026-08-26", "09:20"), status: "APPROVED", approvedBy: 5, approvedAt: t("2026-08-26", "09:20") },
+  { id: 16, elderlyId: 13, subscriptionId: 13, kind: "INITIAL", scheduledAt: t("2026-06-26", "09:00"), nurseId: 3, barthel: 80, proposedGroup: "CHRONIC", baseline: "HA 140/88 · phù nhẹ hai chân", diagnosisDocs: "Sổ theo dõi suy tim BV Tim Tâm Đức", nurseNote: "Suy tim, cần theo dõi chỉ số và thuốc.", doneAt: t("2026-06-26", "09:40"), status: "APPROVED", approvedBy: 3, approvedAt: t("2026-06-26", "09:40") },
 ];
 
 const waitlist: WaitlistEntry[] = [
@@ -232,16 +233,16 @@ const P = (tier: "BASIC" | "STANDARD" | "PREMIUM", cycle: "DAY" | "M3" | "MONTH"
 const invoices: Invoice[] = [
   inv(1, 1, "HD-2609-0101", "RENEWAL", [["Gói tháng · Tiêu chuẩn (01/10–31/10)", P("STANDARD", "MONTH")], ["Phụ phí nhóm Bệnh mãn tính", 600000], ["Cắt tóc, gội đầu × 1", 60000]], "2026-09-26", "PAID"),
   inv(2, 2, "HD-2609-0088", "NEW", [["Gói tháng · Cao cấp (15/09–14/10)", P("PREMIUM", "MONTH")], ["Phụ phí nhóm Phục hồi chức năng", 1000000], ["Sữa dinh dưỡng × 1 tháng", 450000]], "2026-09-12", "PAID"),
-  inv(3, 3, "HD-2608-0061", "NEW", [["Gói quý · Tiêu chuẩn (01/09–30/11)", P("STANDARD", "Q")], ["Phụ phí nhóm Bệnh mãn tính (3 tháng)", 1500000]], "2026-08-29", "PAID"),
+  inv(3, 3, "HD-2608-0061", "NEW", [["Gói quý · Tiêu chuẩn (01/09–30/11)", P("STANDARD", "Q")], ["Phụ phí nhóm Bệnh mãn tính (3 tháng)", 1800000]], "2026-08-29", "PAID"),
   inv(4, 4, "HD-2609-0097", "NEW", [["Tháng 3 buổi/tuần · Cơ bản (T2-4-6)", P("BASIC", "M3")]], "2026-09-28", "PAID"),
   inv(5, 5, "HD-2609-0099", "NEW", [["Gói tháng · Cao cấp (01/10–31/10)", P("PREMIUM", "MONTH")], ["Phụ phí nhóm Sau tai biến", 1200000], ["Phục hồi chức năng 1-1 × 4 buổi", 1000000]], "2026-09-29", "PAID"),
   inv(6, 6, "HD-2610-0104", "DAY_BOOKING", [["Gói ngày · Cơ bản × 3 ngày (07, 09, 14/10)", P("BASIC", "DAY") * 3]], "2026-10-05", "PAID"),
   inv(7, 7, "HD-2609-0092", "NEW", [["Gói tháng · Tiêu chuẩn (20/09–19/10)", P("STANDARD", "MONTH")], ["Phụ phí nhóm Sa sút trí tuệ", 800000]], "2026-09-17", "PAID"),
-  inv(8, 10, "HD-2610-0106", "NEW", [["Gói tháng · Tiêu chuẩn (12/10–11/11)", P("STANDARD", "MONTH")], ["Phụ phí nhóm Phục hồi chức năng", 800000]], "2026-10-03", "UNPAID"),
+  inv(8, 10, "HD-2610-0106", "NEW", [["Gói tháng · Tiêu chuẩn (12/10–11/11)", P("STANDARD", "MONTH")], ["Phụ phí nhóm Phục hồi chức năng", 1000000]], "2026-10-03", "UNPAID"),
   inv(9, 11, "HD-2608-0070", "NEW", [["Gói tháng · Cơ bản (01/09–30/09)", P("BASIC", "MONTH")]], "2026-08-28", "PAID"),
   inv(10, 11, "HD-2609-0102", "RENEWAL", [["Gói tháng · Cơ bản (01/10–31/10)", P("BASIC", "MONTH")]], "2026-09-24", "UNPAID"),
   inv(11, 2, "HD-2610-0107", "RENEWAL", [["Gói tháng · Cao cấp (15/10–14/11)", P("PREMIUM", "MONTH")], ["Phụ phí nhóm Phục hồi chức năng", 1000000]], "2026-10-07", "UNPAID"),
-  inv(12, 13, "HD-2606-0040", "NEW", [["Gói quý · Tiêu chuẩn (01/07–30/09)", P("STANDARD", "Q")], ["Phụ phí nhóm Bệnh mãn tính (3 tháng)", 1500000]], "2026-06-28", "REFUNDED"),
+  inv(12, 13, "HD-2606-0040", "NEW", [["Gói quý · Tiêu chuẩn (01/07–30/09)", P("STANDARD", "Q")], ["Phụ phí nhóm Bệnh mãn tính (3 tháng)", 1800000]], "2026-06-28", "REFUNDED"),
   inv(13, 21, "HD-2608-0066", "NEW", [["Gói tháng · Tiêu chuẩn (01/09–30/09)", P("STANDARD", "MONTH")], ["Phụ phí nhóm Bệnh mãn tính", 600000]], "2026-08-28", "PAID"),
 ];
 const pay = (id: number, invoiceId: number, payerId: number, method: Payment["method"], code: string, paidAt: string, status: Payment["status"] = "SUCCESS"): Payment =>
@@ -260,7 +261,7 @@ const payments: Payment[] = [
   pay(11, 8, 17, "MOMO", "MOMO-78110", t("2026-10-04", "22:01"), "FAILED"),
 ];
 const refunds: Refund[] = [
-  { id: 1, subscriptionId: 13, paymentId: 9, amount: 6500000, reason: "Cụ qua đời ngày 05/09. Hoàn phần chưa dùng của gói quý (26 ngày).", status: "DONE", createdAt: t("2026-09-08", "10:00"), processedBy: 2 },
+  { id: 1, subscriptionId: 13, paymentId: 9, amount: 8388000, reason: "Cụ qua đời ngày 05/09. Hoàn phần chưa dùng của gói quý (25/92 ngày, 06/09–30/09).", status: "DONE", createdAt: t("2026-09-08", "10:00"), processedBy: 2 },
 ];
 const credits: AccountCredit[] = [
   { id: 1, familyUserId: 15, elderlyId: 6, amount: 350000, reason: "Báo nghỉ ngày 14/10 trước 17h hôm trước (gói ngày)", createdAt: t("2026-10-09", "07:20") },
@@ -275,7 +276,7 @@ const absences: AbsenceRequest[] = [
 ];
 const pauses: PauseRequest[] = [
   { id: 1, subscriptionId: 5, kind: "HOSPITAL", fromDate: "2026-10-03", toDate: "2026-10-20", document: "giay-nhap-vien-bv115.pdf", note: "Nhập viện theo dõi sau dấu hiệu tái phát ngày 02/10.", requestedBy: 12, createdAt: t("2026-10-03", "09:00"), status: "APPROVED", reviewedBy: 2 },
-  { id: 2, subscriptionId: 13, kind: "DEATH", fromDate: "2026-09-05", document: "giay-chung-tu.pdf", note: "Gia đình báo cụ mất ngày 05/09.", requestedBy: 11, createdAt: t("2026-09-07", "09:00"), refundAmount: 6500000, status: "APPROVED", reviewedBy: 2 },
+  { id: 2, subscriptionId: 13, kind: "DEATH", fromDate: "2026-09-05", document: "giay-chung-tu.pdf", note: "Gia đình báo cụ mất ngày 05/09.", requestedBy: 11, createdAt: t("2026-09-07", "09:00"), refundAmount: 8388000, status: "APPROVED", reviewedBy: 2 },
 ];
 
 // ------------------------------------------------------------------ facilities
@@ -395,7 +396,7 @@ const ACTIVE_IDS = [1, 2, 3, 4, 6, 7];
 const goesOn = (id: number, date: string) => {
   const d = dow(date);
   if (d === 0) return false;
-  if (id === 4) return [1, 3, 5].includes(d);
+  if (id === 4) return date >= "2026-10-01" && [1, 3, 5].includes(d);
   if (id === 6) return ["2026-10-07", "2026-10-09"].includes(date);
   return true;
 };
@@ -527,17 +528,15 @@ const history = (id: number, date: string, staff: number, nurse: number) => {
 };
 for (let i = 1; i <= 6; i++) for (const id of [1, 2, 3, 7]) history(id, addDays(DEMO_TODAY, -i), CG[id], 3);
 E(1, "2026-10-08", "13:40", "NOTE", "Lưu ý", "Bà than mỏi gối sau đi bộ, đã chườm ấm 10 phút.", 4, { important: true });
-E(7, "2026-10-08", "10:20", "INCIDENT", "Sự cố hành vi", "Bà đi ra hành lang tìm cửa về nhà, hộ lý đưa về khu sinh hoạt sau 3 phút.", 4, { important: true });
+E(7, "2026-10-08", "10:20", "INCIDENT", "Sự cố hành vi", "Bà đi ra hành lang tìm cửa về nhà, hộ lý Bảo báo, điều dưỡng đưa về khu sinh hoạt sau 3 phút.", 3, { important: true });
 
 const careLogDays: CareLogDay[] = [];
-for (let i = 1; i <= 6; i++)
-  for (const id of [1, 2, 3, 7]) {
-    const date = addDays(DEMO_TODAY, -i);
-    if (!attendance.some((a) => a.elderlyId === id && a.date === date && a.status === "LEFT")) continue;
+for (const a0 of attendance.filter((a) => a.status === "LEFT" && a.date < DEMO_TODAY))
+  {
+    const id = a0.elderlyId, date = a0.date, i = Math.round((+new Date(DEMO_TODAY) - +new Date(date)) / 864e5);
     const byMgr = id === 3 && i === 2;
     careLogDays.push({ elderlyId: id, date, status: "CLOSED", closedBy: byMgr ? 2 : CG[id], closedAt: t(date, byMgr ? "20:00" : "16:40"), closedByManager: byMgr });
   }
-careLogDays.push({ elderlyId: 6, date: "2026-10-07", status: "OPEN" });
 for (const id of [1, 2, 3, 6, 7]) careLogDays.push({ elderlyId: id, date: DEMO_TODAY, status: "OPEN" });
 const careLogEdits: CareLogEdit[] = [
   { id: 1, entryId: careLogEntries.find((x) => x.elderlyId === 3 && x.date === addDays(DEMO_TODAY, -2) && x.kind === "MEAL")?.id ?? 1, elderlyId: 3, date: addDays(DEMO_TODAY, -2), editedBy: 2, editedAt: t(addDays(DEMO_TODAY, -1), "08:30"), before: "Ăn hết · 2 cốc nước", after: "Ăn 1/2 · 2 cốc nước", reason: "Hộ lý ghi nhầm với cụ khác, đã đối chiếu sổ phòng ăn" },
@@ -666,10 +665,10 @@ const notifications: Notification[] = [
   nf(3, 10, "CARE_LOG", "Ông Minh tập VLTL xong", "Đi được 14m với thanh song song", t(DEMO_TODAY, "09:15"), false, "/family"),
   nf(4, 10, "CARE_LOG", "Có 2 ảnh mới của bà Lan", "Tập xe đạp, đọc báo cùng nhóm", t(DEMO_TODAY, "10:05"), false, "/family"),
   nf(5, 10, "PAYMENT", "Nhắc gia hạn gói của ông Minh", "Gói Cao cấp hết hạn 14/10. Hóa đơn HD-2610-0107 đã sẵn sàng.", t("2026-10-07", "08:00"), false, "/family/packages"),
-  nf(6, 10, "SYSTEM", "Lịch đánh giá đầu vào cho bà Huệ", "Thứ 7, 10/10 lúc 09:00 tại phòng y tế", t("2026-10-08", "09:00"), true),
+  nf(6, 10, "SYSTEM", "Đăng ký của bà Huệ đang chờ thanh toán", "Thanh toán trước ngày 15/10. Điều dưỡng kiểm tra ngày đầu lúc 08:00 khi bà đến.", t("2026-10-07", "21:06"), true),
   nf(7, 10, "SYSTEM", "Danh sách chờ hạng Cao cấp", "Bà Lan đang ở vị trí 2. Khi có chỗ, chị có 24 giờ để thanh toán.", t("2026-10-05", "20:01"), true),
   nf(11, 2, "HEALTH", "Cảnh báo: huyết áp bà Hoa 160/95", "Điều dưỡng Hạnh đang xử lý", t(DEMO_TODAY, "07:55"), false, "/manager/alerts"),
-  nf(12, 2, "SYSTEM", "Đánh giá đầu vào xong: ông Bùi Văn Tâm", "Điều dưỡng đề xuất nhóm Bệnh mãn tính, cần nâng lên Tiêu chuẩn", t("2026-10-08", "09:41"), false, "/manager/registrations"),
+  nf(12, 2, "SYSTEM", "Đăng ký mới chờ thanh toán: ông Bùi Văn Tâm", "Gói tháng Cơ bản từ 12/10 · khai Vận động được, có cao huyết áp · kiểm tra ngày đầu 12/10", t("2026-10-03", "10:12"), false, "/manager/registrations"),
   nf(13, 2, "FACILITY", "Ghế massage dưới định mức", "Dùng được 2/4, định mức tối thiểu 3", t("2026-10-08", "15:01"), false, "/manager/facilities/damage"),
   nf(14, 2, "SHIFT", "AI đã gợi ý lịch ca tuần 12–17/10", "Có 1 xung đột cần xem", t("2026-10-09", "06:00"), false, "/manager/shifts"),
   nf(15, 2, "SYSTEM", "Báo nghỉ mới", "Bà Lan nghỉ 12–13/10 · Bà Hoa nghỉ 16/10", t(DEMO_TODAY, "08:40"), false, "/manager/absences"),
@@ -677,7 +676,7 @@ const notifications: Notification[] = [
   nf(17, 2, "ATTENDANCE", "Ông Đức chưa đến lúc 8:30", "Chưa báo nghỉ", t(DEMO_TODAY, "08:30"), true, "/manager"),
   nf(21, 3, "HEALTH", "Thuốc quá giờ: ông Minh", "Paracetamol 09:30 chưa ghi nhận", t(DEMO_TODAY, "10:00"), false, "/staff/meds"),
   nf(22, 3, "MESSAGE", "Tin nhắn từ Lê Văn Phúc", "Có cần tôi đón mẹ sớm không ạ?", t(DEMO_TODAY, "10:02"), false, "/staff/messages"),
-  nf(23, 3, "SYSTEM", "Lịch đánh giá đầu vào", "Bà Lê Thị Huệ · 10/10 09:00", t("2026-10-08", "09:00"), true, "/staff/assessments"),
+  nf(23, 3, "SYSTEM", "Kiểm tra ngày đầu (đăng ký online)", "Bà Lê Thị Huệ · 15/10 khi cụ đến", t("2026-10-07", "21:06"), true, "/staff/assessments"),
   nf(31, 4, "MESSAGE", "Tin nhắn từ Hoàng Gia Bảo", "Anh Bảo ơi bà có hỏi về nhà nhiều không?", t(DEMO_TODAY, "09:40"), false, "/staff/messages"),
   nf(32, 4, "CARE_LOG", "Nhắc chốt care log", "Hôm qua còn 0 cụ chưa chốt", t("2026-10-08", "18:00"), true),
   nf(41, 1, "SYSTEM", "Báo cáo tuần 28/09–04/10 đã gửi", "Quản lý Trần Thị Mai đã thêm nhận xét", t("2026-10-05", "17:00"), false, "/admin/reports"),
@@ -783,7 +782,7 @@ const systemSettings: SystemSettings = { vnpayMode: "PRODUCTION", momoMode: "PRO
 
 // ------------------------------------------------------------------ online registration with commitment (BR-79, BR-80)
 elderly.push(
-  em({ id: 14, fullName: "Trương Thị Nga", familyUserId: 16, dateOfBirth: "1950-06-21", gender: "Nữ", address: "88 Trần Hưng Đạo, Q.5", declaredGroup: "MOBILE", targetGroup: "MOBILE", hobbies: "Cắm hoa", careNote: "Đăng ký online, tự khai vận động được.", caregiverId: 6, nurseId: 3, tone: "green" }),
+  em({ id: 14, fullName: "Trương Thị Nga", familyUserId: 16, dateOfBirth: "1950-06-21", gender: "Nữ", address: "88 Trần Hưng Đạo, Q.5", declaredGroup: "MOBILE", hobbies: "Cắm hoa", careNote: "Đăng ký online, tự khai vận động được. Điều dưỡng kiểm tra ngày đầu sáng nay.", caregiverId: 6, nurseId: 3, tone: "green" }),
   em({ id: 15, fullName: "Lý Văn Bình", familyUserId: 17, dateOfBirth: "1946-09-14", gender: "Nam", address: "5 Lý Thường Kiệt, Q.10", declaredGroup: "MOBILE", targetGroup: "CHRONIC", conditions: ["Tự khai: không bệnh nền"], careNote: "Đăng ký online. Kiểm tra ngày đầu: HA 172/98, đang uống 2 loại thuốc huyết áp.", caregiverId: 6, nurseId: 3, tone: "orange" }),
 );
 pickups.push(
@@ -798,6 +797,8 @@ serviceChoices.push(...choose(24, [15, 16, 17, 19, 20], DEMO_TODAY), ...choose(2
 invoices.push(
   inv(14, 24, "HD-2610-0115", "NEW", [["Gói tháng · Cơ bản (09/10–07/11)", P("BASIC", "MONTH")]], "2026-10-08", "PAID"),
   inv(15, 25, "HD-2610-0109", "NEW", [["Gói tháng · Cơ bản (08/10–06/11)", P("BASIC", "MONTH")]], "2026-10-06", "PAID"),
+  inv(17, 8, "HD-2610-0112", "NEW", [["Gói tháng · Cơ bản (15/10–14/11)", P("BASIC", "MONTH")]], "2026-10-07", "UNPAID"),
+  inv(18, 9, "HD-2610-0105", "NEW", [["Gói tháng · Cơ bản (12/10–11/11)", P("BASIC", "MONTH")]], "2026-10-03", "UNPAID"),
   inv(16, 25, "HD-2610-0116", "VIOLATION", [["Phụ phí nhóm Bệnh mãn tính (30/30 ngày còn lại)", 600000], ["Chênh lệch nâng hạng Cơ bản → Tiêu chuẩn (30 ngày)", P("STANDARD", "MONTH") - P("BASIC", "MONTH")]], "2026-10-08", "UNPAID"),
 );
 payments.push(pay(12, 14, 16, "MOMO", "MOMO-78400", t("2026-10-08", "20:43")), pay(13, 15, 17, "VNPAY", "VNP-88350", t("2026-10-06", "21:17")));
@@ -810,7 +811,7 @@ attendance.push(
   { id: aid++, elderlyId: 14, date: DEMO_TODAY, checkIn: "07:45", status: "PRESENT", checkedInBy: 6 },
   { id: aid++, elderlyId: 15, date: DEMO_TODAY, checkIn: "07:50", status: "PRESENT", checkedInBy: 6 },
 );
-careLogDays.push({ elderlyId: 14, date: DEMO_TODAY, status: "OPEN" }, { elderlyId: 15, date: DEMO_TODAY, status: "OPEN" });
+careLogDays.push({ elderlyId: 14, date: DEMO_TODAY, status: "OPEN" }, { elderlyId: 15, date: DEMO_TODAY, status: "OPEN" }, { elderlyId: 15, date: "2026-10-08", status: "CLOSED", closedBy: 6, closedAt: t("2026-10-08", "16:25") });
 notifications.unshift(nf(18, 2, "SYSTEM", "Lê Thu Hạnh đã duyệt: Lý Văn Bình", "Khai Vận động được, thực tế Bệnh mãn tính · đã gửi hóa đơn phụ phí, hạn 3 ngày", t("2026-10-08", "08:36"), false, "/manager/registrations"));
 
 export const seed = {
