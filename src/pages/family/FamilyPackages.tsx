@@ -233,7 +233,7 @@ export function RegisterWizard() {
                 const p = data.packages.find((x) => x.tier === t && x.cycle === cycle);
                 return (
                   <button key={t} disabled={no} onClick={() => { setTier(t); setChoices(choices.filter((id) => data.services.find((s) => s.id === id)?.quota[t] != null).slice(0, e.optionalMax)); }} className={cn("rounded-xl border p-3 text-left disabled:opacity-40", tier === t ? "border-[2px] border-orange bg-orange-soft" : "border-line")}>
-                    <div className="flex items-center justify-between"><TierBadge tier={t} />{c.full && cycle !== "DAY" ? <Badge tone="red">Hết chỗ</Badge> : <Badge tone="green">Còn chỗ</Badge>}</div>
+                    <div className="flex items-center justify-between"><TierBadge tier={t} />{isDayCycle(cycle) ? <Badge tone="gray">Theo giường trống từng ngày</Badge> : c.full ? <Badge tone="red">Hết chỗ · 0/{c.beds}</Badge> : <Badge tone={c.free <= 2 ? "orange" : "green"}>Còn {c.free}/{c.beds} chỗ</Badge>}</div>
                     <div className="mt-1 text-[16px] font-bold text-orange">{p ? vnd(p.basePrice) : "—"}<span className="text-[11px] font-normal text-subtle">/{cycleUnit(cycle)}</span></div>
                     <ul className="mt-1 space-y-0.5 text-[11.5px] text-muted"><li>Bữa: {e.meals}</li><li>Nghỉ trưa: {e.napRoom}{e.fixedBed ? ", giường cố định" : ""}</li><li>Đo chỉ số {e.vitalsPerDay} lần/ngày · 1 staff : {e.staffRatio} cụ</li><li>Ảnh: {e.photoPerDay ?? "không giới hạn"}/ngày · cảnh báo AI {e.aiAlertFamily === "ALL" ? "có" : "chỉ khẩn cấp"}</li></ul>
                     {no && <div className="mt-1 text-[11px] text-red-ink">Nhóm bệnh không mua được hạng Cơ bản (BR-11)</div>}
@@ -297,7 +297,8 @@ export function RegisterWizard() {
             <span><b className="text-navy">Tôi đã đọc Quy định dịch vụ và cam kết thông tin khai là đúng sự thật.</b> Nếu khai sai là vi phạm hợp đồng và được xử lý theo mục 4 của Quy định (BR-79, BR-80).</span>
           </label>
           {!el.elderly.targetGroup && <Note tone="green" className="mt-2">Thanh toán ngay, không chờ duyệt. Gói hiệu lực từ {isDayCycle(cycle) ? dm([...dayDates].sort()[0] ?? start) : dmy(start)}. Sáng ngày đầu điều dưỡng kiểm tra chỉ số, Barthel và giấy tờ.</Note>}
-          {cap.full && !isDayCycle(cycle) && <Note tone="red" className="mt-2">Hạng {TIER_LABEL[tier]} đang hết chỗ. Bạn có thể vào danh sách chờ: có chỗ trung tâm giữ 24 giờ để thanh toán. {data.entitlements.find((x) => x.tier === tier)?.waitlistPriority && `Hạng ${TIER_LABEL[tier]} được xếp đầu danh sách chờ.`}</Note>}
+          {!cap.full && !isDayCycle(cycle) && <Note className="mt-2">Hạng {TIER_LABEL[tier]} còn <b>{cap.free}/{cap.beds}</b> chỗ (đã trừ {cap.held} chỗ của các cụ đang đi, đang bảo lưu và gia đình đang chờ thanh toán).{cap.free <= 2 ? " Sắp hết chỗ." : ""}</Note>}
+          {cap.full && !isDayCycle(cycle) && <Note tone="red" className="mt-2">Hạng {TIER_LABEL[tier]} đang hết chỗ ({cap.held}/{cap.beds}){cap.waiting ? `, ${cap.waiting} gia đình đang chờ` : ""}. Bạn có thể vào danh sách chờ: có chỗ trung tâm giữ 24 giờ để thanh toán. {data.entitlements.find((x) => x.tier === tier)?.waitlistPriority && `Hạng ${TIER_LABEL[tier]} được xếp đầu danh sách chờ.`}</Note>}
           {wait.isSuccess && <Note tone="green" className="mt-2">Đã vào danh sách chờ, vị trí {wait.data}.</Note>}
           <ErrorText error={fullErr ? null : submit.error ?? wait.error} />
         </Card>
@@ -427,7 +428,7 @@ export function MyPackagesPage() {
       <Modal open={!!up} onClose={() => setUp(null)} title="Nâng hạng" footer={<><Button variant="neutral" onClick={() => setUp(null)}>Hủy</Button><Button disabled={!up?.to} loading={upgrade.isPending} onClick={() => upgrade.mutate()}>Tiếp tục</Button></>}>
         {up && (
           <div className="space-y-2">
-            {TIERS.filter((t) => tierRank(t) > tierRank(up.from)).map((t) => { const c = data.capacity.find((x) => x.tier === t)!; return <button key={t} onClick={() => setUp({ ...up, to: t })} className={cn("flex w-full items-center justify-between rounded-xl border p-3 text-left", up.to === t ? "border-[2px] border-orange" : "border-line")}><TierBadge tier={t} />{c.full ? <Badge tone="red">Hết giường · vào danh sách chờ</Badge> : <Badge tone="green">Còn {c.free} chỗ</Badge>}</button>; })}
+            {TIERS.filter((t) => tierRank(t) > tierRank(up.from)).map((t) => { const c = data.capacity.find((x) => x.tier === t)!; return <button key={t} onClick={() => setUp({ ...up, to: t })} className={cn("flex w-full items-center justify-between rounded-xl border p-3 text-left", up.to === t ? "border-[2px] border-orange" : "border-line")}><TierBadge tier={t} />{c.full ? <Badge tone="red">Hết giường · vào danh sách chờ</Badge> : <Badge tone={c.free <= 2 ? "orange" : "green"}>Còn {c.free}/{c.beds} chỗ</Badge>}</button>; })}
             <Note>Nâng hạng hiệu lực ngay, chỉ trả phần chênh lệch cho số ngày còn lại. Hạng cao đã hết giường: vào danh sách chờ, giữ hạng cũ tới khi có chỗ.</Note>
             {upgrade.data?.waitlisted && <Note tone="green">Đã vào danh sách chờ.</Note>}
             <ErrorText error={upgrade.error} />
