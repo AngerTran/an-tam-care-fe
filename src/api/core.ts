@@ -2,12 +2,14 @@
 // the same way the real backend must (BR-33, BR-40, mục 7).
 import { commit, db, nextId, wait } from "../mock/db";
 import { DEMO_NOW, DEMO_TODAY } from "../mock/seed";
+import { API_LIVE, vnNow, vnToday } from "./http";
 import type { Cycle, ElderlyMember, Notification, Position, Subscription, TargetGroup, Tier, User } from "../types/models";
 import { ALL_TIERS, CYCLE_LABEL, cycleMonths, isDayCycle, isWeeklyCycle, TIERS, TIER_LABEL } from "../domain/catalog";
 
 export { commit, db, nextId, wait };
-export const TODAY = DEMO_TODAY;
-export const NOW = DEMO_NOW;
+/** Mock: ngày giờ demo cố định. BE thật: ngày giờ VN lúc tải trang. */
+export const TODAY = API_LIVE ? vnToday() : DEMO_TODAY;
+export const NOW = API_LIVE ? vnNow() : DEMO_NOW;
 
 /** Timestamps for new records: demo date + real clock so actions sort after seeded data. */
 export function stamp() {
@@ -47,6 +49,8 @@ export const lookups = {
   pkg: (id?: number) => byId(db().packages, id),
   equipment: (id?: number) => byId(db().equipment, id),
   position: (userId?: number): Position | undefined => db().staffProfiles.find((p) => p.userId === userId)?.position,
+  /** Chức danh người đang đăng nhập: BE thật lấy từ token, mock lấy từ seed. */
+  myPosition: (me: Pick<User, "id" | "position">): Position | undefined => me.position ?? db().staffProfiles.find((p) => p.userId === me.id)?.position,
   settings: () => db().centerSettings,
 };
 

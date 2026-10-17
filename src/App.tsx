@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
+import { API_LIVE } from "./api";
 import { PortalLayout } from "./components/layout/PortalLayout";
 import type { Role } from "./types/models";
 import { ForgotPasswordPage, LoginPage, RegisterPage, VerifyEmailPage } from "./pages/auth/AuthPages";
@@ -75,7 +76,7 @@ export default function App() {
       </Route>
 
       <Route path="/staff" element={<RequireRole role="STAFF" />}>
-        <Route index element={<StaffToday />} />
+        <Route index element={API_LIVE ? <StaffElderly /> : <StaffToday />} />
         <Route path="checkin" element={<StaffCheckin />} />
         <Route path="schedule" element={<StaffSchedule />} />
         <Route path="elderly" element={<StaffElderly />} />

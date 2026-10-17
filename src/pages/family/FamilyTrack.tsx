@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, BedDouble, Camera, ClipboardList, Clock, HeartPulse, Lock, MessageCircle, Moon, Pill, Plus, Smile, Utensils } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { family, TODAY } from "../../api";
+import { family, TODAY, useLiveRefresh } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { AttBadge, ElderlyPicker, GroupBadge, LineChart, Stat, SubBadge, TierBadge, Timeline, useFamilyElderly } from "../../components/domain";
@@ -24,6 +24,7 @@ export function FamilyHome() {
   const me = useMe();
   const fe = useFamilyElderly();
   const { data, isLoading } = useQuery({ queryKey: ["f-home", fe.id], queryFn: () => family.home(me, fe.id!), enabled: !!fe.id });
+  useLiveRefresh(fe.id);
   const pending = fe.all.filter((r) => ["PENDING"].includes(r.elderly.status));
   if (fe.isLoading) return <Page title="Hôm nay của cụ"><Loading /></Page>;
   return (

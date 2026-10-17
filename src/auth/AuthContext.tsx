@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { auth, lookups } from "../api";
+import { API_LIVE, auth, lookups, remoteLogout, setSessionExpiredHandler } from "../api";
 import type { Role, User } from "../types/models";
 
 const KEY = "atc-session";
@@ -20,8 +20,9 @@ function readSession(): User | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    const { userId, at } = JSON.parse(raw) as { userId: number; at: number };
+    const { userId, at, user } = JSON.parse(raw) as { userId: number; at: number; user?: User };
     if (Date.now() - at > TIMEOUT_MS) return null;
+    if (API_LIVE) return user ?? null; // BE thật: hồ sơ nhận lúc đăng nhập, token nằm trong http.ts
     return lookups.user(userId) ?? null;
   } catch {
     return null;
@@ -29,7 +30,7 @@ function readSession(): User | null {
 }
 function writeSession(u: User | null) {
   try {
-    if (u) localStorage.setItem(KEY, JSON.stringify({ userId: u.id, at: Date.now() }));
+    if (u) localStorage.setItem(KEY, JSON.stringify({ userId: u.id, at: Date.now(), ...(API_LIVE ? { user: u } : {}) }));
     else localStorage.removeItem(KEY);
   } catch {
     /* ignore */
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [qc, setUser]);
 
   const logout = useCallback(() => {
+    if (API_LIVE) void remoteLogout();
     writeSession(null);
     setUserState(null);
     setExpired(false);
@@ -63,8 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [qc]);
 
   const refresh = useCallback(() => {
+    if (API_LIVE) return;
     setUserState((u) => (u ? { ...(lookups.user(u.id) ?? u) } : u));
   }, []);
+
+  // BE thật: refresh token cũng hết hạn → về màn đăng nhập
+  useEffect(() => {
+    setSessionExpiredHandler(() => { writeSession(null); setUserState(null); qc.clear(); });
+  }, [qc]);
 
   useEffect(() => {
     if (!user) return;

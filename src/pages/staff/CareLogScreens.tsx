@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, Bath, Camera, CircleCheck, Lock, Moon, NotebookPen, Plus, ShieldAlert, Siren, Smile, Stethoscope, Trash2, TriangleAlert, Utensils } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
-import { lookups, NOW, staff, TODAY } from "../../api";
+import { lookups, NOW, staff, TODAY, useLiveRefresh } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { Bars, ElderlyCell, GroupBadge, LineChart, TierBadge, Timeline } from "../../components/domain";
@@ -609,6 +609,7 @@ export function CareLogScreen() {
   const [reason, setReason] = useState("");
   const [allTl, setAllTl] = useState(false);
   const { data, isLoading, error } = useQuery({ queryKey: ["s-cl", id], queryFn: () => staff.careLog(me, id) });
+  useLiveRefresh(id);
   const inv = () => qc.invalidateQueries();
   const setTask = useMutation({ mutationFn: ({ t, s, r }: { t: number; s: "DONE" | "SKIPPED"; r?: string }) => staff.setTask(me, t, s, r), onSuccess: () => { inv(); setSkip(undefined); setReason(""); } });
   const close = useMutation({ mutationFn: () => staff.closeLog(me, id), onSuccess: inv });
@@ -616,7 +617,7 @@ export function CareLogScreen() {
   if (isLoading) return <Page title="Care log" back="/staff/elderly"><Loading /></Page>;
   if (!data) return <Page title="Care log" back="/staff/elderly"><ErrorText error={error} /></Page>;
   const e = data.elderly;
-  const nurse = lookups.position(me.id) === "NURSE";
+  const nurse = lookups.myPosition(me) === "NURSE";
   const closed = data.day?.status === "CLOSED";
   const present = data.a?.status === "PRESENT";
   const canWrite = !closed && present;
