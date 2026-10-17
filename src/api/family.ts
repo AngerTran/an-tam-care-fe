@@ -5,7 +5,7 @@ import { CYCLE_LABEL, cycleDef, CYCLE_MONTHS, entitlementFixedBed, GROUP_LABEL, 
 import { addDays, daysBetween } from "../lib/format";
 import { assertValid, validateAbsence, validatePause, validatePickup, validateRelative, validateStartDate } from "../lib/validate";
 import {
-  activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, invoicesOf,
+  activeSub, addOnsOf, attendanceOn, audit, byId, capacity, careContext, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, invoicesOf,
   lookups, metricsOf, need, nextId, notify, notifyManagers, fixedSurcharge, nowDoing, NOW, paymentOf, pkgName, priceOfPkg, scheduledOn, stamp, TODAY, wait,
 } from "./core";
 
@@ -85,7 +85,7 @@ export const family = {
     const s = currentSub(elderlyId);
     const ent = s ? entitlement(s.tier) : undefined;
     const a = attendanceOn(elderlyId);
-    const entries = d.careLogEntries.filter((x) => x.elderlyId === elderlyId && x.date === TODAY).sort((x, y) => y.time.localeCompare(x.time));
+    const entries = d.careLogEntries.filter((x) => x.elderlyId === elderlyId && x.date === TODAY && !x.internalOnly).sort((x, y) => y.time.localeCompare(x.time));
     return {
       elderly: e, sub: s, entitlement: ent, a, doing: nowDoing(elderlyId),
       pickup: a?.pickupId ? byId(d.pickups, a.pickupId) : undefined,
@@ -99,13 +99,14 @@ export const family = {
       caregiver: lookups.user(e.caregiverId), nurse: lookups.user(e.nurseId),
       scheduledToday: scheduledOn(elderlyId, TODAY),
       day: d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === TODAY),
+      ...careContext(elderlyId),
     };
   },
   async summary(me: User, elderlyId: number, date: string) {
     await wait();
     const d = db();
     const e = guard(me, elderlyId);
-    const entries = d.careLogEntries.filter((x) => x.elderlyId === elderlyId && x.date === date).sort((a, b) => a.time.localeCompare(b.time));
+    const entries = d.careLogEntries.filter((x) => x.elderlyId === elderlyId && x.date === date && !x.internalOnly).sort((a, b) => a.time.localeCompare(b.time));
     const by = (k: string) => entries.filter((x) => x.kind === k);
     return {
       elderly: e, date, a: attendanceOn(elderlyId, date), day: d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === date),

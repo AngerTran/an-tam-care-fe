@@ -156,7 +156,16 @@ export interface ElderlyMember {
   status: "PENDING" | "ACTIVE" | "PAUSED" | "SUSPENDED" | "TERMINATED";
   /** behaviour tags for DEMENTIA, recurrence checklist for STROKE */
   tone: "blue" | "orange" | "green" | "purple";
+  /** module phụ theo bệnh phụ (CL-13: tối đa 3), điều dưỡng bật khi đánh giá */
+  careModules?: CareModule[];
+  /** STROKE: bên liệt */
+  affectedSide?: "Trái" | "Phải";
+  /** DEMENTIA: điều cụ thích / nên tránh, hiện ở đầu màn CL-DEM */
+  likes?: string;
+  avoid?: string;
 }
+
+export type CareModule = "GLUCOSE" | "BP" | "CARDIO" | "FALL" | "JOINT" | "MEMORY" | "SWALLOW";
 
 /** authorized_pickups */
 export interface AuthorizedPickup {
@@ -360,7 +369,7 @@ export interface Attendance {
   manualReason?: string;
 }
 
-export type TaskType = "MEAL" | "VITALS" | "MEDICATION" | "ACTIVITY" | "NAP" | "HYGIENE" | "CHECKOUT" | "GLUCOSE";
+export type TaskType = "MEAL" | "VITALS" | "MEDICATION" | "ACTIVITY" | "NAP" | "HYGIENE" | "CHECKOUT" | "GLUCOSE" | "CARE";
 /** daily_tasks: tạo tự động mỗi sáng */
 export interface DailyTask {
   id: number;
@@ -371,13 +380,17 @@ export interface DailyTask {
   title: string;
   owner: Position;
   serviceId?: number;
+  /** CARE tasks: which group block on the CL screen records it */
+  entryKind?: EntryKind;
   status: "TODO" | "DONE" | "SKIPPED";
   skipReason?: string;
   doneBy?: number;
   doneAt?: string;
 }
 
-export type EntryKind = "CHECKIN" | "CHECKOUT" | "MEAL" | "HYGIENE" | "ACTIVITY" | "NAP" | "MOOD" | "PHOTO" | "NOTE" | "VITALS" | "MEDICATION" | "INCIDENT";
+export type EntryKind = "CHECKIN" | "CHECKOUT" | "MEAL" | "HYGIENE" | "ACTIVITY" | "NAP" | "MOOD" | "PHOTO" | "NOTE" | "VITALS" | "MEDICATION" | "INCIDENT"
+  // khối riêng của 5 màn CL (mục 15 đặc tả care log); dữ liệu chi tiết nằm trong `data`
+  | "DIET_CHECK" | "REHAB_SESSION" | "MOBILITY" | "BEHAVIOR" | "ORIENTATION" | "ZONE_CHECK" | "FAST_CHECK" | "SWALLOW" | "CARE_CHECK";
 /** care_log_entries */
 export interface CareLogEntry {
   id: number;
@@ -391,6 +404,10 @@ export interface CareLogEntry {
   /** PHOTO entries */
   tone?: "blue" | "orange" | "green";
   important?: boolean;
+  /** group-block fields (JSONB `data`), e.g. FAST_CHECK {round, sys, dia, face, arm, speech} */
+  data?: Record<string, unknown>;
+  /** CL-19: hidden from the family (e.g. mild BEHAVIOR) */
+  internalOnly?: boolean;
 }
 /** care_log_days */
 export interface CareLogDay {
@@ -400,6 +417,9 @@ export interface CareLogDay {
   closedBy?: number;
   closedAt?: string;
   closedByManager?: boolean;
+  /** điều dưỡng bấm "Xong phần y tế" (mục 12) */
+  medicalDoneBy?: number;
+  medicalDoneAt?: string;
 }
 /** care_log_edits */
 export interface CareLogEdit {

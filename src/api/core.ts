@@ -132,6 +132,22 @@ export const outOfRange = (m: { sys?: number; dia?: number; pulse?: number; temp
   return r;
 };
 
+/** Group-block kinds shown on the 5 CL screens (mục 6–10 đặc tả care log). */
+export const GROUP_KINDS = ["DIET_CHECK", "REHAB_SESSION", "MOBILITY", "BEHAVIOR", "ORIENTATION", "ZONE_CHECK", "FAST_CHECK", "SWALLOW", "CARE_CHECK"];
+/** Context for the group blocks: 14-day history, Barthel trend, secondary modules. */
+export function careContext(elderlyId: number, date = TODAY) {
+  const d = db();
+  const e = need(lookups.elderly(elderlyId));
+  const from = new Date(Date.parse(date) - 14 * 864e5).toISOString().slice(0, 10);
+  return {
+    modules: e.careModules ?? [],
+    history: d.careLogEntries.filter((x) => x.elderlyId === elderlyId && x.date < date && x.date >= from && GROUP_KINDS.includes(x.kind)).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
+    barthel: d.assessments.filter((a) => a.elderlyId === elderlyId && a.status === "APPROVED" && a.barthel != null).sort((a, b) => (a.doneAt ?? "").localeCompare(b.doneAt ?? "")).map((a) => ({ date: (a.doneAt ?? a.scheduledAt).slice(0, 10), score: a.barthel! })),
+    nextAssessment: d.assessments.find((a) => a.elderlyId === elderlyId && a.status === "SCHEDULED"),
+    metrics14: metricsOf(elderlyId).filter((m) => m.at.slice(0, 10) >= from && m.at.slice(0, 10) <= date),
+  };
+}
+
 /** "Cụ đang làm gì" (G1): the last ACTIVITY/NAP/MEAL entry or the scheduled block at NOW. */
 export function nowDoing(elderlyId: number) {
   const a = attendanceOn(elderlyId);

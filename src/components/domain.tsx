@@ -2,7 +2,8 @@
 // small SVG charts and the family's "which elderly" picker.
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity, AlertTriangle, Bath, Camera, CircleCheck, DoorOpen, LogIn, Moon, NotebookPen, Pill, Search, Smile, Utensils, type LucideIcon,
+  Activity, AlertTriangle, Bath, Brain, Camera, CircleCheck, ClipboardCheck, Compass, DoorOpen, Dumbbell, Footprints, HeartPulse, LogIn, Moon, NotebookPen, Pill, Salad, Search, ShieldCheck,
+  Smile, Utensils, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { family } from "../api";
@@ -58,6 +59,8 @@ export function SearchBox({ value, onChange, placeholder, className }: { value: 
 export const ENTRY_ICON: Record<CareLogEntry["kind"], [LucideIcon, Tone]> = {
   CHECKIN: [LogIn, "blue"], CHECKOUT: [DoorOpen, "blue"], MEAL: [Utensils, "orange"], HYGIENE: [Bath, "teal"], ACTIVITY: [Activity, "green"], NAP: [Moon, "purple"],
   MOOD: [Smile, "orange"], PHOTO: [Camera, "teal"], NOTE: [NotebookPen, "red"], VITALS: [Activity, "red"], MEDICATION: [Pill, "purple"], INCIDENT: [AlertTriangle, "red"],
+  DIET_CHECK: [Salad, "orange"], REHAB_SESSION: [Dumbbell, "green"], MOBILITY: [Footprints, "green"], BEHAVIOR: [Brain, "purple"], ORIENTATION: [Compass, "purple"],
+  ZONE_CHECK: [ShieldCheck, "teal"], FAST_CHECK: [HeartPulse, "red"], SWALLOW: [Utensils, "red"], CARE_CHECK: [ClipboardCheck, "teal"],
 };
 const toneBg: Record<Tone, string> = { green: "bg-green-soft text-green-ink", orange: "bg-amber-soft text-amber-ink", red: "bg-red-soft text-red-ink", blue: "bg-blue-soft text-blue", teal: "bg-teal-soft text-teal-ink", purple: "bg-purple-soft text-purple-ink", gray: "bg-line-soft text-subtle" };
 

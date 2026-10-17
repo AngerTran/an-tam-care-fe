@@ -5,7 +5,7 @@ import { GROUP_INFO, GROUP_LABEL, isDayCycle, minTierFor, POSITION_LABEL, TIER_L
 import { assertValid, BARTHEL_NOT_ACCEPTED, validateBarthel, validateVitals } from "../lib/validate";
 import { manager } from "./manager";
 import {
-  activeSub, attendanceOn, audit, byId, capacity, fixedSurcharge, surchargeMonthly, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, isNurse, lookups, metricsOf,
+  activeSub, attendanceOn, audit, byId, capacity, careContext, fixedSurcharge, surchargeMonthly, choicesOf, clock, commit, currentSub, db, entitlement, guard, honor, isNurse, lookups, metricsOf,
   need, nextId, notify, notifyManagers, NOW, outOfRange, scheduledOn, stamp, staffOf, TODAY, usable, wait,
 } from "./core";
 
@@ -25,6 +25,26 @@ function raise(elderlyId: number, source: "THRESHOLD" | "AI" | "RULE", level: "I
   notifyManagers("HEALTH", `${title}: ${e.fullName}`, detail, "/manager/alerts");
   if (e.nurseId) notify(e.nurseId, "HEALTH", `${title}: ${e.fullName}`, detail, "/staff/alerts");
   if (familyAlertAllowed(elderlyId, level)) notify(e.familyUserId, "HEALTH", `${level === "URGENT" ? "Khẩn cấp" : "Cảnh báo"}: ${title}`, detail, "/family/alerts");
+}
+
+/** Alerts raised by the group blocks (mục 13). */
+function groupRules(me: User, elderlyId: number, kind: CareLogEntry["kind"], x: Record<string, unknown>) {
+  const d = db();
+  if (kind === "FAST_CHECK") {
+    d.healthMetrics.push({ id: nextId(d.healthMetrics), elderlyId, at: stamp(), by: me.id, sys: x.sys as number, dia: x.dia as number, pulse: x.pulse as number, strokeChecklistOk: !x.positive });
+    if (x.positive) raise(elderlyId, "RULE", "URGENT", "Dấu hiệu tái phát tai biến (FAST)", "Checklist FAST có dấu hiệu. Gọi gia đình, chuẩn bị chuyển viện.");
+    else if ((x.sys as number) >= 180 || (x.dia as number) >= 110 || (x.sys as number) < 90) raise(elderlyId, "THRESHOLD", "URGENT", "Huyết áp nguy hiểm", `HA ${x.sys}/${x.dia}`);
+  }
+  if (kind === "SWALLOW" && x.cough === "MANY") raise(elderlyId, "RULE", "WARNING", "Sặc nhiều lần trong bữa", "Điều dưỡng xem lại kết cấu thức ăn");
+  if (kind === "REHAB_SESSION" && ((x.painAfter as number) >= 7 || (x.painAfter as number) - (x.painBefore as number) >= 3)) raise(elderlyId, "RULE", "WARNING", "Đau tăng sau tập", `Đau ${x.painBefore} → ${x.painAfter}`);
+  if (kind === "BEHAVIOR" && x.severity === "Nặng") raise(elderlyId, "RULE", "WARNING", "Hành vi mức nặng", (x.behaviors as string[]).join(", "));
+  if (kind === "ZONE_CHECK" && x.wristband === false) raise(elderlyId, "RULE", "WARNING", "Không đeo vòng tay", "Đeo lại vòng tay nhận diện ngay");
+  if (kind === "ZONE_CHECK" && x.present === false) raise(elderlyId, "RULE", "URGENT", "Mất dấu cụ", "Không thấy cụ trong khu lúc điểm danh");
+  if (kind === "ZONE_CHECK" && (x.exitAttempts as number) >= 3) raise(elderlyId, "RULE", "WARNING", "Cố ra khỏi khu nhiều lần", `${x.exitAttempts} lần`);
+  if (kind === "CARE_CHECK" && x.type === "FALL" && x.nearFall) {
+    const n = d.careLogEntries.filter((e) => e.elderlyId === elderlyId && e.kind === "CARE_CHECK" && (e.data as { nearFall?: boolean } | undefined)?.nearFall).length;
+    if (n >= 2) raise(elderlyId, "RULE", "INFO", "Suýt ngã 2 lần", "Điều dưỡng xem xét đánh giá lại nhóm");
+  }
 }
 
 export const staff = {
@@ -194,6 +214,9 @@ export const staff = {
       bed: d.beds.find((b) => b.fixedElderlyId === elderlyId) ?? byId(d.beds, d.bedAssignments.find((b) => b.date === TODAY && b.elderlyId === elderlyId)?.bedId),
       thresholds: d.centerSettings.thresholds,
       belongings: d.belongings.filter((b) => b.elderlyId === elderlyId && !b.returnedAt),
+      medicalDoner: lookups.user(d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === TODAY)?.medicalDoneBy),
+      doses: d.medDoses.filter((m) => m.elderlyId === elderlyId && m.date === TODAY).sort((a, b) => a.time.localeCompare(b.time)).map((m) => ({ ...m, plan: byId(d.medPlans, m.planId) })),
+      ...careContext(elderlyId),
     };
   },
   async setTask(me: User, taskId: number, status: DailyTask["status"], skipReason?: string) {
@@ -207,19 +230,26 @@ export const staff = {
     commit();
   },
   /** S5: one care-log entry. Photos respect the tier limit (CL-04); nurse-only kinds (CL-03). */
-  async addEntry(me: User, elderlyId: number, input: { kind: CareLogEntry["kind"]; title: string; detail: string; important?: boolean; tone?: "blue" | "orange" | "green" }) {
+  async addEntry(me: User, elderlyId: number, input: { kind: CareLogEntry["kind"]; title: string; detail: string; important?: boolean; tone?: "blue" | "orange" | "green"; data?: Record<string, unknown>; internalOnly?: boolean; taskId?: number }) {
     await wait(80);
     const d = db();
     const e = guard(me, elderlyId);
     if (attendanceOn(elderlyId)?.status !== "PRESENT") throw new Error("Chỉ ghi care log cho cụ đã check-in hôm nay (CL-01)");
     if (d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === TODAY)?.status === "CLOSED") throw new Error("Care log đã chốt, chỉ Quản lý được sửa (CL-06)");
     if (["VITALS", "MEDICATION", "INCIDENT"].includes(input.kind) && !isNurse(me)) throw new Error("Chỉ điều dưỡng ghi chỉ số, thuốc, sự cố (CL-03)");
+    if (["REHAB_SESSION", "FAST_CHECK"].includes(input.kind) && !isNurse(me)) throw new Error("Phiếu VLTL và HA + FAST chỉ điều dưỡng ghi (CL-14)");
+    if (input.kind === "BEHAVIOR" && !(input.data?.interventions as string[] | undefined)?.length) throw new Error("Nhật ký hành vi phải có phần C (cách xử lý) mới lưu (CL-16)");
     if (input.kind === "PHOTO") {
       const limit = entitlement(need(activeSub(elderlyId)).tier).photoPerDay;
       const n = d.careLogEntries.filter((x) => x.elderlyId === elderlyId && x.date === TODAY && x.kind === "PHOTO").length;
       if (limit !== null && n >= limit) throw new Error(`Đã đủ ${limit} ảnh/ngày theo hạng của cụ (CL-04)`);
     }
-    entry(me, elderlyId, input.kind, input.title, input.detail, { important: input.important, tone: input.tone });
+    entry(me, elderlyId, input.kind, input.title, input.detail, { important: input.important, tone: input.tone, data: input.data, internalOnly: input.internalOnly });
+    groupRules(me, elderlyId, input.kind, input.data ?? {});
+    if (input.taskId) {
+      const t = byId(d.dailyTasks, input.taskId);
+      if (t && t.elderlyId === elderlyId && t.status === "TODO") Object.assign(t, { status: "DONE", doneBy: me.id, doneAt: clock() });
+    }
     if (input.kind === "MOOD" && input.detail.startsWith("Kích động")) raise(elderlyId, "RULE", "WARNING", "Tâm trạng kích động", input.detail);
     if (input.kind === "MEAL" && /1\/4|Không ăn/.test(input.detail)) {
       const prev = d.careLogEntries.filter((x) => x.elderlyId === elderlyId && x.kind === "MEAL").slice(-2);
@@ -227,7 +257,7 @@ export const staff = {
     }
     const prefs = d.notificationPrefs.find((p) => p.userId === e.familyUserId)?.off ?? [];
     const key = input.kind === "MEAL" ? "MEAL" : input.kind === "ACTIVITY" ? "ACTIVITY" : input.kind === "PHOTO" ? "PHOTO" : input.kind;
-    if (input.important || !prefs.includes(key)) notify(e.familyUserId, "CARE_LOG", `${honor(e)} ${e.fullName}: ${input.title}`, input.detail.slice(0, 70), "/family");
+    if (!input.internalOnly && (input.important || !prefs.includes(key))) notify(e.familyUserId, "CARE_LOG", `${honor(e)} ${e.fullName}: ${input.title}`, input.detail.slice(0, 70), "/family");
     commit();
   },
   /** S6: one meal/activity for the whole group with defaults, editable per elderly. */
@@ -251,9 +281,34 @@ export const staff = {
     const e = guard(me, elderlyId);
     if (e.caregiverId !== me.id) throw new Error("Hộ lý phụ trách chính mới chốt care log (CL-06)");
     const todo = d.dailyTasks.filter((t) => t.elderlyId === elderlyId && t.date === TODAY && t.status === "TODO" && t.type !== "CHECKOUT");
+    const day0 = d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === TODAY);
+    if (!day0?.medicalDoneAt) throw new Error("Điều dưỡng chưa bấm \"Xong phần y tế\" (mục 12)");
+    if (attendanceOn(elderlyId)?.status === "PRESENT" && NOW < "16:30") throw new Error("Chỉ chốt khi cụ đã về hoặc sau 16:30 (mục 12)");
     if (todo.length) throw new Error(`Còn ${todo.length} việc chưa làm: ${todo.slice(0, 3).map((t) => `${t.time} ${t.title}`).join(", ")}${todo.length > 3 ? "…" : ""}`);
     const day = need(d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === TODAY));
     Object.assign(day, { status: "CLOSED", closedBy: me.id, closedAt: stamp() });
+    commit();
+  },
+
+  /** Mục 12: điều dưỡng xác nhận đã ghi đủ chỉ số, thuốc, VLTL, FAST. */
+  async markMedicalDone(me: User, elderlyId: number) {
+    await wait();
+    if (!isNurse(me)) throw new Error("Chỉ điều dưỡng bấm Xong phần y tế");
+    const d = db();
+    guard(me, elderlyId);
+    const left = d.dailyTasks.filter((t) => t.elderlyId === elderlyId && t.date === TODAY && t.owner === "NURSE" && t.status === "TODO" && t.time <= NOW);
+    if (left.length) throw new Error(`Còn ${left.length} việc y tế đến giờ chưa làm: ${left.slice(0, 3).map((t) => `${t.time} ${t.title}`).join(", ")}`);
+    const day = need(d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === TODAY));
+    Object.assign(day, { medicalDoneBy: me.id, medicalDoneAt: stamp() });
+    commit();
+  },
+  /** CL-15: any staff can raise "Nghi tái phát" (STROKE) or "Mất dấu cụ" (DEMENTIA) — urgent, nurse adds details later. */
+  async urgent(me: User, elderlyId: number, kind: "STROKE" | "LOST", detail: string) {
+    await wait();
+    const e = guard(me, elderlyId);
+    const title = kind === "STROKE" ? "Nghi tái phát tai biến" : "Mất dấu cụ";
+    entry(me, elderlyId, "NOTE", title, detail || (kind === "STROKE" ? "Staff phát hiện dấu hiệu bất thường" : "Không thấy cụ trong khu"), { important: true });
+    raise(elderlyId, "RULE", "URGENT", title, `${e.fullName}: ${detail}`);
     commit();
   },
 

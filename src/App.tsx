@@ -11,7 +11,8 @@ import { CalendarPage, PackagesPage, SchedulePage, ServicesPage, TherapyPage } f
 import { ShiftsPage, StaffFormPage, StaffPage } from "./pages/manager/ManagerStaff";
 import { BedsPage, DamagePage, EquipmentPage, InventoryDetailPage, InventoryPage, RoomsPage } from "./pages/manager/ManagerFacilities";
 import { InvoiceDetail, PaymentsPage, ReportsPage, SettingsPage } from "./pages/manager/ManagerFinance";
-import { StaffCareLog, StaffCheckin, StaffElderly, StaffGroupLog, StaffToday } from "./pages/staff/StaffDay";
+import { StaffCheckin, StaffElderly, StaffGroupLog, StaffToday } from "./pages/staff/StaffDay";
+import { CareLogScreen } from "./pages/staff/CareLogScreens";
 import { StaffSchedule } from "./pages/staff/StaffSchedule";
 import { StaffAlerts, StaffAssessments, StaffIncidents, StaffMeds, StaffVitals } from "./pages/staff/StaffNurse";
 import { StaffBelongings, StaffDamage, StaffShifts } from "./pages/staff/StaffOther";
@@ -78,7 +79,7 @@ export default function App() {
         <Route path="checkin" element={<StaffCheckin />} />
         <Route path="schedule" element={<StaffSchedule />} />
         <Route path="elderly" element={<StaffElderly />} />
-        <Route path="elderly/:id" element={<StaffCareLog />} />
+        <Route path="elderly/:id" element={<CareLogScreen />} />
         <Route path="group-log" element={<StaffGroupLog />} />
         <Route path="vitals" element={<StaffVitals />} />
         <Route path="meds" element={<StaffMeds />} />
