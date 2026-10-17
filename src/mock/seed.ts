@@ -61,13 +61,13 @@ const em = (e: ElderlyInput): ElderlyMember => ({
   address: "Q.7, TP.HCM", conditions: [], allergies: [], diet: "Bình thường", hobbies: "", careNote: "", status: "ACTIVE", qrCode: `ATC-${String(e.id).padStart(4, "0")}`, tone: "blue", ...e,
 });
 const elderly: ElderlyMember[] = [
-  em({ id: 1, fullName: "Nguyễn Thị Lan", familyUserId: 10, dateOfBirth: "1947-03-12", gender: "Nữ", address: "45 Lê Văn Lương, Q.7", declaredGroup: "CHRONIC", targetGroup: "CHRONIC", conditions: ["Tiểu đường type 2", "Cao huyết áp"], allergies: ["Hải sản"], diet: "Ít đường, ít muối, không hải sản", hobbies: "Nghe nhạc xưa, đánh cờ caro", careNote: "Đau gối phải khi đi bộ lâu. Đo đường huyết trước ăn sáng.", caregiverId: 4, nurseId: 3, tone: "orange" }),
-  em({ id: 2, fullName: "Trần Văn Minh", familyUserId: 10, dateOfBirth: "1944-06-02", gender: "Nam", address: "45 Lê Văn Lương, Q.7", declaredGroup: "REHAB", targetGroup: "REHAB", conditions: ["Thoái hóa khớp gối", "Sau mổ thay khớp háng (03/2026)"], diet: "Bình thường, nhiều canxi", hobbies: "Cờ tướng, đọc báo", careNote: "Đi bằng khung tập đi. Cần người đỡ khi lên xuống bậc.", caregiverId: 4, nurseId: 3, tone: "blue" }),
+  em({ id: 1, fullName: "Nguyễn Thị Lan", familyUserId: 10, dateOfBirth: "1947-03-12", gender: "Nữ", address: "45 Lê Văn Lương, Q.7", declaredGroup: "CHRONIC", targetGroup: "CHRONIC", conditions: ["Tiểu đường type 2", "Cao huyết áp"], allergies: ["Hải sản"], diet: "Ít đường, ít muối, không hải sản", hobbies: "Nghe nhạc xưa, đánh cờ caro", careNote: "Đau gối phải khi đi bộ lâu. Đo đường huyết trước ăn sáng.", caregiverId: 4, nurseId: 3, tone: "orange", careModules: ["JOINT"] }),
+  em({ id: 2, fullName: "Trần Văn Minh", familyUserId: 10, dateOfBirth: "1944-06-02", gender: "Nam", address: "45 Lê Văn Lương, Q.7", declaredGroup: "REHAB", targetGroup: "REHAB", conditions: ["Thoái hóa khớp gối", "Sau mổ thay khớp háng (03/2026)"], diet: "Bình thường, nhiều canxi", hobbies: "Cờ tướng, đọc báo", careNote: "Đi bằng khung tập đi. Cần người đỡ khi lên xuống bậc.", caregiverId: 4, nurseId: 3, tone: "blue", careModules: ["FALL"] }),
   em({ id: 3, fullName: "Lê Thị Hoa", familyUserId: 11, dateOfBirth: "1951-05-12", gender: "Nữ", address: "12 Lê Lợi, Q.1", declaredGroup: "CHRONIC", targetGroup: "CHRONIC", conditions: ["Cao huyết áp", "Rối loạn mỡ máu"], allergies: ["Penicillin"], diet: "Ít muối", hobbies: "Cắm hoa, hát", careNote: "Hay quên uống thuốc ở nhà, gia đình gửi thuốc theo ngày.", caregiverId: 6, nurseId: 3, tone: "green" }),
   em({ id: 4, fullName: "Phạm Văn Đức", familyUserId: 14, dateOfBirth: "1946-01-20", gender: "Nam", address: "7 Hoàng Diệu, Q.4", declaredGroup: "MOBILE", targetGroup: "MOBILE", hobbies: "Cờ tướng", careNote: "Tự đi lại tốt. Đi T2-4-6.", caregiverId: 6, nurseId: 5, tone: "blue" }),
   em({ id: 5, fullName: "Võ Thị Bích", familyUserId: 12, dateOfBirth: "1941-09-09", gender: "Nữ", address: "3 Nguyễn Hữu Thọ, Q.7", declaredGroup: "STROKE", targetGroup: "STROKE", conditions: ["Sau tai biến (12/2025), yếu nửa người phải", "Cao huyết áp"], diet: "Thức ăn mềm, cắt nhỏ", careNote: "Đang nằm viện từ 02/10 do dấu hiệu tái phát. Bảo lưu tới 20/10.", caregiverId: 7, nurseId: 5, status: "PAUSED", tone: "purple" }),
   em({ id: 6, fullName: "Đỗ Văn Hải", familyUserId: 15, dateOfBirth: "1949-11-30", gender: "Nam", address: "19 Phạm Hùng, Q.8", declaredGroup: "MOBILE", targetGroup: "MOBILE", hobbies: "Đọc báo", careNote: "Đi theo gói ngày khi con đi công tác.", caregiverId: 7, nurseId: 5, tone: "orange" }),
-  em({ id: 7, fullName: "Hoàng Thị Mai", familyUserId: 13, dateOfBirth: "1947-04-18", gender: "Nữ", address: "60 Huỳnh Tấn Phát, Q.7", declaredGroup: "DEMENTIA", targetGroup: "DEMENTIA", conditions: ["Alzheimer giai đoạn nhẹ"], diet: "Bình thường", hobbies: "Âm nhạc, cắm hoa", careNote: "Đeo vòng tay nhận diện. Hay hỏi giờ về, cần trấn an. Không để một mình gần cửa ra vào.", caregiverId: 4, nurseId: 3, tone: "purple" }),
+  em({ id: 7, fullName: "Hoàng Thị Mai", familyUserId: 13, dateOfBirth: "1947-04-18", gender: "Nữ", address: "60 Huỳnh Tấn Phát, Q.7", declaredGroup: "DEMENTIA", targetGroup: "DEMENTIA", conditions: ["Alzheimer giai đoạn nhẹ"], diet: "Bình thường", hobbies: "Âm nhạc, cắm hoa", careNote: "Đeo vòng tay nhận diện. Hay hỏi giờ về, cần trấn an. Không để một mình gần cửa ra vào.", caregiverId: 4, nurseId: 3, tone: "purple", likes: "Nhạc bolero, cắm hoa, kể chuyện quê Nam Định", avoid: "Chỗ đông người, tiếng ồn lớn" }),
   em({ id: 8, fullName: "Lê Thị Huệ", familyUserId: 10, dateOfBirth: "1951-08-08", gender: "Nữ", address: "45 Lê Văn Lương, Q.7", declaredGroup: "MOBILE", hobbies: "Làm bánh, xem phim", status: "PENDING", tone: "green" }),
   em({ id: 9, fullName: "Bùi Văn Tâm", familyUserId: 16, dateOfBirth: "1945-02-08", gender: "Nam", address: "88 Trần Hưng Đạo, Q.5", declaredGroup: "MOBILE", conditions: ["Cao huyết áp"], diet: "Ăn mềm", careNote: "Gia đình khai đi lại được, có ghi cao huyết áp. Điều dưỡng kiểm tra kỹ ở buổi kiểm tra ngày đầu.", status: "PENDING", tone: "blue" }),
   em({ id: 10, fullName: "Ngô Thị Sen", familyUserId: 17, dateOfBirth: "1950-12-01", gender: "Nữ", address: "5 Lý Thường Kiệt, Q.10", declaredGroup: "REHAB", targetGroup: "REHAB", conditions: ["Sau gãy cổ xương đùi (06/2026)"], careNote: "Đi bằng nạng, cần tập đi.", status: "PENDING", tone: "orange" }),
@@ -431,18 +431,47 @@ function taskTemplate(e: ElderlyMember, s: Subscription, choices: number[]) {
   const add = (time: string, type: DailyTask["type"], title: string, owner: DailyTask["owner"], serviceId?: number) => T.push({ time, type, title, owner, serviceId });
   if (s.tier !== "BASIC") add("07:30", "MEAL", "Ăn sáng", "CAREGIVER");
   if (e.conditions.some((c) => c.includes("Tiểu đường"))) add("07:45", "GLUCOSE", "Đo đường huyết trước ăn", "NURSE", 7);
-  add("07:50", "VITALS", "Đo chỉ số sáng", "NURSE", 1);
+  const care = (time: string, title: string, owner: DailyTask["owner"], entryKind: DailyTask["entryKind"]) => T.push({ time, type: "CARE", title, owner, entryKind });
+  const stroke = e.targetGroup === "STROKE";
+  if (!stroke) add("07:50", "VITALS", "Đo chỉ số sáng", "NURSE", 1);
   if ([1, 2, 3, 7].includes(e.id)) add("08:00", "MEDICATION", "Thuốc buổi sáng", "NURSE", 5);
   add("08:15", "ACTIVITY", "Dưỡng sinh, khởi động khớp", "CAREGIVER", 2);
   const slot = therapySlots.filter((x) => x.date === DEMO_TODAY && x.bookings.some((b) => b.elderlyId === e.id));
-  for (const x of slot) add(x.startTime, "ACTIVITY", services.find((v) => v.id === x.serviceId)!.name, x.serviceId === 11 ? "NURSE" : "CAREGIVER", x.serviceId);
+  const rehab = e.targetGroup === "REHAB" || stroke;
+  for (const x of slot) {
+    if (x.serviceId === 11 && rehab) T.push({ time: x.startTime, type: "CARE", title: "Phiếu buổi VLTL", owner: "NURSE", serviceId: 11, entryKind: "REHAB_SESSION" });
+    else add(x.startTime, "ACTIVITY", services.find((v) => v.id === x.serviceId)!.name, x.serviceId === 11 ? "NURSE" : "CAREGIVER", x.serviceId);
+  }
+  if (rehab && !slot.some((x) => x.serviceId === 11)) care("08:45", stroke ? "VLTL phục hồi (tập đi, tập tay)" : "Phiếu buổi VLTL", "NURSE", "REHAB_SESSION");
   if (e.id === 2) add("09:30", "MEDICATION", "Paracetamol khi đau khớp", "NURSE", 5);
   if (choices.includes(16)) add("10:30", "ACTIVITY", "Đi bộ có người dìu", "CAREGIVER", 16);
   add("11:00", "MEAL", "Ăn trưa", "CAREGIVER");
   if (e.id === 1) add("12:30", "MEDICATION", "Thuốc sau ăn trưa", "NURSE", 5);
   add("12:00", "NAP", "Nghỉ trưa", "CAREGIVER");
   add("13:00", "HYGIENE", "Vệ sinh sau nghỉ trưa", "CAREGIVER");
-  if (s.tier !== "BASIC") add("13:30", "VITALS", "Đo chỉ số chiều", "NURSE", 1);
+  if (s.tier !== "BASIC" && !stroke) add("13:30", "VITALS", "Đo chỉ số chiều", "NURSE", 1);
+  // khối riêng theo nhóm (mục 6–10 đặc tả care log)
+  if (e.targetGroup === "MOBILE") care("10:00", "Phòng té ngã", "CAREGIVER", "CARE_CHECK");
+  if (e.targetGroup === "CHRONIC") {
+    care("11:20", "Ăn đúng chế độ (bữa trưa)", "CAREGIVER", "DIET_CHECK");
+    if (e.conditions.some((c) => c.includes("Tiểu đường"))) care("14:00", "Xem bàn chân", "NURSE", "CARE_CHECK");
+  }
+  if (e.targetGroup === "REHAB") care("10:40", "Đi lại (quãng đường)", "CAREGIVER", "MOBILITY");
+  if (e.targetGroup === "DEMENTIA") {
+    care("07:05", "Kiểm tra vòng tay", "CAREGIVER", "ZONE_CHECK");
+    care("09:00", "Định hướng (3 câu)", "CAREGIVER", "ORIENTATION");
+    for (const h of ["10:00", "12:00", "14:00", "16:00"]) care(h, `Điểm danh trong khu ${h.slice(0, 2)}h`, "CAREGIVER", "ZONE_CHECK");
+    care("15:00", "Theo dõi đổi tính về chiều", "CAREGIVER", "CARE_CHECK");
+  }
+  if (stroke) {
+    care("07:50", "HA + FAST lần 1", "NURSE", "FAST_CHECK");
+    care("13:30", "HA + FAST lần 2", "NURSE", "FAST_CHECK");
+    care("15:30", "HA + FAST lần 3", "NURSE", "FAST_CHECK");
+    if (s.tier !== "BASIC") care("07:35", "Nuốt · bữa sáng", "CAREGIVER", "SWALLOW");
+    care("11:05", "Nuốt · bữa trưa", "CAREGIVER", "SWALLOW");
+    care("15:05", "Nuốt · bữa xế", "CAREGIVER", "SWALLOW");
+    care("12:05", "Tư thế nghỉ trưa, kê bên liệt", "CAREGIVER", "CARE_CHECK");
+  }
   if (choices.includes(17)) add("14:00", "ACTIVITY", "Âm nhạc, hát nhẹ", "CAREGIVER", 17);
   if (choices.includes(20)) add("14:30", "ACTIVITY", "Cờ tướng, cờ caro", "CAREGIVER", 20);
   add("15:00", "MEAL", "Ăn xế", "CAREGIVER");
@@ -492,7 +521,7 @@ E(2, DEMO_TODAY, "07:50", "CHECKIN", "Đã đến trung tâm", "Check-in bằng 
 E(2, DEMO_TODAY, "07:55", "MEAL", "Ăn sáng", "Phở gà · ăn hết · 1 cốc sữa", 4);
 E(2, DEMO_TODAY, "08:00", "VITALS", "Chỉ số sáng", "HA 126/80 · mạch 72 · 36,5°C · SpO₂ 98%", 3);
 E(2, DEMO_TODAY, "08:05", "MEDICATION", "Đã uống thuốc sáng", "Glucosamine 1 viên", 3);
-E(2, DEMO_TODAY, "08:45", "ACTIVITY", "Vật lý trị liệu bằng máy", "Thanh song song 15 phút, đi được 14m (tuần trước 12m)", 3);
+E(2, DEMO_TODAY, "09:15", "REHAB_SESSION", "Phiếu buổi VLTL", "Tập đi thanh song song 2 vòng · gập duỗi gối phải 3×10 · đau 3 → 4", 3, { data: { start: "08:45", end: "09:15", equipment: "Thanh song song", exercises: [{ name: "Tập đi thanh song song", side: "Hai bên", sets: "2", reps: "14 m" }, { name: "Gập duỗi gối", side: "Phải", sets: "3", reps: "10" }], painBefore: 3, painAfter: 4, cooperation: "Tốt", stoppedEarly: false } });
 E(2, DEMO_TODAY, "09:45", "ACTIVITY", "Ghế massage", "Chế độ lưng nhẹ 15 phút", 4);
 E(2, DEMO_TODAY, "09:50", "PHOTO", "Ảnh mới", "Ông tập đi thanh song song", 4, { tone: "green" });
 E(3, DEMO_TODAY, "07:42", "CHECKIN", "Đã đến trung tâm", "Check-in bằng QR · người đưa: Lê Văn Phúc", 6);
@@ -511,6 +540,13 @@ E(7, DEMO_TODAY, "08:10", "MEDICATION", "Đã uống thuốc sáng", "Vitamin B 
 E(7, DEMO_TODAY, "08:50", "ACTIVITY", "Đọc báo, kể chuyện nhóm", "Tích cực · kể chuyện quê Nam Định", 4);
 E(7, DEMO_TODAY, "09:30", "MOOD", "Tâm trạng", "Lo âu — hỏi giờ về 3 lần, đã trấn an bằng nhạc", 4, { important: true });
 E(7, DEMO_TODAY, "09:35", "PHOTO", "Ảnh mới", "Bà nghe nhạc xưa", 4, { tone: "orange" });
+// khối riêng theo nhóm hôm nay
+E(1, DEMO_TODAY, "07:42", "DIET_CHECK", "Ăn đúng chế độ · bữa sáng", "Đúng chế độ ít đường", 4, { data: { meal: "Bữa sáng", compliance: "OK" } });
+E(6, DEMO_TODAY, "10:00", "CARE_CHECK", "Phòng té ngã", "Giày an toàn ✓ · không chóng mặt · suýt ngã: không", 7, { data: { type: "FALL", shoes: true, dizzy: false, escort: false, nearFall: false } });
+E(7, DEMO_TODAY, "07:58", "ZONE_CHECK", "Kiểm tra vòng tay", "Đang đeo vòng tay ✓", 4, { data: { slot: "07", wristband: true, present: true, exitAttempts: 0 } });
+E(7, DEMO_TODAY, "09:00", "ORIENTATION", "Định hướng", "Thứ mấy ✓ · Ở đâu ✗ · Nhận ra người chăm ✓ (2/3)", 4, { data: { day: true, place: false, person: true } });
+E(7, DEMO_TODAY, "09:31", "BEHAVIOR", "Hành vi: lo âu, hỏi lặp lại", "A: phòng sinh hoạt, đông người · B: hỏi giờ về 3 lần (nhẹ, 5 phút) · C: cho nghe nhạc xưa → đã dịu", 4, { internalOnly: true, data: { place: "Phòng sinh hoạt", triggers: ["Đông người"], behaviors: ["Lo âu", "Hỏi lặp lại"], severity: "Nhẹ", minutes: 5, interventions: ["Âm nhạc"], outcome: "CALMED" } });
+E(7, DEMO_TODAY, "10:00", "ZONE_CHECK", "Điểm danh trong khu 10h", "Có mặt ✓ · vòng tay ✓", 4, { data: { slot: "10", wristband: true, present: true, exitAttempts: 0 } });
 // previous days (closed) — compact
 const history = (id: number, date: string, staff: number, nurse: number) => {
   const a = attendance.find((x) => x.elderlyId === id && x.date === date);
@@ -527,6 +563,12 @@ const history = (id: number, date: string, staff: number, nurse: number) => {
   E(id, date, a.checkOut!, "CHECKOUT", "Đã về nhà", "Người đón đã xác nhận", staff);
 };
 for (let i = 1; i <= 6; i++) for (const id of [1, 2, 3, 7]) history(id, addDays(DEMO_TODAY, -i), CG[id], 3);
+for (let i = 6; i >= 1; i--) {
+  const date = addDays(DEMO_TODAY, -i);
+  if (attendance.find((x) => x.elderlyId === 2 && x.date === date)?.status !== "LEFT") continue;
+  E(2, date, "09:10", "REHAB_SESSION", "Phiếu buổi VLTL", `Tập đi thanh song song · đau ${3 + (i % 2)} → 4`, 3, { data: { start: "08:45", end: "09:10", exercises: [{ name: "Tập đi thanh song song", side: "Hai bên", sets: "2", reps: `${12 - Math.ceil(i / 2)} m` }], painBefore: 3 + (i % 2), painAfter: 4, cooperation: "Tốt", stoppedEarly: false } });
+  E(2, date, "10:40", "MOBILITY", "Đi lại", `${14 - i} m · khung tập đi · 1 người dìu`, 4, { data: { distance: 14 - i, aid: "Khung", helpers: 1, rests: 2 } });
+}
 E(1, "2026-10-08", "13:40", "NOTE", "Lưu ý", "Bà than mỏi gối sau đi bộ, đã chườm ấm 10 phút.", 4, { important: true });
 E(7, "2026-10-08", "10:20", "INCIDENT", "Sự cố hành vi", "Bà đi ra hành lang tìm cửa về nhà, hộ lý Bảo báo, điều dưỡng đưa về khu sinh hoạt sau 3 phút.", 3, { important: true });
 
@@ -813,6 +855,31 @@ attendance.push(
 );
 careLogDays.push({ elderlyId: 14, date: DEMO_TODAY, status: "OPEN" }, { elderlyId: 15, date: DEMO_TODAY, status: "OPEN" }, { elderlyId: 15, date: "2026-10-08", status: "CLOSED", closedBy: 6, closedAt: t("2026-10-08", "16:25") });
 notifications.unshift(nf(18, 2, "SYSTEM", "Lê Thu Hạnh đã duyệt: Lý Văn Bình", "Khai Vận động được, thực tế Bệnh mãn tính · đã gửi hóa đơn phụ phí, hạn 3 ngày", t("2026-10-08", "08:36"), false, "/manager/registrations"));
+
+// ------------------------------------------------------------------ STROKE demo elderly (màn CL-STR)
+{
+  const T0 = DEMO_TODAY;
+  const e16 = em({ id: 16, fullName: "Trần Văn Bình", familyUserId: 12, dateOfBirth: "1950-02-14", gender: "Nam", address: "3 Nguyễn Hữu Thọ, Q.7", declaredGroup: "STROKE", targetGroup: "STROKE", conditions: ["Sau tai biến (05/2026), yếu nửa người trái", "Cao huyết áp", "Tiểu đường type 2"], diet: "Thức ăn mềm, cắt nhỏ; nước uống sánh", hobbies: "Nghe radio, cờ tướng", careNote: "Nói chậm. Kê gối dưới tay trái khi ngồi lâu.", caregiverId: 4, nurseId: 3, tone: "purple", careModules: ["GLUCOSE"], affectedSide: "Trái" });
+  elderly.push(e16);
+  pickups.push({ id: 18, elderlyId: 16, fullName: "Võ Minh Quân", relationship: "Cháu trai", phone: "0913 222 333", idLast4: "6060", isPrimary: true });
+  const s16 = sub({ id: 26, elderlyId: 16, targetGroup: "STROKE", tier: "PREMIUM", cycle: "MONTH", startDate: "2026-10-01", endDate: "2026-10-31", surchargeAmount: 1200000, surchargeNote: "Phụ phí cố định nhóm Sau tai biến", familyConfirmedAt: t("2026-09-28", "20:00"), status: "ACTIVE", createdAt: t("2026-09-27", "09:00"), createdBy: 12 });
+  subscriptions.push(s16);
+  serviceChoices.push(...choose(26, [11, 15, 16, 17, 18], "2026-10-01"));
+  attendance.push({ id: aid++, elderlyId: 16, date: T0, checkIn: "07:25", status: "PRESENT", checkedInBy: 4 });
+  for (const tk of taskTemplate(e16, s16, [11, 15, 16, 17, 18])) {
+    const done = tk.time < DEMO_NOW;
+    dailyTasks.push({ id: tid++, elderlyId: 16, date: T0, ...tk, status: done ? "DONE" : "TODO", doneBy: done ? (tk.owner === "NURSE" ? 3 : 4) : undefined, doneAt: done ? tk.time : undefined });
+  }
+  E(16, T0, "07:25", "CHECKIN", "Đã đến trung tâm", "Check-in bằng QR · người đưa: Võ Minh Quân", 4);
+  E(16, T0, "07:35", "MEAL", "Ăn sáng", "Cháo xay · ăn 3/4 · 1 cốc nước sánh", 4);
+  E(16, T0, "07:36", "SWALLOW", "Nuốt · bữa sáng", "Mềm · ngồi thẳng · không ho/sặc · 20 phút", 4, { data: { meal: "Bữa sáng", texture: "Mềm", fluid: "Sánh", upright: true, cough: "NONE", wetVoice: false, pocketing: false, minutes: 20 } });
+  E(16, T0, "07:45", "VITALS", "Đường huyết trước ăn", "ĐH 6,8 mmol/L", 3);
+  E(16, T0, "07:50", "FAST_CHECK", "HA + FAST lần 1", "HA 148/88 · mạch 76 · FAST âm tính", 3, { data: { round: 1, sys: 148, dia: 88, pulse: 76, face: false, arm: false, speech: false, extra: [], positive: false } });
+  E(16, T0, "09:20", "REHAB_SESSION", "Phiếu buổi VLTL", "Tập đi có khung 20 bước · tay trái cầm nắm 3×10 · đau 2 → 2", 3, { data: { start: "08:45", end: "09:20", equipment: "Khung tập đi", exercises: [{ name: "Tập đi có khung", side: "Hai bên", sets: "1", reps: "20 bước" }, { name: "Cầm nắm bóng mềm", side: "Trái", sets: "3", reps: "10" }], painBefore: 2, painAfter: 2, cooperation: "Tốt", stoppedEarly: false } });
+  E(16, T0, "10:00", "MOOD", "Tâm trạng", "Vui", 4);
+  healthMetrics.push({ id: healthMetrics.length + 1000, elderlyId: 16, at: t(T0, "07:45"), by: 3, glucose: 6.8 }, { id: healthMetrics.length + 1001, elderlyId: 16, at: t(T0, "07:50"), by: 3, sys: 148, dia: 88, pulse: 76 });
+  careLogDays.push({ elderlyId: 16, date: T0, status: "OPEN" });
+}
 
 export const seed = {
   users, staffProfiles, elderly, pickups, packages, entitlements, services, subscriptions, serviceChoices, addOns, servicePermissions,

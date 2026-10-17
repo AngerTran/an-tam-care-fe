@@ -7,7 +7,7 @@ import type {
 import { ALL_CYCLES, ALL_GROUPS, ALL_TIERS, CYCLE_LABEL, cycleDef, cycleMonths, entitlementFixedBed, GROUP_LABEL, groupDef, isDayCycle, minTierFor, monthCycle, TIER_LABEL, tierDef, tierRank, VIOLATION_KEEP } from "../domain/catalog";
 import { addDays, daysBetween } from "../lib/format";
 import {
-  activeSub, addOnsOf, attendanceOn, audit, byId, capacity, choicesOf, clock, commit, currentSub, db, entitlement, honor, invoicesOf, lookups, metricsOf, need,
+  activeSub, addOnsOf, attendanceOn, audit, byId, capacity, careContext, choicesOf, clock, commit, currentSub, db, entitlement, honor, invoicesOf, lookups, metricsOf, need,
   nextId, notify, notifyAdmins, NOW, paymentOf, requireRole, pkgName, priceOfPkg, scheduledOn, stamp, surchargeMonthly, fixedSurcharge, TODAY, usable, wait,
 } from "./core";
 
@@ -716,6 +716,8 @@ export const manager = {
       metrics: d.healthMetrics.filter((m) => m.elderlyId === elderlyId && m.at.startsWith(date)),
       doses: d.medDoses.filter((m) => m.elderlyId === elderlyId && m.date === date).map((m) => ({ ...m, plan: byId(d.medPlans, m.planId) })),
       closer: lookups.user(d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === date)?.closedBy),
+      medicalDoner: lookups.user(d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === date)?.medicalDoneBy),
+      ...careContext(elderlyId, date),
     };
   },
   async closeOnBehalf(me: User, elderlyId: number, date: string) {

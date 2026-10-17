@@ -13,6 +13,7 @@ import { CYCLE_LABEL, isDayCycle, TIER_LABEL, tierHasBreakfast } from "../../dom
 import { addDays, daysBetween, dm, dmy, hm, weekday } from "../../lib/format";
 import { INC_TYPE, LEVEL, SEVERITY } from "../manager/ManagerOps";
 import { ChatWidget } from "../public/PublicHome";
+import { GroupBlocks, SCREEN } from "../staff/CareLogScreens";
 
 function NoElderly() {
   return <Card><EmptyState icon={ClipboardList} title="Chưa có cụ nào đang đi" desc="Thêm hồ sơ người thân và đăng ký gói. Sau buổi đánh giá và thanh toán, bạn sẽ theo dõi cụ tại đây." action={<><Button to="/family/relatives/new" icon={Plus}>Thêm người thân</Button><Button variant="outline" to="/family/register">Đăng ký gói</Button></>} /></Card>;
@@ -54,6 +55,12 @@ export function FamilyHome() {
                 {!data.scheduledToday && <span>Hôm nay không thuộc lịch gói</span>}
               </div>
             </Card>
+            {data.elderly.targetGroup && SCREEN[data.elderly.targetGroup] && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-[13px] font-semibold text-navy">Chăm sóc riêng nhóm {SCREEN[data.elderly.targetGroup].tab}<span className="text-[11px] font-normal text-subtle">· bản rút gọn, chỉ xem</span></div>
+                <GroupBlocks ctx={{ ...data, tier: data.sub?.tier }} mode={{ readOnly: true, nurse: false }} />
+              </div>
+            )}
             <Card title="Dòng thời gian hôm nay" actions={<span className="text-[11px] text-subtle">Cập nhật ngay khi nhân viên ghi</span>}>
               <Timeline entries={data.entries} />
             </Card>

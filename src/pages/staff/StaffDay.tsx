@@ -1,19 +1,18 @@
-// Staff · during the shift: S1 ca hôm nay, S2 check-in/out, S3 cụ hôm nay, S4 care log của một cụ, S6 ghi nhanh cả nhóm.
+// Staff · during the shift: S1 ca hôm nay, check-in/out, cụ hôm nay, S2 ghi nhanh cả nhóm. Màn care log theo nhóm ở CareLogScreens.tsx.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Activity, AlarmClock, Bath, Camera, CircleCheck, DoorOpen, HeartPulse, Lock, LogIn, Moon, NotebookPen, Phone, Pill, QrCode, ScanLine, Smile, TriangleAlert, UserX, Utensils, Users,
+  Activity, AlarmClock, CircleCheck, DoorOpen, HeartPulse, Lock, LogIn, Phone, Pill, QrCode, ScanLine, UserX, Utensils, Users,
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { lookups, NOW, staff, TODAY } from "../../api";
+import { Link, useNavigate } from "react-router-dom";
+import { NOW, staff, TODAY } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
-import { AttBadge, ElderlyCell, GroupBadge, Progress, Stat, TierBadge, Timeline } from "../../components/domain";
-import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, KV, Loading, Modal, Note, SelectField, Table, Tabs, TextArea, cn } from "../../components/ui";
-import { GROUP_INFO, MEAL_AMOUNTS, PARTICIPATION } from "../../domain/catalog";
-import { dmy, hm, weekday } from "../../lib/format";
-import { EntryModal, IncidentModal, taskKind, VitalsModal, type EntryKindUI } from "./StaffForms";
-import { DoseButtons } from "./StaffNurse";
+import { AttBadge, ElderlyCell, GroupBadge, Progress, Stat, TierBadge } from "../../components/domain";
+import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, Loading, Modal, Note, SelectField, Table, Tabs, cn } from "../../components/ui";
+import { GROUP_LABEL, GROUP_TONE, MEAL_AMOUNTS, PARTICIPATION } from "../../domain/catalog";
+import { dmy, weekday } from "../../lib/format";
+import { SCREEN } from "./CareLogScreens";
 
 // ------------------------------------------------------------------ S1
 export function StaffToday() {
@@ -190,12 +189,16 @@ export function StaffCheckin() {
 export function StaffElderly() {
   const me = useMe();
   const nav = useNavigate();
+  const [group, setGroup] = useState<string>();
   const { data, isLoading } = useQuery({ queryKey: ["s-elderly", me.id], queryFn: () => staff.elderlyToday(me) });
+  const groups = [...new Set((data ?? []).map((r) => r.elderly.targetGroup).filter(Boolean))] as string[];
+  const rows = (data ?? []).filter((r) => !group || r.elderly.targetGroup === group).sort((a, b) => Number(b.a?.status === "LEFT" && b.day?.status !== "CLOSED") - Number(a.a?.status === "LEFT" && a.day?.status !== "CLOSED"));
   return (
-    <Page title="Cụ hôm nay" sub="Chỉ cụ đã check-in và được giao cho bạn (BR-33)">
-      {isLoading ? <Loading /> : !data?.length ? <Card><EmptyState icon={Users} title="Chưa có cụ nào check-in" /></Card> : (
+    <Page title="Cụ hôm nay" sub="Cụ có mặt hôm nay và được giao cho bạn (BR-33). Bấm vào cụ để mở màn care log riêng theo nhóm.">
+      {groups.length > 1 && <div className="flex flex-wrap gap-1.5"><Chip active={!group} onClick={() => setGroup(undefined)}>Tất cả ({data?.length})</Chip>{groups.map((g) => <Chip key={g} active={group === g} onClick={() => setGroup(g)}><Badge tone={GROUP_TONE[g]}>{SCREEN[g]?.code}</Badge> {GROUP_LABEL[g]} ({data?.filter((r) => r.elderly.targetGroup === g).length})</Chip>)}</div>}
+      {isLoading ? <Loading /> : !data?.length ? <Card><EmptyState icon={Users} title="Chưa có cụ nào có mặt" /></Card> : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {data.map((r) => (
+          {rows.map((r) => (
             <button key={r.elderly.id} onClick={() => nav(`/staff/elderly/${r.elderly.id}`)} className="rounded-xl bg-surface p-4 text-left shadow-[0_2px_6px_rgba(18,35,89,0.06)] hover:ring-2 hover:ring-orange-line">
               <div className="flex items-start justify-between gap-2">
                 <ElderlyCell e={r.elderly} size={40} />
@@ -204,122 +207,11 @@ export function StaffElderly() {
               <div className="mt-2 flex flex-wrap gap-1"><TierBadge tier={r.sub?.tier} /><GroupBadge group={r.elderly.targetGroup} />{r.restricted > 0 && <Badge tone="orange">⚠ {r.restricted} dịch vụ không dùng</Badge>}<AttBadge a={r.a} /></div>
               <div className="mt-2 text-[11px] text-subtle">Việc đã xong {r.progress}%</div>
               <Progress value={r.progress} />
-              <div className="mt-1.5 text-[11px]">{r.day?.status === "CLOSED" ? <Badge tone="green">Đã chốt</Badge> : <Badge tone="gray">Đang mở</Badge>}</div>
+              <div className="mt-1.5 flex items-center justify-between text-[11px]">{r.day?.status === "CLOSED" ? <Badge tone="green">Đã chốt</Badge> : r.a?.status === "LEFT" ? <Badge tone="orange">Chờ chốt</Badge> : <Badge tone="gray">Đang mở</Badge>}<span className="font-semibold text-blue">Mở {SCREEN[r.elderly.targetGroup ?? ""]?.code ?? "care log"} →</span></div>
             </button>
           ))}
         </div>
       )}
-    </Page>
-  );
-}
-
-// ------------------------------------------------------------------ S4 + S5
-const QUICK: [EntryKindUI, typeof Utensils, string][] = [["MEAL", Utensils, "Ăn uống"], ["HYGIENE", Bath, "Vệ sinh"], ["ACTIVITY", Activity, "Hoạt động"], ["NAP", Moon, "Nghỉ trưa"], ["MOOD", Smile, "Tâm trạng"], ["PHOTO", Camera, "Ảnh"]];
-export function StaffCareLog() {
-  const me = useMe();
-  const qc = useQueryClient();
-  const id = Number(useParams().id);
-  const [tab, setTab] = useState<"tasks" | "timeline">("tasks");
-  const [kind, setKind] = useState<EntryKindUI>();
-  const [taskFor, setTaskFor] = useState<{ id: number; title: string; time: string }>();
-  const [vitals, setVitals] = useState(false);
-  const [incident, setIncident] = useState(false);
-  const [skip, setSkip] = useState<number>();
-  const [reason, setReason] = useState("");
-  const { data, isLoading, error } = useQuery({ queryKey: ["s-cl", id], queryFn: () => staff.careLog(me, id) });
-  const meds = useQuery({ queryKey: ["s-meds", me.id], queryFn: () => staff.meds(me), enabled: lookups.position(me.id) === "NURSE" });
-  const inv = () => qc.invalidateQueries();
-  const setTask = useMutation({ mutationFn: ({ t, s, r }: { t: number; s: "DONE" | "SKIPPED" | "TODO"; r?: string }) => staff.setTask(me, t, s, r), onSuccess: () => { inv(); setSkip(undefined); setReason(""); } });
-  const close = useMutation({ mutationFn: () => staff.closeLog(me, id), onSuccess: inv });
-  if (isLoading) return <Page title="Care log" back="/staff/elderly"><Loading /></Page>;
-  if (!data) return <Page title="Care log" back="/staff/elderly"><ErrorText error={error} /></Page>;
-  const e = data.elderly;
-  const nurse = lookups.position(me.id) === "NURSE";
-  const closed = data.day?.status === "CLOSED";
-  const photoLimit = data.entitlement?.photoPerDay;
-  const acts = [...new Set([...data.choices.map((c) => c.name), "Dưỡng sinh, khởi động khớp", "Thư giãn tự do"])];
-  const done = data.tasks.filter((t) => t.status !== "TODO").length;
-  return (
-    <Page title={`Care log · ${e.fullName}`} back="/staff/elderly" sub={`${weekday(TODAY)} ${dmy(TODAY)}`}>
-      <Card>
-        <div className="flex flex-wrap items-start gap-4">
-          <ElderlyCell e={e} size={52} />
-          <div className="flex flex-wrap gap-1"><TierBadge tier={data.sub?.tier} /><GroupBadge group={e.targetGroup} /><AttBadge a={data.a} /></div>
-          <span className="ml-auto text-right">{closed ? <Badge tone="green">Đã chốt · {data.closer?.fullName} {hm(data.day?.closedAt)}</Badge> : <Badge tone="orange">Đang mở</Badge>}</span>
-        </div>
-        <div className="mt-3 grid gap-x-6 text-[12px] sm:grid-cols-2 lg:grid-cols-3">
-          <KV label="Dị ứng" w={90}>{e.allergies.join(", ") || "Không"}</KV>
-          <KV label="Chế độ ăn" w={90}>{e.diet || "Bình thường"}</KV>
-          <KV label="Giường" w={90}>{data.bed?.code ?? "—"}</KV>
-          <KV label="Bệnh nền" w={90}>{e.conditions.join(", ") || "Không"}</KV>
-          <KV label="Ghi chú" w={90}>{e.careNote || "—"}</KV>
-          <KV label="Ảnh hôm nay" w={90}>{data.photos}/{photoLimit ?? "∞"}</KV>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {data.permissions.map((p) => <Badge key={p.serviceId} tone={p.allowed ? "green" : "red"}>{p.allowed ? "✓" : "✗"} {p.service?.name}</Badge>)}
-          {data.belongings.map((b) => <Badge key={b.id} tone="gray">Đồ gửi: {b.item}</Badge>)}
-        </div>
-        {e.targetGroup && GROUP_INFO[e.targetGroup].care.length > 0 && <Note className="mt-2">Chăm sóc riêng nhóm: {GROUP_INFO[e.targetGroup].care.join(" · ")}. Hạn chế: {GROUP_INFO[e.targetGroup].limits}.</Note>}
-      </Card>
-      {!closed && data.a?.status === "PRESENT" && (
-        <div className="flex flex-wrap gap-2">
-          {QUICK.map(([k, Icon, l]) => <Button key={k} variant="neutral" icon={Icon} disabled={k === "PHOTO" && photoLimit !== null && photoLimit !== undefined && data.photos >= photoLimit} onClick={() => { setTaskFor(undefined); setKind(k); }}>{l}</Button>)}
-          <Button variant="outline" icon={NotebookPen} onClick={() => setKind("NOTE")}>Ghi lưu ý / bất thường</Button>
-          {nurse && <><Button variant="ai" icon={Activity} onClick={() => setVitals(true)}>Đo chỉ số</Button><Button variant="danger" icon={TriangleAlert} onClick={() => setIncident(true)}>Sự cố</Button></>}
-          {!nurse && <Button variant="danger" icon={TriangleAlert} onClick={() => setIncident(true)}>Báo nhanh sự cố</Button>}
-        </div>
-      )}
-      <Tabs value={tab} onChange={setTab} items={[{ value: "tasks", label: `Việc hôm nay (${done}/${data.tasks.length})` }, { value: "timeline", label: `Dòng thời gian (${data.entries.length})` }]} />
-      {tab === "tasks" && (
-        <Card>
-          <ul className="divide-y divide-line-soft">
-            {data.tasks.map((t) => {
-              const mine = (t.owner === "NURSE") === nurse;
-              const dose = meds.data?.find((m) => m.dose.elderlyId === id && m.dose.time === t.time && t.type === "MEDICATION");
-              const canOpen = mine && !closed && data.a?.status === "PRESENT" && t.status === "TODO" && (!!taskKind(t) || t.type === "VITALS" || t.type === "GLUCOSE");
-              const open = () => {
-                if (!canOpen) return;
-                if (t.type === "VITALS" || t.type === "GLUCOSE") return setVitals(true);
-                setTaskFor({ id: t.id, title: t.title, time: t.time });
-                setKind(taskKind(t));
-              };
-              return (
-                <li key={t.id} onClick={open} title={canOpen ? "Bấm để ghi chi tiết" : undefined} className={cn("-mx-2 flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 transition", !mine && "opacity-60", canOpen && "cursor-pointer hover:bg-orange-soft")}>
-                  <span className={cn("w-12 text-[12px] font-semibold", t.status === "TODO" && t.time < NOW ? "text-red-ink" : "text-navy")}>{t.time}</span>
-                  <span className="min-w-0 flex-1 text-[12.5px]"><span className={cn(canOpen && "font-semibold text-navy underline decoration-orange-line decoration-2 underline-offset-4")}>{t.title}</span><span className="ml-1.5"><Badge tone={t.owner === "NURSE" ? "teal" : "blue"}>{t.owner === "NURSE" ? "Điều dưỡng" : "Hộ lý"}</Badge></span>{t.skipReason && <span className="block text-[11px] text-amber-ink">Bỏ qua: {t.skipReason}</span>}</span>
-                  {t.status === "DONE" ? <Badge tone="green">Đã làm {t.doneAt} · {t.by?.fullName}</Badge> : t.status === "SKIPPED" ? <Badge tone="orange">Bỏ qua</Badge> : mine && !closed && data.a?.status === "PRESENT" ? (
-                    dose ? <span onClick={(ev) => ev.stopPropagation()}><DoseButtons doseId={dose.dose.id} /></span> : t.type === "VITALS" || t.type === "GLUCOSE" ? <Button size="sm" variant="ai" onClick={(ev) => { ev.stopPropagation(); setVitals(true); }}>Đo</Button> : t.type === "CHECKOUT" ? <Button size="sm" variant="outline" icon={DoorOpen} to="/staff/checkin">Check-out</Button> : (
-                      <span className="flex gap-1" onClick={(ev) => ev.stopPropagation()}>
-                        <Button size="sm" variant="success" icon={CircleCheck} onClick={() => setTask.mutate({ t: t.id, s: "DONE" })}>Đã làm</Button>
-                        <Button size="sm" variant="neutral" onClick={() => setSkip(t.id)}>Bỏ qua</Button>
-                      </span>
-                    )
-                  ) : <Badge tone="gray">Chưa làm</Badge>}
-                </li>
-              );
-            })}
-          </ul>
-          <ErrorText error={setTask.error} />
-        </Card>
-      )}
-      {tab === "timeline" && <Card><Timeline entries={data.entries} showStaff /></Card>}
-      {!closed && (
-        <Card>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="flex-1 text-[12px] text-muted">Hộ lý phụ trách chính chốt care log khi trả cụ, sau khi điều dưỡng ghi xong chỉ số và thuốc. Hệ thống kiểm tra việc còn thiếu (CL-06).</span>
-            <Button icon={Lock} disabled={e.caregiverId !== me.id} loading={close.isPending} onClick={() => close.mutate()}>Chốt care log</Button>
-          </div>
-          <ErrorText error={close.error} />
-        </Card>
-      )}
-      <EntryModal key={`${kind}-${taskFor?.id ?? "free"}`} kind={kind} task={taskFor} elderly={e} activities={acts} photoInfo={`${data.photos}/${photoLimit ?? "không giới hạn"} ảnh hôm nay`} onClose={() => { setKind(undefined); setTaskFor(undefined); }} />
-      <VitalsModal open={vitals} onClose={() => setVitals(false)} elderly={e} thresholds={data.thresholds} diabetic={e.conditions.some((c) => c.includes("Tiểu đường"))} />
-      {incident && <IncidentModal open onClose={() => setIncident(false)} elderlyOptions={[e]} defaultElderly={e.id} />}
-      <Modal open={!!skip} onClose={() => setSkip(undefined)} title="Bỏ qua việc" footer={<><Button variant="neutral" onClick={() => setSkip(undefined)}>Hủy</Button><Button loading={setTask.isPending} onClick={() => setTask.mutate({ t: skip!, s: "SKIPPED", r: reason })}>Bỏ qua</Button></>}>
-        <TextArea label="Lý do (bắt buộc, CL-02)" value={reason} onChange={(ev) => setReason(ev.target.value)} />
-        <div className="mt-2 flex flex-wrap gap-1.5">{["Cụ mệt, xin nghỉ", "Cụ từ chối", "Thiết bị đang hỏng", "Đang ở phòng y tế"].map((r) => <Chip key={r} onClick={() => setReason(r)}>{r}</Chip>)}</div>
-        <ErrorText error={setTask.error} />
-      </Modal>
     </Page>
   );
 }

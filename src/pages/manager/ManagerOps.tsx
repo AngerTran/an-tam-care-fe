@@ -10,6 +10,7 @@ import { AttBadge, ElderlyCell, GroupBadge, Progress, SearchBox, Stat, TierBadge
 import { Badge, Button, Card, Chip, ErrorText, Field, Kpi, KV, Loading, Modal, Note, SelectField, Table, Tabs, TextArea, type Tone } from "../../components/ui";
 import { dm, dmy, hm, millions, weekday } from "../../lib/format";
 import type { CareLogEntry, HealthAlert, Incident } from "../../types/models";
+import { GroupBlocks, SCREEN } from "../staff/CareLogScreens";
 
 export const LEVEL: Record<HealthAlert["level"], [Tone, string]> = { URGENT: ["red", "Khẩn cấp"], WARNING: ["orange", "Cảnh báo"], INFO: ["blue", "Thông tin"] };
 export const SOURCE: Record<HealthAlert["source"], string> = { THRESHOLD: "Vượt ngưỡng", AI: "AI phát hiện xu hướng", RULE: "Quy tắc hệ thống" };
@@ -216,7 +217,7 @@ export function CareLogDetailPage() {
   const qc = useQueryClient();
   const { id, date = TODAY } = useParams();
   const eid = Number(id);
-  const [tab, setTab] = useState<"timeline" | "tasks" | "summary" | "edits">("timeline");
+  const [tab, setTab] = useState<"group" | "timeline" | "tasks" | "summary" | "edits">("group");
   const [edit, setEdit] = useState<CareLogEntry>();
   const [detail, setDetail] = useState("");
   const [reason, setReason] = useState("");
@@ -239,7 +240,8 @@ export function CareLogDetailPage() {
         </div>
         {closed && <Note className="mt-3">Care log đã chốt. Bấm "Sửa" ở từng mục để sửa — bắt buộc ghi lý do, hệ thống lưu ai sửa, lúc nào, từ gì thành gì (CL-06).</Note>}
       </Card>
-      <Tabs value={tab} onChange={setTab} items={[{ value: "timeline", label: "Dòng thời gian" }, { value: "tasks", label: `Việc trong ngày (${data.tasks.length})` }, { value: "summary", label: "Tổng kết ngày" }, { value: "edits", label: `Lịch sử sửa (${data.edits.length})` }]} />
+      <Tabs value={tab} onChange={setTab} items={[{ value: "group", label: `${SCREEN[data.elderly.targetGroup ?? ""]?.code ?? "CL"} · khối theo nhóm` }, { value: "timeline", label: "Dòng thời gian" }, { value: "tasks", label: `Việc trong ngày (${data.tasks.length})` }, { value: "summary", label: "Tổng kết ngày" }, { value: "edits", label: `Lịch sử sửa (${data.edits.length})` }]} />
+      {tab === "group" && <><Note>Màn {SCREEN[data.elderly.targetGroup ?? ""]?.code} của cụ ở chế độ chỉ đọc (M2). {data.day?.medicalDoneAt ? `Điều dưỡng ${data.medicalDoner?.fullName ?? ""} đã xong phần y tế lúc ${hm(data.day.medicalDoneAt)}.` : "Điều dưỡng chưa bấm Xong phần y tế."}</Note><GroupBlocks ctx={{ ...data, tier: data.sub?.tier }} mode={{ readOnly: true, nurse: false }} /></>}
       {tab === "timeline" && <Card><Timeline entries={data.entries} showStaff onEdit={closed ? (x) => { setEdit(x); setDetail(x.detail); setReason(""); } : undefined} /></Card>}
       {tab === "tasks" && (
         <Card>
