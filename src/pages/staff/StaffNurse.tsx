@@ -12,7 +12,7 @@ import { dm, dmy, hm } from "../../lib/format";
 import { BARTHEL_NOT_ACCEPTED, validateBarthel } from "../../lib/validate";
 import type { TargetGroup } from "../../types/models";
 import { INC_TYPE, LEVEL, SEVERITY, SOURCE } from "../manager/ManagerOps";
-import { IncidentModal, VitalsModal } from "./StaffForms";
+import { IncidentModal, vitalsExtras, VitalsModal } from "./StaffForms";
 
 // ------------------------------------------------------------------ S7
 export function StaffVitals() {
@@ -28,13 +28,13 @@ export function StaffVitals() {
           <Table rows={data ?? []} rowKey={(r) => r.elderly.id} empty="Chưa có cụ nào check-in" columns={[
             { key: "e", header: "Cụ", render: (r) => <ElderlyCell e={r.elderly} sub={<span className="flex gap-1"><TierBadge tier={r.sub.tier} /><GroupBadge group={r.elderly.targetGroup} /></span>} /> },
             { key: "n", header: "Hôm nay", render: (r) => <Badge tone={r.due ? "orange" : "green"}>{r.todays.length}/{r.per} lần</Badge> },
-            { key: "l", header: "Lần đo gần nhất", render: (r) => r.latest ? <span className="text-[12px]">HA <b className={cn(r.latest.sys! > th.sysMax && "text-red-ink")}>{r.latest.sys}/{r.latest.dia}</b> · mạch {r.latest.pulse}{r.latest.spo2 ? ` · SpO₂ ${r.latest.spo2}%` : ""}<span className="block text-[11px] text-subtle">{dm(r.latest.at.slice(0, 10))} {hm(r.latest.at)}</span></span> : "—" },
-            { key: "x", header: "Lưu ý", render: (r) => <span className="flex flex-wrap gap-1">{r.diabetic && <Badge tone="orange">Đo đường huyết</Badge>}{r.elderly.targetGroup === "STROKE" && <Badge tone="red">HA 3 lần/ngày + checklist tái phát</Badge>}</span> },
+            { key: "l", header: "Lần đo gần nhất · HA · mạch · SpO₂ · nhiệt độ", render: (r) => r.latest ? <span className="text-[12px]"><b className={cn((r.latest.sys! > (r.thresholds ?? th).sysMax || r.latest.dia! > (r.thresholds ?? th).diaMax) && "text-red-ink")}>{[r.latest.sys && `${r.latest.sys}/${r.latest.dia}`, r.latest.pulse && `mạch ${r.latest.pulse}`, r.latest.spo2 && `${r.latest.spo2}%`, r.latest.temp && `${r.latest.temp}°C`, r.latest.glucose && `ĐH ${r.latest.glucose}`, r.latest.weight && `${r.latest.weight} kg`].filter(Boolean).join(" · ")}</b><span className="block text-[11px] text-subtle">{r.latest.at.startsWith(TODAY) ? "hôm nay" : dm(r.latest.at.slice(0, 10))} {hm(r.latest.at)}</span></span> : "—" },
+            { key: "x", header: "Đo thêm theo bệnh", render: (r) => { const x = vitalsExtras(r.elderly); return <span className="flex flex-wrap gap-1">{x.glucose && <Badge tone="orange">Đường huyết</Badge>}{x.weight && <Badge tone="purple">Cân nặng</Badge>}{r.elderly.targetGroup === "STROKE" && <Badge tone="red">HA + FAST 3 lần/ngày</Badge>}{!x.glucose && !x.weight && r.elderly.targetGroup !== "STROKE" && <span className="text-subtle">—</span>}</span>; } },
             { key: "b", header: "", render: (r) => <Button size="sm" variant="ai" icon={Activity} onClick={() => setCur(r.elderly.id)}>Đo</Button> },
           ]} />
         )}
       </Card>
-      <VitalsModal open={!!sel} onClose={() => setCur(undefined)} elderly={sel?.elderly} thresholds={th} diabetic={sel?.diabetic} />
+      <VitalsModal open={!!sel} onClose={() => setCur(undefined)} elderly={sel?.elderly} thresholds={sel?.thresholds ?? th} />
     </Page>
   );
 }

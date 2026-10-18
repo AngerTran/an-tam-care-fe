@@ -1,6 +1,6 @@
 // Staff API (điều dưỡng + hộ lý). Screens S1–S10 of mục 5.11, plus assessment, shifts,
 // damage reports and personal belongings. Staff only see their assigned elderly (BR-33).
-import type { CareLogEntry, DailyTask, HealthMetric, Incident, LeaveRequest, TargetGroup, Tier, User } from "../types/models";
+import type { CareLogEntry, DailyTask, HealthMetric, Incident, LeaveRequest, TargetGroup, Thresholds, Tier, User } from "../types/models";
 import { GROUP_INFO, GROUP_LABEL, isDayCycle, minTierFor, POSITION_LABEL, TIER_LABEL, tierRank } from "../domain/catalog";
 import { assertValid, BARTHEL_NOT_ACCEPTED, validateBarthel, validateVitals } from "../lib/validate";
 import { manager } from "./manager";
@@ -320,7 +320,7 @@ export const staff = {
       const todays = d.healthMetrics.filter((m) => m.elderlyId === e.id && m.at.startsWith(TODAY) && m.sys);
       const s = activeSub(e.id)!;
       const per = e.targetGroup === "STROKE" ? 3 : entitlement(s.tier).vitalsPerDay;
-      return { elderly: e, sub: s, todays, per, latest: metricsOf(e.id).filter((m) => m.sys).pop(), due: todays.length < per, diabetic: e.conditions.some((c) => c.includes("Tiểu đường")) };
+      return { elderly: e, sub: s, todays, per, latest: metricsOf(e.id).filter((m) => m.sys).pop(), due: todays.length < per, diabetic: e.conditions.some((c) => c.includes("Tiểu đường")), thresholds: d.centerSettings.thresholds as Thresholds | undefined };
     });
   },
   async recordVitals(me: User, elderlyId: number, m: Omit<HealthMetric, "id" | "elderlyId" | "at" | "by">) {
@@ -363,6 +363,18 @@ export const staff = {
     if (status === "REFUSED" && refused.length >= 2) raise(m.elderlyId, "RULE", "WARNING", "Từ chối thuốc 2 lần liền", plan.name);
     d.dailyTasks.filter((t) => t.elderlyId === m.elderlyId && t.date === TODAY && t.type === "MEDICATION" && t.time === m.time && t.status === "TODO").forEach((t) => Object.assign(t, status === "GIVEN" ? { status: "DONE", doneBy: me.id, doneAt: clock() } : { status: "SKIPPED", skipReason: reason, doneBy: me.id, doneAt: clock() }));
     commit();
+  },
+
+  /** Màn "Việc hôm nay": mọi việc hôm nay của các cụ được giao (đang ở trung tâm hoặc đã về), theo giờ. */
+  async taskBoard(me: User) {
+    await wait();
+    const d = db();
+    const mine = staffOf(me).filter((e) => ["PRESENT", "LEFT"].includes(attendanceOn(e.id)?.status ?? ""));
+    const ids = new Set(mine.map((e) => e.id));
+    return d.dailyTasks.filter((t) => ids.has(t.elderlyId) && t.date === TODAY).sort((a, b) => a.time.localeCompare(b.time) || a.title.localeCompare(b.title)).map((t) => ({
+      task: { ...t, by: lookups.user(t.doneBy) }, elderly: need(lookups.elderly(t.elderlyId)), present: attendanceOn(t.elderlyId)?.status === "PRESENT",
+      dayOpen: d.careLogDays.find((c) => c.elderlyId === t.elderlyId && c.date === TODAY)?.status !== "CLOSED", thresholds: d.centerSettings.thresholds as Thresholds,
+    }));
   },
 
   /** Xem lại care log 1 ngày (cả ngày đã chốt): mọi mục kể cả nội bộ, việc, chỉ số, thuốc. */

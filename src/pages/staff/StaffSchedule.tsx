@@ -105,7 +105,7 @@ export function StaffSchedule() {
       </Modal>
 
       {entry && <EntryModal key={entry.task.id} kind={entry.kind} task={entry.task} elderly={entry.elderly} activities={[entry.task.title]} onClose={() => setEntry(undefined)} />}
-      <VitalsModal open={!!vitalsFor} onClose={() => setVitalsFor(undefined)} elderly={vitalsFor} thresholds={data.thresholds} diabetic={vitalsFor?.conditions.some((c) => c.includes("Tiểu đường"))} />
+      <VitalsModal open={!!vitalsFor} onClose={() => setVitalsFor(undefined)} elderly={vitalsFor} thresholds={data.thresholds} />
       <Modal open={!!skip} onClose={() => setSkip(undefined)} title="Bỏ qua việc" footer={<><Button variant="neutral" onClick={() => setSkip(undefined)}>Hủy</Button><Button disabled={!skip?.reason.trim()} loading={setTask.isPending} onClick={() => setTask.mutate({ id: skip!.id, s: "SKIPPED", r: skip!.reason })}>Bỏ qua</Button></>}>
         {skip && <>
           <TextArea label="Lý do (bắt buộc, CL-02)" value={skip.reason} onChange={(e) => setSkip({ ...skip, reason: e.target.value })} />
