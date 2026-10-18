@@ -4,12 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, BedDouble, Camera, ClipboardList, Clock, HeartPulse, Lock, MessageCircle, Moon, Pill, Plus, Smile, Utensils } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { family, TODAY, useLiveRefresh } from "../../api";
+import { family, NOW, TODAY, useLiveRefresh } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { AttBadge, ElderlyPicker, GroupBadge, LineChart, Stat, SubBadge, TierBadge, Timeline, useFamilyElderly } from "../../components/domain";
 import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, KV, Loading, Modal, Note, Photo, SelectField, Table, TextArea, Toggle, cn } from "../../components/ui";
 import { CYCLE_LABEL, isDayCycle, TIER_LABEL, tierHasBreakfast } from "../../domain/catalog";
+import type { HealthMetric } from "../../types/models";
 import { addDays, daysBetween, dm, dmy, hm, weekday } from "../../lib/format";
 import { INC_TYPE, LEVEL, SEVERITY } from "../manager/ManagerOps";
 import { ChatWidget } from "../public/PublicHome";
@@ -18,6 +19,9 @@ import { GroupBlocks, SCREEN } from "../staff/CareLogScreens";
 function NoElderly() {
   return <Card><EmptyState icon={ClipboardList} title="Chưa có cụ nào đang đi" desc="Thêm hồ sơ người thân và đăng ký gói. Sau buổi đánh giá và thanh toán, bạn sẽ theo dõi cụ tại đây." action={<><Button to="/family/relatives/new" icon={Plus}>Thêm người thân</Button><Button variant="outline" to="/family/register">Đăng ký gói</Button></>} /></Card>;
 }
+
+/** Liều chưa ghi: còn trước giờ uống thì "Chưa tới giờ", đã qua giờ thì "Chưa ghi nhận". */
+const pendingLabel = (date: string, time: string) => (date > TODAY || (date === TODAY && time > NOW) ? "Chưa tới giờ" : "Chưa ghi nhận");
 
 // ------------------------------------------------------------------ G1
 export function FamilyHome() {
@@ -80,6 +84,7 @@ export function FamilyHome() {
             </Card>
             {data.alerts.length > 0 && <Card title={<span className="flex items-center gap-2"><HeartPulse size={16} className="text-red-ink" />Cảnh báo</span>}>{data.alerts.map((a) => <div key={a.id} className="py-1 text-[12.5px]"><Badge tone={LEVEL[a.level][0]}>{LEVEL[a.level][1]}</Badge> <b>{a.title}</b><span className="block text-muted">{a.detail}</span></div>)}</Card>}
             <Card title="Sắp tới hôm nay">
+              {!data.therapy.length && !data.next.length && <div className="text-[12.5px] text-subtle">Không còn việc nào trong hôm nay</div>}
               {data.therapy.map((x) => <div key={x.id} className="flex items-center gap-2 py-1 text-[12.5px]"><Badge tone="teal">{x.startTime}</Badge>{x.service?.name}</div>)}
               {data.next.map((x) => <div key={x.id} className="flex items-center gap-2 py-1 text-[12.5px]"><Badge tone="blue">{x.startTime}</Badge>{x.title}</div>)}
             </Card>
@@ -124,7 +129,7 @@ export function FamilySummary() {
             <Row icon={Activity} title={`Hoạt động (${data.activities.length})`}>{data.activities.map((x) => <KV key={x.id} label={x.time} w={50}>{x.title} · {x.detail}</KV>)}</Row>
             <Row icon={Smile} title="Tâm trạng">{data.moods.map((x) => <KV key={x.id} label={x.time} w={50}>{x.detail}</KV>)}{data.naps.map((x) => <KV key={x.id} label={<Moon size={12} />} w={50}>{x.detail}</KV>)}</Row>
             <Row icon={HeartPulse} title="Chỉ số">{data.vitals.map((m) => <KV key={m.id} label={hm(m.at)} w={50}>{[m.sys && `HA ${m.sys}/${m.dia}`, m.pulse && `mạch ${m.pulse}`, m.temp && `${m.temp}°C`, m.spo2 && `SpO₂ ${m.spo2}%`, m.glucose && `ĐH ${m.glucose}`].filter(Boolean).join(" · ")}</KV>)}</Row>
-            <Row icon={Pill} title="Thuốc">{data.meds.length ? data.meds.map((m) => <KV key={m.id} label={m.time} w={50}>{m.plan?.name} · <Badge tone={m.status === "GIVEN" ? "green" : m.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: "Đã uống", REFUSED: "Từ chối", MISSING: "Chưa có thuốc", PENDING: "Chưa tới giờ" })[m.status]}</Badge>{m.reason ? ` ${m.reason}` : ""}</KV>) : <span className="text-subtle">Không có</span>}</Row>
+            <Row icon={Pill} title="Thuốc">{data.meds.length ? data.meds.map((m) => <KV key={m.id} label={m.time} w={50}>{m.plan?.name} · <Badge tone={m.status === "GIVEN" ? "green" : m.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: "Đã uống", REFUSED: "Từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(m.date, m.time) })[m.status]}</Badge>{m.reason ? ` ${m.reason}` : ""}</KV>) : <span className="text-subtle">Không có</span>}</Row>
             <Row icon={ClipboardList} title="Lưu ý">{data.notes.length ? data.notes.map((x) => <KV key={x.id} label={x.time} w={50}>{x.title}: {x.detail}</KV>) : <span className="text-subtle">Không có gì bất thường</span>}</Row>
           </div>
           {data.photos.length > 0 && <Card title={<span className="flex items-center gap-2"><Camera size={16} />Ảnh</span>}><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{data.photos.map((p) => <Photo key={p.id} tone={p.tone ?? "blue"} caption={`${p.time} · ${p.detail}`} />)}</div></Card>}
@@ -141,15 +146,16 @@ export function FamilyHealth() {
   const [range, setRange] = useState<7 | 30>(7);
   const { data, isLoading } = useQuery({ queryKey: ["f-health", fe.id], queryFn: () => family.health(me, fe.id!), enabled: !!fe.id });
   const from = addDays(TODAY, -range);
-  const bp = (data?.metrics ?? []).filter((m) => m.sys && m.at >= from && m.at.slice(11, 13) < "12");
+  // mỗi ngày 1 điểm: lần đo huyết áp đầu tiên trong ngày (thường là buổi sáng)
+  const bp = (data?.metrics ?? []).filter((m, i, all) => m.sys && m.at >= from && all.findIndex((x) => x.sys && x.at.slice(0, 10) === m.at.slice(0, 10)) === i);
   const gl = (data?.metrics ?? []).filter((m) => m.glucose && m.at >= from);
   return (
     <Page title="Sức khỏe" actions={<ElderlyPicker rows={fe.rows} value={fe.id} onChange={fe.pick} />}>
       {!fe.id ? <NoElderly /> : isLoading || !data ? <Loading /> : (
         <>
           <div className="flex gap-1.5"><Chip active={range === 7} onClick={() => setRange(7)}>7 ngày</Chip><Chip active={range === 30} onClick={() => setRange(30)}>30 ngày</Chip></div>
-          <Card title="Huyết áp buổi sáng">
-            <LineChart labels={bp.map((m) => dm(m.at.slice(0, 10)))} series={[{ name: "Tâm thu", color: "#e05a5a", values: bp.map((m) => m.sys) }, { name: "Tâm trương", color: "var(--color-blue)", values: bp.map((m) => m.dia) }]} bands={[{ from: data.thresholds.sysMax, to: 220, label: `Trên ngưỡng ${data.thresholds.sysMax}` }]} />
+          <Card title="Huyết áp (lần đo đầu mỗi ngày)">
+            {!bp.length ? <div className="text-[12.5px] text-subtle">Chưa có số đo trong {range} ngày</div> : <LineChart labels={bp.map((m) => dm(m.at.slice(0, 10)))} series={[{ name: "Tâm thu", color: "#e05a5a", values: bp.map((m) => m.sys) }, { name: "Tâm trương", color: "var(--color-blue)", values: bp.map((m) => m.dia) }]} bands={[{ from: data.thresholds.sysMax, to: 220, label: `Trên ngưỡng ${data.thresholds.sysMax}` }]} />}
           </Card>
           {gl.length > 0 && (
             <Card title="Đường huyết trước ăn sáng (mmol/L)">
@@ -161,16 +167,34 @@ export function FamilyHealth() {
               <Table rows={data.doses} rowKey={(d) => d.id} empty="Chưa có" columns={[
                 { key: "d", header: "Ngày", render: (d) => `${dm(d.date)} ${d.time}` },
                 { key: "n", header: "Thuốc", render: (d) => d.plan?.name },
-                { key: "s", header: "", render: (d) => <Badge tone={d.status === "GIVEN" ? "green" : d.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: "Đã uống", REFUSED: "Từ chối", MISSING: "Chưa có thuốc", PENDING: "Chưa tới giờ" })[d.status]}</Badge> },
+                { key: "s", header: "", render: (d) => <Badge tone={d.status === "GIVEN" ? "green" : d.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: "Đã uống", REFUSED: "Từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(d.date, d.time) })[d.status]}</Badge> },
               ]} />
             </Card>
             <Card title="Báo cáo sức khỏe tháng">
-              {data.monthlyReport ? <><KV label="Tháng 9/2026">Huyết áp trung bình 128/80, ổn định. Cân nặng 64 → 64,5kg. Đi bộ tiến bộ từ 10m lên 14m.</KV><Button className="mt-2" size="sm" variant="outline">Tải báo cáo PDF</Button></> : <div className="flex items-start gap-2 text-[12.5px] text-subtle"><Lock size={14} className="mt-0.5" />Báo cáo sức khỏe tháng có ở hạng Cao cấp. <Link to="/family/packages" className="font-semibold text-orange">Nâng hạng</Link></div>}
+              {data.monthlyReport ? <MonthlyReport metrics={data.metrics.filter((m) => m.at >= addDays(TODAY, -30))} /> :<div className="flex items-start gap-2 text-[12.5px] text-subtle"><Lock size={14} className="mt-0.5" />Báo cáo sức khỏe tháng có ở hạng Cao cấp. <Link to="/family/packages" className="font-semibold text-orange">Nâng hạng</Link></div>}
             </Card>
           </div>
         </>
       )}
     </Page>
+  );
+}
+
+/** Báo cáo tháng gom từ chỉ số 30 ngày đã đo — không dùng AI. */
+function MonthlyReport({ metrics }: { metrics: HealthMetric[] }) {
+  const avg = (vals: (number | undefined)[]) => { const v = vals.filter((x): x is number => x != null); return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : undefined; };
+  const sys = avg(metrics.map((m) => m.sys));
+  const dia = avg(metrics.map((m) => m.dia));
+  const glucose = avg(metrics.map((m) => m.glucose));
+  const weights = metrics.filter((m) => m.weight);
+  if (!metrics.length) return <div className="text-[12.5px] text-subtle">Chưa có số đo trong 30 ngày</div>;
+  return (
+    <div className="text-[12.5px]">
+      <KV label="Số lần đo" w={110}>{metrics.length} lần / 30 ngày</KV>
+      {sys && <KV label="HA trung bình" w={110}>{Math.round(sys)}/{Math.round(dia ?? 0)}</KV>}
+      {glucose && <KV label="ĐH trung bình" w={110}>{glucose} mmol/L</KV>}
+      {weights.length > 1 && <KV label="Cân nặng" w={110}>{weights[0].weight} → {weights[weights.length - 1].weight} kg</KV>}
+    </div>
   );
 }
 
@@ -196,7 +220,7 @@ export function FamilyAlerts() {
               <div key={i.id} className="border-b border-line-soft py-2.5 text-[12.5px] last:border-0">
                 <div className="flex flex-wrap items-center gap-2"><Badge tone={SEVERITY[i.severity][0]}>{INC_TYPE[i.type]}</Badge><b className="text-navy">{elderly?.fullName}</b><span className="text-[11px] text-subtle">{dmy(i.at.slice(0, 10))} {hm(i.at)}</span></div>
                 <div className="mt-0.5">{i.description}</div>
-                <div className="text-muted">Xử lý: {i.action}</div>
+                <div className="text-muted">Xử lý: {i.action || "điều dưỡng đang xử lý"}</div>
                 {i.transfer && <Note tone="red" className="mt-1">Chuyển viện {i.transfer.hospital} lúc {i.transfer.time} · người đi kèm {i.transfer.escort}. Nếu cụ nằm viện nhiều ngày, gửi giấy nhập viện để bảo lưu gói.</Note>}
               </div>
             ))}
@@ -230,7 +254,7 @@ export function FamilyMeds() {
             ]} />
           </Card>
           <Card title="Hôm nay">
-            {data.today.length === 0 ? <div className="text-[12.5px] text-subtle">Không có liều</div> : data.today.map((d) => <KV key={d.id} label={d.time} w={50}>{d.plan?.name} · <Badge tone={d.status === "GIVEN" ? "green" : d.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: `Đã uống ${d.at}`, REFUSED: "Cụ từ chối", MISSING: "Chưa có thuốc", PENDING: "Chưa tới giờ" })[d.status]}</Badge>{d.reason && <span className="block text-[11px] text-subtle">{d.reason}</span>}</KV>)}
+            {data.today.length === 0 ? <div className="text-[12.5px] text-subtle">Không có liều</div> : data.today.map((d) => <KV key={d.id} label={d.time} w={50}>{d.plan?.name} · <Badge tone={d.status === "GIVEN" ? "green" : d.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: `Đã uống ${d.at}`, REFUSED: "Cụ từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(d.date, d.time) })[d.status]}</Badge>{d.reason && <span className="block text-[11px] text-subtle">{d.reason}</span>}</KV>)}
           </Card>
         </div>
       )}

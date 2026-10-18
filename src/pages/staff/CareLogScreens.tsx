@@ -2,7 +2,7 @@
 // dùng chung khung 3 cột (việc hôm nay · khối riêng của nhóm · ghi nhanh + module phụ + dòng thời gian).
 // GroupBlocks cũng được Manager (M2) và Gia đình (G1) dùng ở chế độ chỉ đọc.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Bath, Camera, CircleCheck, Lock, Moon, NotebookPen, Plus, ShieldAlert, Siren, Smile, Stethoscope, Trash2, TriangleAlert, Utensils } from "lucide-react";
+import { Activity, Bath, Camera, CircleCheck, History, Lock, Moon, NotebookPen, Plus, ShieldAlert, Siren, Smile, Stethoscope, Trash2, TriangleAlert, Utensils } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { lookups, NOW, staff, TODAY, useLiveRefresh } from "../../api";
@@ -198,12 +198,17 @@ function VitalsBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   const sp = last(today.filter((m) => m.spo2 || m.pulse));
   const days = [...new Set(ctx.metrics14.map((m) => m.at.slice(0, 10)))].slice(-7);
   const series = (k: "sys" | "glucose") => days.map((d) => last(ctx.metrics14.filter((m) => m.at.startsWith(d) && m[k]))?.[k]);
+  // chưa đo hôm nay: ghi rõ lần đo trước là ngày nào, tránh nhầm với số hôm nay
+  const before = (pick: (m: HealthMetric) => unknown, fmt: (m: HealthMetric) => string) => {
+    const m = last(ctx.metrics14.filter((x) => !x.at.startsWith(TODAY) && pick(x)));
+    return m ? `lần trước ${fmt(m)} · ${m.at.slice(8, 10)}/${m.at.slice(5, 7)}` : undefined;
+  };
   return (
     <Block id="VITALS" title="Chỉ số so với ngưỡng" main aside={mode.nurse && !mode.readOnly && mode.onVitals && <Button size="sm" variant="ai" icon={Activity} onClick={mode.onVitals}>Đo chỉ số</Button>}>
       <div className="grid gap-2 sm:grid-cols-3">
-        <Tile label="Đường huyết" value={g ? `${g.glucose} mmol/L` : "chưa đo"} sub={g && hm(g.at)} tone={!g ? "gray" : g.glucose! < 3.9 ? "red" : t && g.glucose! > t.glucoseMax ? "orange" : "green"} />
-        <Tile label="Huyết áp" value={bp ? `${bp.sys}/${bp.dia}` : "chưa đo"} sub={bp && hm(bp.at)} tone={!bp ? "gray" : bp.sys! >= 180 || bp.dia! >= 110 ? "red" : t && (bp.sys! > t.sysMax || bp.dia! > t.diaMax) ? "orange" : "green"} />
-        <Tile label="SpO₂ · mạch" value={sp ? `${sp.spo2 ?? "—"}% · ${sp.pulse ?? "—"}` : "chưa đo"} sub={sp && hm(sp.at)} tone={!sp ? "gray" : t && sp.spo2 && sp.spo2 < t.spo2Min ? "orange" : "green"} />
+        <Tile label="Đường huyết" value={g ? `${g.glucose} mmol/L` : "chưa đo hôm nay"} sub={g ? hm(g.at) : before((m) => m.glucose, (m) => `${m.glucose}`)} tone={!g ? "gray" : g.glucose! < 3.9 ? "red" : t && g.glucose! > t.glucoseMax ? "orange" : "green"} />
+        <Tile label="Huyết áp" value={bp ? `${bp.sys}/${bp.dia}` : "chưa đo hôm nay"} sub={bp ? hm(bp.at) : before((m) => m.sys, (m) => `${m.sys}/${m.dia}`)} tone={!bp ? "gray" : bp.sys! >= 180 || bp.dia! >= 110 ? "red" : t && (bp.sys! > t.sysMax || bp.dia! > t.diaMax) ? "orange" : "green"} />
+        <Tile label="SpO₂ · mạch" value={sp ? `${sp.spo2 ?? "—"}% · ${sp.pulse ?? "—"}` : "chưa đo hôm nay"} sub={sp ? hm(sp.at) : before((m) => m.spo2 || m.pulse, (m) => `${m.spo2 ?? "—"}% · ${m.pulse ?? "—"}`)} tone={!sp ? "gray" : t && sp.spo2 && sp.spo2 < t.spo2Min ? "orange" : "green"} />
       </div>
       {days.length > 1 && <div className="mt-3"><div className="mb-1 text-[11px] text-subtle">7 ngày gần nhất</div><LineChart height={120} labels={days.map((d) => d.slice(8) + "/" + d.slice(5, 7))} series={[{ name: "HA tâm thu", color: "#3e6398", values: series("sys") }, { name: "Đường huyết ×10", color: "#f68d54", values: series("glucose").map((v) => (v ? v * 10 : undefined)) }]} /></div>}
     </Block>
@@ -658,6 +663,7 @@ export function CareLogScreen() {
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {closed ? <Badge tone="green">Đã chốt · {data.closer?.fullName} {hm(data.day?.closedAt)}</Badge> : <Badge tone="orange">Đang mở</Badge>}
             {data.day?.medicalDoneAt && <Badge tone="teal">Xong phần y tế ✓ {data.medicalDoner?.fullName}</Badge>}
+            <Button size="sm" variant="neutral" icon={History} to={`/staff/elderly/${id}/history`}>Lịch sử</Button>
             {!closed && <Button size="sm" variant="danger" icon={TriangleAlert} onClick={() => setIncident(true)}>Báo sự cố</Button>}
             {!closed && nurse && !data.day?.medicalDoneAt && <Button size="sm" variant="outline" icon={Stethoscope} loading={medical.isPending} onClick={() => medical.mutate()}>Xong phần y tế</Button>}
             {!closed && e.caregiverId === me.id && <Button size="sm" icon={Lock} loading={close.isPending} onClick={() => close.mutate()}>Chốt care log</Button>}

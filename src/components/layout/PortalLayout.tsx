@@ -11,7 +11,10 @@ import { Avatar, ConfirmDialog, cn } from "../ui";
 import { NAV } from "./nav";
 
 /** Khi nối BE thật: chỉ hiện các màn đã có API — care log của Staff và Family. */
-const LIVE_PATHS = ["/staff/elderly", "/family"];
+const LIVE_PATHS = [
+  "/staff/elderly", "/staff/vitals", "/staff/meds", "/staff/alerts", "/staff/incidents",
+  "/family", "/family/summary", "/family/health", "/family/alerts", "/family/meds",
+];
 
 const DrawerCtx = createContext<() => void>(() => {});
 
