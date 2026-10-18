@@ -3,12 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, BedDouble, Camera, ClipboardList, Clock, HeartPulse, Lock, MessageCircle, Moon, Pill, Plus, Smile, Utensils } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { family, NOW, TODAY, useLiveRefresh } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { AttBadge, ElderlyPicker, GroupBadge, LineChart, Stat, SubBadge, TierBadge, Timeline, useFamilyElderly } from "../../components/domain";
-import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, KV, Loading, Modal, Note, Photo, SelectField, Table, TextArea, Toggle, cn } from "../../components/ui";
+import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, KV, Loading, Modal, Note, Photo, SelectField, Table, Tabs, TextArea, Toggle, cn } from "../../components/ui";
 import { CYCLE_LABEL, isDayCycle, TIER_LABEL, tierHasBreakfast } from "../../domain/catalog";
 import type { HealthMetric } from "../../types/models";
 import { addDays, daysBetween, dm, dmy, hm, weekday } from "../../lib/format";
@@ -29,6 +29,10 @@ export function FamilyHome() {
   const fe = useFamilyElderly();
   const { data, isLoading } = useQuery({ queryKey: ["f-home", fe.id], queryFn: () => family.home(me, fe.id!), enabled: !!fe.id });
   useLiveRefresh(fe.id);
+  // 2 tab: Tổng quan / Dòng thời gian — giữ trên URL để F5 vẫn ở đúng tab
+  const [params, setParams] = useSearchParams();
+  const tab: "overview" | "timeline" = params.get("tab") === "timeline" ? "timeline" : "overview";
+  const setTab = (v: "overview" | "timeline") => setParams((p) => { if (v === "timeline") p.set("tab", v); else p.delete("tab"); return p; }, { replace: true });
   const pending = fe.all.filter((r) => ["PENDING"].includes(r.elderly.status));
   if (fe.isLoading) return <Page title="Hôm nay của cụ"><Loading /></Page>;
   return (
@@ -38,7 +42,12 @@ export function FamilyHome() {
           <b>{r.elderly.fullName}</b>: <SubBadge status={r.sub?.status} /> {r.sub?.status === "PENDING_ASSESSMENT" && r.assessment?.status === "SCHEDULED" && <>Lịch đánh giá {dmy(r.assessment.scheduledAt.slice(0, 10))} lúc {hm(r.assessment.scheduledAt)}.</>}{r.sub?.status === "AWAITING_PAYMENT" && <> Đã có kết quả đánh giá. <Link to="/family/packages" className="font-semibold text-orange">Xác nhận giá & thanh toán</Link></>}
         </Note>
       ))}
-      {!fe.id ? <NoElderly /> : isLoading || !data ? <Loading /> : (
+      {fe.id && <Tabs value={tab} onChange={setTab} items={[{ value: "overview", label: "Tổng quan" }, { value: "timeline", label: `Dòng thời gian${data ? ` (${data.entries.length})` : ""}` }]} />}
+      {!fe.id ? <NoElderly /> : isLoading || !data ? <Loading /> : tab === "timeline" ? (
+        <Card title="Dòng thời gian hôm nay" actions={<span className="text-[11px] text-subtle">Mới nhất ở trên · tự cập nhật khi nhân viên ghi</span>}>
+          <Timeline entries={data.entries} />
+        </Card>
+      ) : (
         <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
           <div className="space-y-4">
             <Card className="bg-gradient-to-br from-navy to-blue text-white">
@@ -66,9 +75,6 @@ export function FamilyHome() {
                 <GroupBlocks ctx={{ ...data, tier: data.sub?.tier }} mode={{ readOnly: true, nurse: false }} />
               </div>
             )}
-            <Card title="Dòng thời gian hôm nay" actions={<span className="text-[11px] text-subtle">Cập nhật ngay khi nhân viên ghi</span>}>
-              <Timeline entries={data.entries} />
-            </Card>
           </div>
           <div className="space-y-4">
             <Card title="Chỉ số mới nhất" actions={<Link to="/family/health" className="text-[11.5px] font-semibold text-orange">Biểu đồ</Link>}>
