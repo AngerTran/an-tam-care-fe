@@ -365,6 +365,22 @@ export const staff = {
     commit();
   },
 
+  /** Xem lại care log 1 ngày (cả ngày đã chốt): mọi mục kể cả nội bộ, việc, chỉ số, thuốc. */
+  async daySummary(me: User, elderlyId: number, date: string) {
+    await wait();
+    const d = db();
+    const e = guard(me, elderlyId);
+    return {
+      elderly: e, date, a: attendanceOn(elderlyId, date),
+      day: d.careLogDays.find((c) => c.elderlyId === elderlyId && c.date === date),
+      entries: d.careLogEntries.filter((x) => x.elderlyId === elderlyId && x.date === date).sort((a, b) => a.time.localeCompare(b.time)).map((x) => ({ ...x, staff: lookups.user(x.staffId) })),
+      vitals: d.healthMetrics.filter((m) => m.elderlyId === elderlyId && m.at.startsWith(date)),
+      doses: d.medDoses.filter((m) => m.elderlyId === elderlyId && m.date === date).sort((a, b) => a.time.localeCompare(b.time)).map((m) => ({ ...m, plan: byId(d.medPlans, m.planId), nurse: lookups.user(m.by) })),
+      tasks: d.dailyTasks.filter((t) => t.elderlyId === elderlyId && t.date === date).sort((a, b) => a.time.localeCompare(b.time)).map((t) => ({ ...t, by: lookups.user(t.doneBy) })),
+      dates: [...new Set([date, ...d.careLogDays.filter((c) => c.elderlyId === elderlyId).map((c) => c.date)])].sort().reverse(),
+    };
+  },
+
   // ---------------------------------------------------------------- S9 incidents, S10 alerts
   async incidents(me: User) {
     await wait();

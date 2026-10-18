@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, CircleCheck, Plus, Stethoscope, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { lookups, staff, TODAY } from "../../api";
+import { API_LIVE, lookups, staff, TODAY } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
 import { ElderlyCell, GroupBadge, SubBadge, TierBadge } from "../../components/domain";
@@ -22,7 +22,7 @@ export function StaffVitals() {
   const th = lookups.settings().thresholds;
   const sel = data?.find((r) => r.elderly.id === cur);
   return (
-    <Page title="Đo chỉ số" sub={`Ngưỡng mặc định: HA ${th.sysMin}–${th.sysMax}/${th.diaMax} · SpO₂ ≥ ${th.spo2Min}% · ĐH ≤ ${th.glucoseMax}. Vượt ngưỡng tự tạo cảnh báo.`}>
+    <Page title="Đo chỉ số" sub={API_LIVE ? "So với ngưỡng của trung tâm và ngưỡng riêng từng cụ. Vượt ngưỡng tự tạo cảnh báo." : `Ngưỡng mặc định: HA ${th.sysMin}–${th.sysMax}/${th.diaMax} · SpO₂ ≥ ${th.spo2Min}% · ĐH ≤ ${th.glucoseMax}. Vượt ngưỡng tự tạo cảnh báo.`}>
       <Card>
         {isLoading ? <Loading /> : (
           <Table rows={data ?? []} rowKey={(r) => r.elderly.id} empty="Chưa có cụ nào check-in" columns={[
@@ -89,9 +89,11 @@ export function StaffIncidents() {
   const me = useMe();
   const [open, setOpen] = useState(false);
   const { data, isLoading } = useQuery({ queryKey: ["s-inc", me.id], queryFn: () => staff.incidents(me) });
-  const mine = staff.myElderly(me).filter((e) => e.status === "ACTIVE");
+  // chỉ báo sự cố cho cụ có care log hôm nay (đang ở trung tâm hoặc đã về)
+  const today = useQuery({ queryKey: ["s-elderly-today", me.id], queryFn: () => staff.elderlyToday(me) });
+  const mine = (today.data ?? []).map((r) => r.elderly);
   return (
-    <Page title="Sự cố" sub={lookups.position(me.id) === "NURSE" ? "Điều dưỡng ghi sự cố, xử lý, chuyển viện (CL-03)" : "Hộ lý báo nhanh, điều dưỡng ghi chi tiết"} actions={<Button size="sm" variant="danger" icon={Plus} onClick={() => setOpen(true)}>Báo sự cố</Button>}>
+    <Page title="Sự cố" sub={lookups.myPosition(me) === "NURSE" ? "Điều dưỡng ghi sự cố, xử lý, chuyển viện (CL-03)" : "Hộ lý báo nhanh, điều dưỡng ghi chi tiết"} actions={<Button size="sm" variant="danger" icon={Plus} disabled={!mine.length} onClick={() => setOpen(true)}>Báo sự cố</Button>}>
       <Card>
         {isLoading ? <Loading /> : (
           <Table rows={data ?? []} rowKey={(r) => r.incident.id} empty="Chưa có sự cố" columns={[

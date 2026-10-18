@@ -3,18 +3,24 @@ import { ThemeToggle } from "../ThemeToggle";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { inbox, lookups } from "../../api";
+import { API_LIVE, inbox, lookups, TODAY } from "../../api";
 import { HOME, ROLE_LABEL, useAuth, useMe } from "../../auth/AuthContext";
 import { POSITION_LABEL } from "../../domain/catalog";
 import type { Role } from "../../types/models";
 import { Avatar, ConfirmDialog, cn } from "../ui";
 import { NAV } from "./nav";
 
+/** Khi nối BE thật: chỉ hiện các màn đã có API — care log của Staff và Family. */
+const LIVE_PATHS = [
+  "/staff/elderly", "/staff/vitals", "/staff/meds", "/staff/alerts", "/staff/incidents",
+  "/family", "/family/summary", "/family/health", "/family/alerts", "/family/meds",
+];
+
 const DrawerCtx = createContext<() => void>(() => {});
 
 function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const me = useMe();
-  const position = lookups.position(me.id);
+  const position = lookups.myPosition(me);
   return (
     <nav className="flex h-full w-60 flex-col bg-navy px-3 pt-4 pb-3 text-[13px] text-sidebar-text">
       <Link to={HOME[role]} className="mb-1 flex items-center gap-2 px-2 text-[17px] font-bold text-white" onClick={onNavigate}>
@@ -25,7 +31,7 @@ function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) 
       </div>
       <div className="-mr-1 flex-1 space-y-3 overflow-y-auto pr-1">
         {NAV[role].map((sec, i) => {
-          const items = sec.items.filter((it) => !it.only || it.only === position);
+          const items = sec.items.filter((it) => (!it.only || it.only === position) && (!API_LIVE || LIVE_PATHS.includes(it.to)));
           if (!items.length) return null;
           return (
             <div key={i} className="space-y-0.5">
@@ -105,7 +111,7 @@ export function Page({ title, actions, children, back, sub }: { title: ReactNode
           <h1 className="truncate text-[17px] leading-tight font-bold text-navy">{title}</h1>
           {sub && <div className="truncate text-[11px] text-subtle">{sub}</div>}
         </div>
-        <span className="hidden rounded-full bg-canvas px-2.5 py-1 text-[10.5px] font-semibold text-subtle md:inline">Demo: T6 09/10/2026 · 10:15</span>
+        <span className="hidden rounded-full bg-canvas px-2.5 py-1 text-[10.5px] font-semibold text-subtle md:inline">{API_LIVE ? `Dữ liệu thật · ${TODAY.slice(8)}/${TODAY.slice(5, 7)}/${TODAY.slice(0, 4)}` : "Demo: T6 09/10/2026 · 10:15"}</span>
         <ThemeToggle />
         <Link to={`${base}/notifications`} className="relative rounded-lg p-1.5 text-orange hover:bg-orange-soft" aria-label="Thông báo">
           <Bell size={18} />

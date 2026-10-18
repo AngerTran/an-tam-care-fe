@@ -68,6 +68,8 @@ export interface User {
   password: string;
   status: "ACTIVE" | "INVITED" | "LOCKED";
   lastLoginAt?: string;
+  /** Khi dùng BE thật: chức danh lấy từ token, vì staff_profiles của mock không có user này */
+  position?: Position;
 }
 
 /** staff_profiles */

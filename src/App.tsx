@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
+import { API_LIVE } from "./api";
 import { PortalLayout } from "./components/layout/PortalLayout";
 import type { Role } from "./types/models";
 import { ForgotPasswordPage, LoginPage, RegisterPage, VerifyEmailPage } from "./pages/auth/AuthPages";
@@ -13,6 +14,7 @@ import { BedsPage, DamagePage, EquipmentPage, InventoryDetailPage, InventoryPage
 import { InvoiceDetail, PaymentsPage, ReportsPage, SettingsPage } from "./pages/manager/ManagerFinance";
 import { StaffCheckin, StaffElderly, StaffGroupLog, StaffToday } from "./pages/staff/StaffDay";
 import { CareLogScreen } from "./pages/staff/CareLogScreens";
+import { CareLogHistory } from "./pages/staff/CareLogHistory";
 import { StaffSchedule } from "./pages/staff/StaffSchedule";
 import { StaffAlerts, StaffAssessments, StaffIncidents, StaffMeds, StaffVitals } from "./pages/staff/StaffNurse";
 import { StaffBelongings, StaffDamage, StaffShifts } from "./pages/staff/StaffOther";
@@ -75,11 +77,12 @@ export default function App() {
       </Route>
 
       <Route path="/staff" element={<RequireRole role="STAFF" />}>
-        <Route index element={<StaffToday />} />
+        <Route index element={API_LIVE ? <StaffElderly /> : <StaffToday />} />
         <Route path="checkin" element={<StaffCheckin />} />
         <Route path="schedule" element={<StaffSchedule />} />
         <Route path="elderly" element={<StaffElderly />} />
         <Route path="elderly/:id" element={<CareLogScreen />} />
+        <Route path="elderly/:id/history" element={<CareLogHistory />} />
         <Route path="group-log" element={<StaffGroupLog />} />
         <Route path="vitals" element={<StaffVitals />} />
         <Route path="meds" element={<StaffMeds />} />
