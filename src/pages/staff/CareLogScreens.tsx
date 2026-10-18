@@ -3,8 +3,8 @@
 // GroupBlocks cũng được Manager (M2) và Gia đình (G1) dùng ở chế độ chỉ đọc.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, Bath, Camera, CircleCheck, History, Lock, Moon, NotebookPen, Plus, ShieldAlert, Siren, Smile, Stethoscope, Trash2, TriangleAlert, Utensils } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { useLocation, useParams } from "react-router-dom";
 import { lookups, NOW, staff, TODAY, useLiveRefresh } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
@@ -12,7 +12,7 @@ import { Bars, ElderlyCell, GroupBadge, LineChart, TierBadge, Timeline } from ".
 import { Badge, Button, Chip, ErrorText, Field, Loading, Modal, Note, SelectField, TextArea, cn } from "../../components/ui";
 import { dmy, hm, weekday } from "../../lib/format";
 import type { Assessment, CareLogEntry, CareModule, DailyTask, ElderlyMember, HealthMetric, MedicationDose, MedicationPlan, Service, Thresholds, Tier } from "../../types/models";
-import { EntryModal, IncidentModal, taskKind, VitalsModal, type EntryKindUI } from "./StaffForms";
+import { EntryModal, IncidentModal, taskKind, vitalsExtras, VitalsModal, type EntryKindUI } from "./StaffForms";
 import { DoseButtons } from "./StaffNurse";
 
 // ------------------------------------------------------------------ shared types & helpers
@@ -69,6 +69,18 @@ function Block({ id, title, main, aside, children }: { id: string; title: ReactN
       </div>
       {children}
     </section>
+  );
+}
+/** Phần con nằm trong 1 khối khác (cùng props với Block, không có khung riêng). */
+function SubBlock({ id, title, aside, children }: { id: string; title: ReactNode; main?: boolean; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <div id={`blk-${id}`} className="scroll-mt-32">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h4 className="flex-1 text-[13px] font-semibold text-navy">{title}</h4>
+        {aside}
+      </div>
+      {children}
+    </div>
   );
 }
 function Pick<T extends string>({ label, value, options, onChange }: { label?: string; value: T; options: readonly T[]; onChange: (v: T) => void }) {
@@ -189,28 +201,58 @@ function SocialBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   );
 }
 
-// ------------------------------------------------------------------ CL-CHR
-function VitalsBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
-  const t = ctx.thresholds;
+// ------------------------------------------------------------------ chỉ số hôm nay (chung cho cả 5 màn)
+type Tone = "gray" | "green" | "orange" | "red";
+/** Số lần đo HA cần mỗi ngày: sau tai biến 3, hạng Cơ bản 1, còn lại 2. */
+const vitalsPerDay = (ctx: CareCtx) => (ctx.elderly.targetGroup === "STROKE" ? 3 : ctx.tier === "BASIC" ? 1 : 2);
+/** Màu ô theo ngưỡng (CL-17): đỏ = nguy hiểm, cam = vượt ngưỡng, xanh = trong ngưỡng. */
+function vitalTone(k: "sys" | "pulse" | "spo2" | "temp" | "glucose" | "weight", m: HealthMetric, t?: Thresholds): Tone {
+  if (!t) return "green";
+  switch (k) {
+    case "sys": return m.sys! >= 180 || m.dia! >= 110 || m.sys! < 90 ? "red" : m.sys! > t.sysMax || m.dia! > t.diaMax || m.sys! < t.sysMin ? "orange" : "green";
+    case "pulse": return m.pulse! < t.pulseMin || m.pulse! > t.pulseMax ? "orange" : "green";
+    case "spo2": return m.spo2! < 90 ? "red" : m.spo2! < t.spo2Min ? "orange" : "green";
+    case "temp": return m.temp! > t.tempMax ? "orange" : "green";
+    case "glucose": return m.glucose! < 3.9 ? "red" : m.glucose! > t.glucoseMax ? "orange" : "green";
+    default: return "green";
+  }
+}
+const VITAL_TILES: { k: "sys" | "pulse" | "spo2" | "temp" | "glucose" | "weight"; label: string; fmt: (m: HealthMetric) => string }[] = [
+  { k: "sys", label: "Huyết áp", fmt: (m) => `${m.sys}/${m.dia}` },
+  { k: "pulse", label: "Mạch", fmt: (m) => `${m.pulse}` },
+  { k: "spo2", label: "SpO₂", fmt: (m) => `${m.spo2}%` },
+  { k: "temp", label: "Nhiệt độ", fmt: (m) => `${m.temp}°C` },
+  { k: "glucose", label: "Đường huyết", fmt: (m) => `${m.glucose} mmol/L` },
+  { k: "weight", label: "Cân nặng", fmt: (m) => `${m.weight} kg` },
+];
+const vitalsLine = (m: HealthMetric) =>
+  [m.sys && `HA ${m.sys}/${m.dia}`, m.pulse && `mạch ${m.pulse}`, m.spo2 && `SpO₂ ${m.spo2}%`, m.temp && `${m.temp}°C`, m.glucose && `ĐH ${m.glucose}`, m.weight && `${m.weight} kg`].filter(Boolean).join(" · ");
+
+/** Khung "Chỉ số hôm nay": cùng bố cục ở cả 5 màn — 4 ô chung + ô thêm theo bệnh; sau tai biến có thêm 3 lần HA + FAST. */
+function VitalsPanel({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
+  const extras = vitalsExtras({ conditions: ctx.elderly.conditions, careModules: ctx.modules });
   const today = ctx.metrics14.filter((m) => m.at.startsWith(TODAY));
-  const g = last(today.filter((m) => m.glucose));
-  const bp = last(today.filter((m) => m.sys));
-  const sp = last(today.filter((m) => m.spo2 || m.pulse));
-  const days = [...new Set(ctx.metrics14.map((m) => m.at.slice(0, 10)))].slice(-7);
-  const series = (k: "sys" | "glucose") => days.map((d) => last(ctx.metrics14.filter((m) => m.at.startsWith(d) && m[k]))?.[k]);
-  // chưa đo hôm nay: ghi rõ lần đo trước là ngày nào, tránh nhầm với số hôm nay
-  const before = (pick: (m: HealthMetric) => unknown, fmt: (m: HealthMetric) => string) => {
-    const m = last(ctx.metrics14.filter((x) => !x.at.startsWith(TODAY) && pick(x)));
-    return m ? `lần trước ${fmt(m)} · ${m.at.slice(8, 10)}/${m.at.slice(5, 7)}` : undefined;
-  };
+  const done = today.filter((m) => m.sys).length;
+  const per = vitalsPerDay(ctx);
+  const tiles = VITAL_TILES.filter((x) => (x.k !== "glucose" || extras.glucose) && (x.k !== "weight" || extras.weight));
+  const canMeasure = mode.nurse && !mode.readOnly && mode.onVitals;
   return (
-    <Block id="VITALS" title="Chỉ số so với ngưỡng" main aside={mode.nurse && !mode.readOnly && mode.onVitals && <Button size="sm" variant="ai" icon={Activity} onClick={mode.onVitals}>Đo chỉ số</Button>}>
-      <div className="grid gap-2 sm:grid-cols-3">
-        <Tile label="Đường huyết" value={g ? `${g.glucose} mmol/L` : "chưa đo hôm nay"} sub={g ? hm(g.at) : before((m) => m.glucose, (m) => `${m.glucose}`)} tone={!g ? "gray" : g.glucose! < 3.9 ? "red" : t && g.glucose! > t.glucoseMax ? "orange" : "green"} />
-        <Tile label="Huyết áp" value={bp ? `${bp.sys}/${bp.dia}` : "chưa đo hôm nay"} sub={bp ? hm(bp.at) : before((m) => m.sys, (m) => `${m.sys}/${m.dia}`)} tone={!bp ? "gray" : bp.sys! >= 180 || bp.dia! >= 110 ? "red" : t && (bp.sys! > t.sysMax || bp.dia! > t.diaMax) ? "orange" : "green"} />
-        <Tile label="SpO₂ · mạch" value={sp ? `${sp.spo2 ?? "—"}% · ${sp.pulse ?? "—"}` : "chưa đo hôm nay"} sub={sp ? hm(sp.at) : before((m) => m.spo2 || m.pulse, (m) => `${m.spo2 ?? "—"}% · ${m.pulse ?? "—"}`)} tone={!sp ? "gray" : t && sp.spo2 && sp.spo2 < t.spo2Min ? "orange" : "green"} />
+    <Block id="VITALS" title={<span className="flex flex-wrap items-center gap-2">Chỉ số hôm nay <Badge tone={done >= per ? "green" : "orange"}>đã đo {done}/{per} lần</Badge></span>} main
+      aside={canMeasure ? <Button size="sm" variant="ai" icon={Activity} onClick={mode.onVitals}>Đo chỉ số</Button> : !mode.readOnly && !mode.nurse ? <span className="text-[11px] text-subtle">Chỉ điều dưỡng đo (CL-03)</span> : undefined}>
+      <div className={cn("grid gap-2 grid-cols-2 sm:grid-cols-3", tiles.length > 4 ? "xl:grid-cols-6" : "xl:grid-cols-4")}>
+        {tiles.map(({ k, label, fmt }) => {
+          const m = last(today.filter((x) => x[k] != null));
+          // chưa đo hôm nay: ghi rõ lần đo trước là ngày nào, tránh nhầm với số hôm nay
+          const prev = !m ? last(ctx.metrics14.filter((x) => !x.at.startsWith(TODAY) && x[k] != null)) : undefined;
+          return <Tile key={k} label={label} value={m ? fmt(m) : "chưa đo"} tone={m ? vitalTone(k, m, ctx.thresholds) : "gray"}
+            sub={m ? hm(m.at) : prev ? `lần trước ${fmt(prev)} · ${prev.at.slice(8, 10)}/${prev.at.slice(5, 7)}` : "hôm nay"} />;
+        })}
       </div>
-      {days.length > 1 && <div className="mt-3"><div className="mb-1 text-[11px] text-subtle">7 ngày gần nhất</div><LineChart height={120} labels={days.map((d) => d.slice(8) + "/" + d.slice(5, 7))} series={[{ name: "HA tâm thu", color: "#3e6398", values: series("sys") }, { name: "Đường huyết ×10", color: "#f68d54", values: series("glucose").map((v) => (v ? v * 10 : undefined)) }]} /></div>}
+      <div className="mt-3 text-[11px] font-semibold text-subtle uppercase">Các lần đo hôm nay</div>
+      {today.length ? (
+        <ul className="mt-1 space-y-0.5 text-[12.5px]">{today.map((m) => <li key={m.id}><b className="mr-2 text-navy">{hm(m.at)}</b>{vitalsLine(m)}</li>)}</ul>
+      ) : <div className="mt-1 text-[12px] text-subtle">Chưa đo lần nào</div>}
+      {ctx.elderly.targetGroup === "STROKE" && <div className="mt-3 border-t border-line-soft pt-3"><FastBlock ctx={ctx} mode={mode} embedded /></div>}
     </Block>
   );
 }
@@ -465,7 +507,9 @@ function SundownBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
 }
 
 // ------------------------------------------------------------------ CL-STR
-function FastBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
+function FastBlock({ ctx, mode, embedded }: { ctx: CareCtx; mode: Mode; embedded?: boolean }) {
+  // embedded: nằm trong khung Chỉ số hôm nay (CL-STR) thay vì thành khối riêng
+  const Wrap = embedded ? SubBlock : Block;
   const me = useMe();
   const qc = useQueryClient();
   const rounds = ofKind(ctx.entries, "FAST_CHECK");
@@ -483,7 +527,7 @@ function FastBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   const urgent = useMutation({ mutationFn: () => staff.urgent(me, ctx.elderly.id, "STROKE", signs.join(", ")), onSuccess: () => { qc.invalidateQueries(); setSuspect(false); setSigns([]); } });
   const slots: [number, string][] = [[1, "Sáng 7h45"], [2, "Trưa 13h30"], [3, "Chiều 15h30"]];
   return (
-    <Block id="FAST_CHECK" title="HA + FAST · 3 lần/ngày" main aside={!mode.readOnly && <Button size="sm" variant="danger" icon={ShieldAlert} onClick={() => setSuspect(true)}>Nghi tái phát</Button>}>
+    <Wrap id="FAST_CHECK" title="HA + FAST · 3 lần/ngày" main aside={!mode.readOnly && <Button size="sm" variant="danger" icon={ShieldAlert} onClick={() => setSuspect(true)}>Nghi tái phát</Button>}>
       <div className="grid gap-2 sm:grid-cols-3">
         {slots.map(([r, label]) => {
           const x = rounds.find((e) => dx(e).round === r);
@@ -512,7 +556,7 @@ function FastBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
         <div className="flex flex-wrap gap-1.5">{["Méo miệng", "Yếu tay chân mới", "Nói khó", "Chóng mặt dữ dội", "Nhìn mờ", "Lơ mơ"].map((x) => <Chip key={x} active={signs.includes(x)} onClick={() => setSigns(signs.includes(x) ? signs.filter((y) => y !== x) : [...signs, x])}>{x}</Chip>)}</div>
         <ErrorText error={urgent.error} />
       </Modal>
-    </Block>
+    </Wrap>
   );
 }
 function SwallowBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
@@ -589,10 +633,11 @@ export function GroupBlocks({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <div className="space-y-3">
       {g === "MOBILE" && <><WalkBlock ctx={ctx} mode={mode} main /><FallBlock ctx={ctx} mode={mode} /><OptionalBlock ctx={ctx} /><SocialBlock ctx={ctx} mode={mode} /></>}
-      {g === "CHRONIC" && <><VitalsBlock ctx={ctx} mode={mode} /><MedsBlock ctx={ctx} mode={mode} /><DietBlock ctx={ctx} mode={mode} />{diabetic && <FootBlock ctx={ctx} mode={mode} />}{cardio && <CardioBlock ctx={ctx} mode={mode} />}</>}
+      {g && <VitalsPanel ctx={ctx} mode={mode} />}
+      {g === "CHRONIC" && <><MedsBlock ctx={ctx} mode={mode} /><DietBlock ctx={ctx} mode={mode} />{diabetic && <FootBlock ctx={ctx} mode={mode} />}{cardio && <CardioBlock ctx={ctx} mode={mode} />}</>}
       {g === "REHAB" && <><ProgressBlock ctx={ctx} /><SessionBlock ctx={ctx} mode={mode} /><DistanceBlock ctx={ctx} mode={mode} /></>}
       {g === "DEMENTIA" && <><BehaviorBlock ctx={ctx} mode={mode} /><ZoneBlock ctx={ctx} mode={mode} /><OrientationBlock ctx={ctx} mode={mode} /><SundownBlock ctx={ctx} mode={mode} /></>}
-      {g === "STROKE" && <><FastBlock ctx={ctx} mode={mode} /><SwallowBlock ctx={ctx} mode={mode} /><PostureBlock ctx={ctx} mode={mode} /><SessionBlock ctx={ctx} mode={mode} title="VLTL phục hồi (tập đi, tập tay)" /></>}
+      {g === "STROKE" && <><SwallowBlock ctx={ctx} mode={mode} /><PostureBlock ctx={ctx} mode={mode} /><SessionBlock ctx={ctx} mode={mode} title="VLTL phục hồi (tập đi, tập tay)" /></>}
       {!g && <Note>Cụ chưa được xếp nhóm, dùng các mục ghi chung ở cột phải.</Note>}
       {extra}
     </div>
@@ -615,6 +660,13 @@ export function CareLogScreen() {
   const [allTl, setAllTl] = useState(false);
   const { data, isLoading, error } = useQuery({ queryKey: ["s-cl", id], queryFn: () => staff.careLog(me, id) });
   useLiveRefresh(id);
+  // mở từ màn Việc hôm nay với #blk-<khối>: cuộn tới đúng khối khi dữ liệu đã tải
+  const { hash } = useLocation();
+  const loaded = !!data;
+  useEffect(() => {
+    if (!loaded || !hash.startsWith("#blk-")) return;
+    document.querySelector(`[id^="${hash.slice(1)}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loaded, hash]);
   const inv = () => qc.invalidateQueries();
   const setTask = useMutation({ mutationFn: ({ t, s, r }: { t: number; s: "DONE" | "SKIPPED"; r?: string }) => staff.setTask(me, t, s, r), onSuccess: () => { inv(); setSkip(undefined); setReason(""); } });
   const close = useMutation({ mutationFn: () => staff.closeLog(me, id), onSuccess: inv });
@@ -730,7 +782,7 @@ export function CareLogScreen() {
       </div>
 
       <EntryModal key={`${kind}-${taskFor?.id ?? "free"}`} kind={kind} task={taskFor} elderly={e} activities={acts} photoInfo={`${data.photos}/${photoLimit ?? "không giới hạn"} ảnh hôm nay`} onClose={() => { setKind(undefined); setTaskFor(undefined); }} />
-      <VitalsModal open={vitals} onClose={() => setVitals(false)} elderly={e} thresholds={data.thresholds} diabetic={e.conditions.some((c) => c.includes("Tiểu đường"))} />
+      <VitalsModal open={vitals} onClose={() => setVitals(false)} elderly={e} thresholds={data.thresholds} />
       {incident && <IncidentModal open onClose={() => setIncident(false)} elderlyOptions={[e]} defaultElderly={e.id} />}
       <Modal open={!!skip} onClose={() => setSkip(undefined)} title="Bỏ qua việc" footer={<><Button variant="neutral" onClick={() => setSkip(undefined)}>Hủy</Button><Button loading={setTask.isPending} onClick={() => setTask.mutate({ t: skip!, s: "SKIPPED", r: reason })}>Bỏ qua</Button></>}>
         <TextArea label="Lý do (bắt buộc, CL-02)" value={reason} onChange={(ev) => setReason(ev.target.value)} />

@@ -85,7 +85,20 @@ export function EntryModal({ kind, elderly, activities, photoInfo, task, onClose
 }
 
 const STROKE_SIGNS = ["Méo miệng", "Yếu tay / chân một bên tăng", "Nói khó hơn", "Nuốt khó hơn"];
-export function VitalsModal({ elderly, open, onClose, thresholds, diabetic }: { elderly?: ElderlyMember; open: boolean; onClose: () => void; thresholds: Thresholds; diabetic?: boolean }) {
+/**
+ * Chỉ số đo thêm theo bệnh — dùng chung cho khung "Chỉ số hôm nay", form đo và màn Đo chỉ số
+ * để mọi nơi hiện cùng một bộ ô: đường huyết (tiểu đường / module Đường huyết), cân nặng (tim mạch / module Tim mạch).
+ */
+export function vitalsExtras(e: Pick<ElderlyMember, "conditions" | "careModules">) {
+  const modules = e.careModules ?? [];
+  return {
+    glucose: e.conditions.some((c) => /tiểu đường/i.test(c)) || modules.includes("GLUCOSE"),
+    weight: e.conditions.some((c) => /tim/i.test(c)) || modules.includes("CARDIO"),
+  };
+}
+
+export function VitalsModal({ elderly, open, onClose, thresholds }: { elderly?: ElderlyMember; open: boolean; onClose: () => void; thresholds: Thresholds }) {
+  const extras = elderly ? vitalsExtras(elderly) : { glucose: false, weight: false };
   const me = useMe();
   const qc = useQueryClient();
   const [m, setM] = useState<Record<string, string>>({});
@@ -108,11 +121,12 @@ export function VitalsModal({ elderly, open, onClose, thresholds, diabetic }: { 
         {F("sys", "HA tâm thu", `ngưỡng ${thresholds.sysMin}–${thresholds.sysMax}`)}
         {F("dia", "HA tâm trương", `≤ ${thresholds.diaMax}`)}
         {F("pulse", "Mạch", `${thresholds.pulseMin}–${thresholds.pulseMax}`)}
-        {F("temp", "Nhiệt độ °C", `≤ ${thresholds.tempMax}`, 0.1)}
         {F("spo2", "SpO₂ %", `≥ ${thresholds.spo2Min}`)}
-        {diabetic && F("glucose", "Đường huyết mmol/L", `≤ ${thresholds.glucoseMax}`, 0.1)}
-        {F("weight", "Cân nặng kg", "tùy chọn", 0.5)}
+        {F("temp", "Nhiệt độ °C", `≤ ${thresholds.tempMax}`, 0.1)}
+        {extras.glucose && F("glucose", "Đường huyết mmol/L", `≤ ${thresholds.glucoseMax}`, 0.1)}
+        {extras.weight && F("weight", "Cân nặng kg", "theo dõi phù / giữ nước", 0.5)}
       </div>
+      {(extras.glucose || extras.weight) && <div className="mt-1 text-[11px] text-subtle">Ô thêm theo bệnh của cụ: {[extras.glucose && "đường huyết", extras.weight && "cân nặng"].filter(Boolean).join(", ")}.</div>}
       {elderly?.targetGroup === "STROKE" && (
         <div className="mt-3 rounded-xl bg-red-soft/40 p-3">
           <div className="mb-1 text-[12px] font-semibold text-red-ink">Checklist dấu hiệu tái phát (nhóm sau tai biến)</div>

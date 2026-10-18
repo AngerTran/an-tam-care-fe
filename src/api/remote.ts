@@ -156,7 +156,7 @@ export const remoteStaff: Partial<typeof mockStaff> = {
     const rows = await api<Row[]>("GET", "/staff/vitals/today");
     return rows.map((r) => {
       const e = toElderly(r.elderly);
-      return { elderly: e, sub: toSub(e.id, r.elderly.tier), todays: Array.from({ length: r.todayCount }), per: r.perDay, due: r.due, diabetic: r.diabetic, latest: r.latest ? toMetric(e.id)(r.latest) : undefined };
+      return { elderly: e, sub: toSub(e.id, r.elderly.tier), todays: Array.from({ length: r.todayCount }), per: r.perDay, due: r.due, diabetic: r.diabetic, latest: r.latest ? toMetric(e.id)(r.latest) : undefined, thresholds: toThresholds(r.thresholds) };
     }) as any;
   },
   async meds() {
@@ -173,6 +173,14 @@ export const remoteStaff: Partial<typeof mockStaff> = {
   },
   async handleAlert(_me: User, id: number, status: "IN_PROGRESS" | "CLOSED", result?: string) {
     await api("PATCH", `/staff/alerts/${id}`, { status, result: result || null });
+  },
+  async taskBoard() {
+    const rows = await api<Row[]>("GET", "/staff/tasks/today");
+    const today = vnToday();
+    return rows.map((r) => {
+      const e = toElderly(r.elderly);
+      return { task: toTask(e.id, today)(r.task), elderly: e, present: r.present, dayOpen: r.dayOpen, thresholds: toThresholds(r.thresholds) };
+    }) as any;
   },
   async daySummary(_me: User, elderlyId: number, date: string) {
     const d = await api<Row>("GET", `/staff/care-logs/${elderlyId}/summary?date=${date}`);

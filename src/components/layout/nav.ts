@@ -55,6 +55,7 @@ export const NAV: Record<Role, NavSection[]> = {
       { label: "Check-in / check-out", to: "/staff/checkin", icon: QrCode },
       { label: "Lịch hôm nay", to: "/staff/schedule", icon: CalendarDays },
       { label: "Cụ hôm nay", to: "/staff/elderly", icon: UserRound },
+      { label: "Việc hôm nay", to: "/staff/tasks", icon: ListChecks },
       { label: "Ghi nhanh cả nhóm", to: "/staff/group-log", icon: Users },
       { label: "Đo chỉ số", to: "/staff/vitals", icon: Activity, only: "NURSE" },
       { label: "Thuốc đến hạn", to: "/staff/meds", icon: Pill, only: "NURSE" },
