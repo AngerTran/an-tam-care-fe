@@ -3,13 +3,14 @@
 // GroupBlocks cũng được Manager (M2) và Gia đình (G1) dùng ở chế độ chỉ đọc.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, Bath, Camera, CircleCheck, History, Lock, Moon, NotebookPen, Plus, ShieldAlert, Siren, Smile, Stethoscope, Trash2, TriangleAlert, Utensils } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import { lookups, NOW, staff, TODAY, useLiveRefresh } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
-import { Bars, ElderlyCell, GroupBadge, LineChart, TierBadge, Timeline } from "../../components/domain";
-import { Badge, Button, Chip, ErrorText, Field, Loading, Modal, Note, SelectField, TextArea, cn } from "../../components/ui";
+import { ElderlyCell, GroupBadge, TierBadge, Timeline } from "../../components/domain";
+import { Badge, Button, Chip, ErrorText, Field, Loading, Modal, Note, SelectField, Tabs, TextArea, cn } from "../../components/ui";
 import { dmy, hm, weekday } from "../../lib/format";
 import type { Assessment, CareLogEntry, CareModule, DailyTask, ElderlyMember, HealthMetric, MedicationDose, MedicationPlan, Service, Thresholds, Tier } from "../../types/models";
 import { EntryModal, IncidentModal, taskKind, vitalsExtras, VitalsModal, type EntryKindUI } from "./StaffForms";
@@ -42,6 +43,9 @@ export const SCREEN: Record<string, { code: string; tab: string }> = {
   DEMENTIA: { code: "CL-DEM", tab: "Trí nhớ & hành vi" },
   STROKE: { code: "CL-STR", tab: "Sau tai biến" },
 };
+/** Tab của màn care log; khối nào nằm ở tab Chỉ số và thuốc (còn lại ở Chăm sóc riêng). */
+type ClTab = "vitals" | "care" | "timeline";
+const VITALS_KINDS = ["VITALS", "MEDICATION", "FAST_CHECK"];
 const MODULE_LABEL: Record<CareModule, string> = { GLUCOSE: "Đường huyết", BP: "Huyết áp tăng cường", CARDIO: "Tim mạch", FALL: "Phòng té ngã", JOINT: "Khớp & vận động", MEMORY: "Trí nhớ nhẹ", SWALLOW: "Nuốt" };
 const EXERCISES = ["Tập đi thanh song song", "Tập đi có khung", "Gập duỗi gối", "Nâng chân thẳng", "Đạp xe tại chỗ", "Ròng rọc tập vai", "Cầm nắm bóng mềm", "Với đồ trên bàn", "Đứng thăng bằng", "Ngồi – đứng dậy"];
 const dx = (e?: CareLogEntry) => (e?.data ?? {}) as Dx;
@@ -50,26 +54,47 @@ const last = <T,>(a: T[]) => a[a.length - 1];
 const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 10) / 10 : undefined);
 const yesNo = (v: unknown) => (v ? "✓" : "✗");
 
+/**
+ * Form nào đang mở trên màn care log của staff: mỗi khối chỉ hiện phần đã ghi + nút Ghi, bấm mới mở form.
+ * null (không có provider, vd. màn gia đình / quản lý) = form luôn hiện như trước.
+ */
+const FormCtx = createContext<{ open?: string; setOpen: (id?: string) => void } | null>(null);
+/** Khối đang chứa form: id + chỗ đặt nút Ghi trên đầu khối. */
+const BlockCtx = createContext<{ id: string; slot: HTMLElement | null }>({ id: "", slot: null });
+
 function useSave(elderlyId: number, onDone?: () => void) {
   const me = useMe();
   const qc = useQueryClient();
+  const form = useContext(FormCtx);
   return useMutation({
     mutationFn: (input: Parameters<typeof staff.addEntry>[2]) => staff.addEntry(me, elderlyId, input),
-    onSuccess: () => { qc.invalidateQueries(); onDone?.(); },
+    onSuccess: () => { qc.invalidateQueries(); form?.setOpen(undefined); onDone?.(); },
   });
 }
 
 /** One block on the screen. `main` = the group's signature block (accent border). */
 function Block({ id, title, main, aside, children }: { id: string; title: ReactNode; main?: boolean; aside?: ReactNode; children: ReactNode }) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   return (
     <section id={`blk-${id}`} className={cn("scroll-mt-32 rounded-xl bg-surface p-4 shadow-[0_2px_6px_rgba(18,35,89,0.06)] transition", main && "ring-2 ring-blue/50")}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <h3 className="flex-1 text-[14px] font-semibold text-navy">{title}</h3>
         {aside}
+        <span ref={setSlot} className="empty:hidden" />
       </div>
-      {children}
+      <BlockCtx.Provider value={{ id, slot }}>{children}</BlockCtx.Provider>
     </section>
   );
+}
+/** Phần nhập của 1 khối: trên màn care log chỉ mở khi bấm Ghi (nút nằm trên đầu khối), lưu xong tự gập. */
+function FormArea({ className, children }: { className: string; children: ReactNode }) {
+  const form = useContext(FormCtx);
+  const { id, slot } = useContext(BlockCtx);
+  if (!form) return <div className={className}>{children}</div>;
+  const open = form.open === id;
+  const toggle = slot && createPortal(
+    <Button size="sm" variant={open ? "neutral" : "outline"} icon={open ? undefined : Plus} onClick={() => form.setOpen(open ? undefined : id)}>{open ? "Đóng" : "Ghi"}</Button>, slot);
+  return <>{toggle}{open && <div className={className}>{children}</div>}</>;
 }
 /** Phần con nằm trong 1 khối khác (cùng props với Block, không có khung riêng). */
 function SubBlock({ id, title, aside, children }: { id: string; title: ReactNode; main?: boolean; aside?: ReactNode; children: ReactNode }) {
@@ -147,13 +172,13 @@ function WalkBlock({ ctx, mode, main }: { ctx: CareCtx; mode: Mode; main?: boole
   return (
     <Block id="MOBILITY" title="Đi bộ và vận động" main={main}>
       <Rows list={ofKind(ctx.entries, "MOBILITY")} />
-      {!mode.readOnly && <div className="mt-3 space-y-2 border-t border-line-soft pt-3">
+      {!mode.readOnly && <FormArea className="mt-3 space-y-2 border-t border-line-soft pt-3">
         <div className="flex flex-wrap gap-3"><Field label="Thời lượng (phút)" type="number" value={f.minutes} onChange={(e) => setF({ ...f, minutes: e.target.value })} className="w-32" /></div>
         <Pick label="Hỗ trợ" value={f.aid} options={["Tự đi", "Cầm tay", "Gậy", "Khung"]} onChange={(aid) => setF({ ...f, aid })} />
         <Pick label="Dáng đi" value={f.gait} options={["Vững", "Loạng choạng"]} onChange={(gait) => setF({ ...f, gait })} />
         <Checks items={[["tired", "Mệt, khó thở"], ["dizzy", "Chóng mặt khi đứng dậy"]]} value={f} onChange={(v) => setF(v as typeof f)} />
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -164,10 +189,10 @@ function FallBlock({ ctx, mode, compact }: { ctx: CareCtx; mode: Mode; compact?:
   return (
     <Block id={compact ? "MOD-FALL" : "CARE_CHECK-FALL"} title="Phòng té ngã" aside={<Badge tone={near7 >= 2 ? "red" : "gray"}>Suýt ngã 14 ngày: {near7}</Badge>}>
       <Rows list={ofKind(ctx.entries, "CARE_CHECK", "FALL")} />
-      {!mode.readOnly && <div className="mt-2 space-y-2 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 space-y-2 border-t border-line-soft pt-2">
         <Checks items={[["shoes", "Giày dép an toàn"], ["escort", "Đi vệ sinh có người kèm"], ["dizzy", "Chóng mặt"], ["nearFall", "Suýt ngã hôm nay"]]} value={f} onChange={setF} />
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -192,11 +217,11 @@ function SocialBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="CARE_CHECK-SOCIAL" title="Giao tiếp">
       <Rows list={ofKind(ctx.entries, "CARE_CHECK", "SOCIAL")} />
-      {!mode.readOnly && <div className="mt-2 flex flex-wrap items-end gap-3 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 flex flex-wrap items-end gap-3 border-t border-line-soft pt-2">
         <Field label="Nói chuyện với" value={who} onChange={(e) => setWho(e.target.value)} className="w-64" />
         <Checks items={[["alone", "Ngồi riêng lẻ"]]} value={{ alone }} onChange={(v) => setAlone(!!v.alone)} />
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -281,11 +306,11 @@ function DietBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="DIET_CHECK" title={`Ăn đúng chế độ (${ctx.elderly.diet || "bình thường"})`}>
       <Rows list={ofKind(ctx.entries, "DIET_CHECK")} />
-      {!mode.readOnly && <div className="mt-2 space-y-2 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 space-y-2 border-t border-line-soft pt-2">
         <Pick value={meal} options={["Bữa sáng", "Bữa trưa", "Bữa xế"]} onChange={setMeal} />
         <Pick value={c} options={["Đúng", "Ăn thêm đồ ngoài", "Bỏ bữa"]} onChange={setC} />
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -297,13 +322,13 @@ function FootBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="CARE_CHECK-FOOT" title="Bàn chân và triệu chứng">
       <Rows list={ofKind(ctx.entries, "CARE_CHECK", "FOOT")} />
-      {!mode.readOnly && <div className="mt-2 space-y-2 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 space-y-2 border-t border-line-soft pt-2">
         {mode.nurse && <Checks items={[["scratch", "Vết xước"], ["red", "Đỏ, phồng"], ["numb", "Mất cảm giác"]]} value={f} onChange={setF} />}
         <div className="text-[11px] text-subtle">Triệu chứng hạ đường huyết (hộ lý báo nhanh)</div>
         <Checks items={[["vã mồ hôi", "Vã mồ hôi"], ["run tay", "Run tay"], ["lả đi", "Lả đi"], ["lú lẫn", "Lú lẫn"]]} value={h} onChange={setH} />
         {hypo && <Note tone="red">Đo đường huyết ngay; nếu &lt; 3,9 mmol/L cho ăn đường nhanh, đo lại sau 15 phút.</Note>}
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -314,11 +339,11 @@ function CardioBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="CARE_CHECK-CARDIO" title="Tim mạch">
       <Rows list={ofKind(ctx.entries, "CARE_CHECK", "CARDIO")} />
-      {!mode.readOnly && mode.nurse && <div className="mt-2 space-y-2 border-t border-line-soft pt-2">
+      {!mode.readOnly && mode.nurse && <FormArea className="mt-2 space-y-2 border-t border-line-soft pt-2">
         <Pick label="Phù chân" value={edema} options={["Không", "Nhẹ", "Rõ"]} onChange={setEdema} />
         <Checks items={[["dyspnea", "Khó thở khi gắng sức"], ["chest", "Đau ngực (→ báo sự cố khẩn cấp)"]]} value={f} onChange={setF} />
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -339,11 +364,14 @@ function ProgressBlock({ ctx }: { ctx: CareCtx }) {
         <Tile label="Quãng đi gần nhất" value={dist ? `${dx(dist).distance} m` : "—"} sub={first && dist && first !== dist ? `ngày ${first.date.slice(8)}/${first.date.slice(5, 7)}: ${dx(first).distance} m` : undefined} tone={first && dist && Number(dx(dist).distance) > Number(dx(first).distance) ? "green" : "gray"} />
         <Tile label="Đau sau tập (TB 7 buổi)" value={pain !== undefined ? `${pain}/10` : "—"} tone={pain !== undefined && pain >= 7 ? "red" : "gray"} />
       </div>
-      {walks.length > 1 && <div className="mt-3"><div className="mb-1 text-[11px] text-subtle">Quãng đường đi được (m)</div><Bars height={110} highlightLast data={walks.slice(-10).map((w) => ({ label: `${w.date.slice(8)}/${w.date.slice(5, 7)}`, value: Number(dx(w).distance) }))} /></div>}
     </Block>
   );
 }
 type Ex = { name: string; side: string; sets: string; reps: string };
+/** Bài tập trong data.exercises: dạng đầy đủ {name, side, sets, reps} hoặc chỉ tên bài (dữ liệu nhập tay / seed). */
+const exercisesOf = (e: CareLogEntry): Ex[] =>
+  ((dx(e).exercises as unknown[] | undefined) ?? []).map((x) => (typeof x === "string" ? { name: x, side: "Hai bên", sets: "", reps: "" } : (x as Ex)));
+const exLabel = (x: Ex) => `${x.name}${x.side && x.side !== "Hai bên" ? ` (${x.side.toLowerCase()})` : ""}${x.sets && x.reps ? ` · ${x.sets}×${x.reps}` : ""}`;
 function SessionBlock({ ctx, mode, title = "Phiếu buổi VLTL" }: { ctx: CareCtx; mode: Mode; title?: string }) {
   const [start, setStart] = useState("08:45");
   const [end, setEnd] = useState("09:15");
@@ -367,12 +395,12 @@ function SessionBlock({ ctx, mode, title = "Phiếu buổi VLTL" }: { ctx: CareC
       {sessions.length === 0 ? <div className="text-[12px] text-subtle">Chưa có buổi tập hôm nay</div> : sessions.map((s) => (
         <div key={s.id} className="mb-2 rounded-lg bg-canvas p-2 text-[12.5px]">
           <div className="font-semibold text-navy">{String(dx(s).start ?? s.time)}–{String(dx(s).end ?? "")} · {s.staff?.fullName}</div>
-          {((dx(s).exercises as Ex[] | undefined) ?? []).map((x, i) => <div key={i}>• {x.name}{x.side !== "Hai bên" ? ` (${x.side.toLowerCase()})` : ""} · {x.sets}×{x.reps}</div>)}
+          {exercisesOf(s).map((x, i) => <div key={i}>• {exLabel(x)}</div>)}
           <div className="text-muted">Đau {String(dx(s).painBefore)} → {String(dx(s).painAfter)} · hợp tác {String(dx(s).cooperation ?? "").toLowerCase()}{dx(s).stoppedEarly ? ` · dừng sớm: ${String(dx(s).reason)}` : ""}</div>
         </div>
       ))}
-      {homeEx && <Note tone="green">Bài tập về nhà đang giao: {((dx(homeEx).exercises as Ex[]) ?? []).map((x) => `${x.name} ${x.sets}×${x.reps}`).join(" · ")}</Note>}
-      {!mode.readOnly && mode.nurse && <div className="mt-2 space-y-2 border-t border-line-soft pt-2">
+      {homeEx && <Note tone="green">Bài tập về nhà đang giao: {exercisesOf(homeEx).map(exLabel).join(" · ")}</Note>}
+      {!mode.readOnly && mode.nurse && <FormArea className="mt-2 space-y-2 border-t border-line-soft pt-2">
         <div className="flex flex-wrap gap-2"><Field label="Bắt đầu" type="time" value={start} onChange={(e) => setStart(e.target.value)} className="w-28" /><Field label="Kết thúc" type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="w-28" /></div>
         {ex.map((x, i) => (
           <div key={i} className="flex flex-wrap items-end gap-2">
@@ -389,7 +417,7 @@ function SessionBlock({ ctx, mode, title = "Phiếu buổi VLTL" }: { ctx: CareC
         <Field label="Dừng sớm vì (để trống nếu tập đủ)" value={stop} onChange={(e) => setStop(e.target.value)} />
         <Checks items={[["home", "Giao các bài này làm bài tập về nhà (gửi gia đình, G3)"]]} value={{ home }} onChange={(v) => setHome(!!v.home)} />
         <SaveBar save={save} hint="Đau sau ≥ 7 hoặc tăng ≥ 3 điểm sẽ tạo cảnh báo" />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -399,7 +427,7 @@ function DistanceBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="MOBILITY" title="Đi lại">
       <Rows list={ofKind(ctx.entries, "MOBILITY")} />
-      {!mode.readOnly && <div className="mt-2 space-y-2 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 space-y-2 border-t border-line-soft pt-2">
         <div className="flex flex-wrap gap-2">
           <Field label="Quãng đường (m)" type="number" value={f.distance} onChange={(e) => setF({ ...f, distance: e.target.value })} className="w-32" />
           <Field label="Người dìu" type="number" value={f.helpers} onChange={(e) => setF({ ...f, helpers: e.target.value })} className="w-24" />
@@ -407,7 +435,7 @@ function DistanceBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
         </div>
         <Pick label="Dụng cụ" value={f.aid} options={["Không", "Gậy", "Khung", "Xe lăn"]} onChange={(aid) => setF({ ...f, aid })} />
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -431,7 +459,7 @@ function BehaviorBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="BEHAVIOR" title="Nhật ký hành vi (ABC)" main>
       <Rows list={ofKind(ctx.entries, "BEHAVIOR")} empty="Chưa có hành vi nào hôm nay" />
-      {!mode.readOnly && <div className="mt-3 space-y-2.5 border-t border-line-soft pt-3">
+      {!mode.readOnly && <FormArea className="mt-3 space-y-2.5 border-t border-line-soft pt-3">
         <div className="text-[12px] font-semibold text-navy">A · Điều gì xảy ra trước</div>
         <Pick value={f.place} options={PLACES} onChange={(place) => setF({ ...f, place })} />
         <div className="flex flex-wrap gap-1.5">{TRIGGERS.map((x) => <Chip key={x} active={f.triggers.includes(x)} onClick={() => tog("triggers", x)}>{x}</Chip>)}</div>
@@ -442,7 +470,7 @@ function BehaviorBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
         <div className="flex flex-wrap gap-1.5">{INTERVENTIONS.map((x) => <Chip key={x} active={f.interventions.includes(x)} onClick={() => tog("interventions", x)}>{x}</Chip>)}</div>
         <Pick value={f.outcome} options={["Đã dịu", "Chưa dịu"]} onChange={(outcome) => setF({ ...f, outcome })} />
         <SaveBar save={save} disabled={!f.behaviors.length || !f.interventions.length} hint={f.severity === "Nhẹ" ? "Mức nhẹ chỉ lưu nội bộ, gia đình thấy trong báo cáo tuần (Q1)" : "Mức vừa trở lên gia đình thấy ngay"} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -469,11 +497,11 @@ function ZoneBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
           );
         })}
       </div>
-      {!mode.readOnly && <div className="mt-2 flex flex-wrap items-end gap-2">
+      {!mode.readOnly && <FormArea className="mt-2 flex flex-wrap items-end gap-2">
         <Field label="Số lần cố ra khỏi khu (từ lần trước)" type="number" value={exits} onChange={(e) => setExits(e.target.value)} className="w-56" />
         <Button size="sm" variant="danger" icon={Siren} loading={lost.isPending} onClick={() => lost.mutate()}>Mất dấu cụ</Button>
         <ErrorText error={save.error ?? lost.error} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -484,10 +512,10 @@ function OrientationBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="ORIENTATION" title="Định hướng · 9h00">
       <Rows list={ofKind(ctx.entries, "ORIENTATION")} />
-      {!mode.readOnly && <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 flex flex-wrap items-center gap-3 border-t border-line-soft pt-2">
         <Checks items={[["day", "Biết hôm nay thứ mấy"], ["place", "Biết đang ở đâu"], ["person", "Nhận ra người chăm"]]} value={f} onChange={setF} />
         <SaveBar save={save} label={`Lưu (${n}/3)`} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -498,10 +526,10 @@ function SundownBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="CARE_CHECK-SUNDOWN" title="Đổi tính về chiều · 15h00–16h30">
       <Rows list={ofKind(ctx.entries, "CARE_CHECK", "SUNDOWN")} />
-      {!mode.readOnly && <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 flex flex-wrap items-center gap-3 border-t border-line-soft pt-2">
         <Checks items={[["restless", "Bồn chồn"], ["home", "Đòi về"], ["pacing", "Đi lại liên tục"]]} value={f} onChange={setF} />
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -571,13 +599,13 @@ function SwallowBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="SWALLOW" title="Nuốt và bữa ăn" aside={<Badge tone="orange">{ctx.elderly.diet}</Badge>}>
       <Rows list={ofKind(ctx.entries, "SWALLOW")} />
-      {!mode.readOnly && <div className="mt-2 space-y-2 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 space-y-2 border-t border-line-soft pt-2">
         <Pick value={f.meal} options={["Bữa sáng", "Bữa trưa", "Bữa xế"]} onChange={(meal) => setF({ ...f, meal })} />
         <div className="flex flex-wrap gap-4"><Pick label="Kết cấu" value={f.texture} options={["Thường", "Mềm", "Xay", "Sệt"]} onChange={(texture) => setF({ ...f, texture })} /><Pick label="Nước" value={f.fluid} options={["Thường", "Sánh"]} onChange={(fluid) => setF({ ...f, fluid })} /></div>
         <div className="flex flex-wrap items-end gap-4"><Pick label="Ho / sặc khi ăn" value={f.cough} options={["Không", "1 lần", "Nhiều lần"]} onChange={(cough) => setF({ ...f, cough })} /><Field label="Thời gian ăn (phút)" type="number" value={f.minutes} onChange={(e) => setF({ ...f, minutes: e.target.value })} className="w-32" /></div>
         <Checks items={[["upright", "Ngồi thẳng khi ăn"], ["wet", "Giọng ướt sau nuốt"], ["pocket", "Thức ăn đọng trong miệng"]]} value={c} onChange={setC} />
         <SaveBar save={save} hint="Sặc nhiều lần → cảnh báo điều dưỡng xem lại kết cấu thức ăn" />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -588,11 +616,11 @@ function PostureBlock({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
   return (
     <Block id="CARE_CHECK-POSITION" title={`Tư thế và bên liệt (${(ctx.elderly.affectedSide ?? "—").toLowerCase()})`}>
       <Rows list={ofKind(ctx.entries, "CARE_CHECK", "POSITION")} />
-      {!mode.readOnly && <div className="mt-2 space-y-2 border-t border-line-soft pt-2">
+      {!mode.readOnly && <FormArea className="mt-2 space-y-2 border-t border-line-soft pt-2">
         <Checks items={[["arm", "Kê tay liệt đúng"], ["turned", "Đã đổi tư thế"], ["shoulder", "Đau vai bên liệt"]]} value={f} onChange={setF} />
         <Pick label="Da vùng tỳ đè" value={skin} options={["Bình thường", "Đỏ"]} onChange={setSkin} />
         <SaveBar save={save} />
-      </div>}
+      </FormArea>}
     </Block>
   );
 }
@@ -618,30 +646,35 @@ function ModuleCard({ m, ctx, mode }: { m: CareModule; ctx: CareCtx; mode: Mode 
 }
 
 // ------------------------------------------------------------------ vùng giữa theo nhóm (dùng chung staff / manager / family)
-export function GroupBlocks({ ctx, mode }: { ctx: CareCtx; mode: Mode }) {
+/**
+ * Các khối của màn CL theo nhóm. section: "vitals" = chỉ số + thuốc, "care" = khối chăm sóc riêng + module phụ,
+ * bỏ trống = cả hai (màn gia đình, quản lý).
+ */
+export function GroupBlocks({ ctx, mode, section }: { ctx: CareCtx; mode: Mode; section?: "vitals" | "care" }) {
   const g = ctx.elderly.targetGroup;
   const diabetic = ctx.elderly.conditions.some((c) => c.includes("Tiểu đường"));
   const cardio = ctx.elderly.conditions.some((c) => /tim|suy tim/i.test(c)) || ctx.modules.includes("CARDIO");
-  const extra = (
+  const vitals = section !== "care" && g && (
     <>
+      <VitalsPanel ctx={ctx} mode={mode} />
+      {(g === "CHRONIC" || (ctx.doses?.length ?? 0) > 0) && <MedsBlock ctx={ctx} mode={mode} />}
+    </>
+  );
+  const care = section !== "vitals" && (
+    <>
+      {g === "MOBILE" && <><WalkBlock ctx={ctx} mode={mode} main /><FallBlock ctx={ctx} mode={mode} /><OptionalBlock ctx={ctx} /><SocialBlock ctx={ctx} mode={mode} /></>}
+      {g === "CHRONIC" && <><DietBlock ctx={ctx} mode={mode} />{diabetic && <FootBlock ctx={ctx} mode={mode} />}{cardio && <CardioBlock ctx={ctx} mode={mode} />}</>}
+      {g === "REHAB" && <><ProgressBlock ctx={ctx} /><SessionBlock ctx={ctx} mode={mode} /><DistanceBlock ctx={ctx} mode={mode} /></>}
+      {g === "DEMENTIA" && <><BehaviorBlock ctx={ctx} mode={mode} /><ZoneBlock ctx={ctx} mode={mode} /><OrientationBlock ctx={ctx} mode={mode} /><SundownBlock ctx={ctx} mode={mode} /></>}
+      {g === "STROKE" && <><SwallowBlock ctx={ctx} mode={mode} /><PostureBlock ctx={ctx} mode={mode} /><SessionBlock ctx={ctx} mode={mode} title="VLTL phục hồi (tập đi, tập tay)" /></>}
+      {!g && <Note>Cụ chưa được xếp nhóm, dùng các nút Ghi nhanh.</Note>}
       {ctx.modules.includes("FALL") && g !== "MOBILE" && <FallBlock ctx={ctx} mode={mode} compact />}
       {ctx.modules.includes("SWALLOW") && g !== "STROKE" && <SwallowBlock ctx={ctx} mode={mode} />}
       {ctx.modules.includes("MEMORY") && g !== "DEMENTIA" && <OrientationBlock ctx={ctx} mode={mode} />}
       {ctx.modules.includes("CARDIO") && g !== "CHRONIC" && <CardioBlock ctx={ctx} mode={mode} />}
     </>
   );
-  return (
-    <div className="space-y-3">
-      {g === "MOBILE" && <><WalkBlock ctx={ctx} mode={mode} main /><FallBlock ctx={ctx} mode={mode} /><OptionalBlock ctx={ctx} /><SocialBlock ctx={ctx} mode={mode} /></>}
-      {g && <VitalsPanel ctx={ctx} mode={mode} />}
-      {g === "CHRONIC" && <><MedsBlock ctx={ctx} mode={mode} /><DietBlock ctx={ctx} mode={mode} />{diabetic && <FootBlock ctx={ctx} mode={mode} />}{cardio && <CardioBlock ctx={ctx} mode={mode} />}</>}
-      {g === "REHAB" && <><ProgressBlock ctx={ctx} /><SessionBlock ctx={ctx} mode={mode} /><DistanceBlock ctx={ctx} mode={mode} /></>}
-      {g === "DEMENTIA" && <><BehaviorBlock ctx={ctx} mode={mode} /><ZoneBlock ctx={ctx} mode={mode} /><OrientationBlock ctx={ctx} mode={mode} /><SundownBlock ctx={ctx} mode={mode} /></>}
-      {g === "STROKE" && <><SwallowBlock ctx={ctx} mode={mode} /><PostureBlock ctx={ctx} mode={mode} /><SessionBlock ctx={ctx} mode={mode} title="VLTL phục hồi (tập đi, tập tay)" /></>}
-      {!g && <Note>Cụ chưa được xếp nhóm, dùng các mục ghi chung ở cột phải.</Note>}
-      {extra}
-    </div>
-  );
+  return <div className="space-y-3">{vitals}{care}</div>;
 }
 
 // ------------------------------------------------------------------ màn CL của staff
@@ -657,15 +690,31 @@ export function CareLogScreen() {
   const [incident, setIncident] = useState(false);
   const [skip, setSkip] = useState<number>();
   const [reason, setReason] = useState("");
-  const [allTl, setAllTl] = useState(false);
+  const [openForm, setOpenForm] = useState<string>();
   const { data, isLoading, error } = useQuery({ queryKey: ["s-cl", id], queryFn: () => staff.careLog(me, id) });
   useLiveRefresh(id);
-  // mở từ màn Việc hôm nay với #blk-<khối>: cuộn tới đúng khối khi dữ liệu đã tải
+  // 3 tab, giữ trên URL (?tab=) để F5 vẫn ở đúng tab; mặc định điều dưỡng vào Chỉ số và thuốc, hộ lý vào Chăm sóc riêng
+  const [params, setParams] = useSearchParams();
+  const nurseMe = lookups.myPosition(me) === "NURSE";
+  const tabParam = params.get("tab");
+  const tab: ClTab = tabParam === "vitals" || tabParam === "care" || tabParam === "timeline" ? tabParam : nurseMe ? "vitals" : "care";
+  const setTab = (v: ClTab) => setParams((p) => { p.set("tab", v); return p; }, { replace: true });
+  /** Mở đúng tab, mở form của khối và cuộn tới đó (bấm việc ở cột trái, hoặc mở từ màn Việc hôm nay với #blk-<khối>). */
+  const goToBlock = (kind: string) => {
+    setTab(VITALS_KINDS.includes(kind) ? "vitals" : "care");
+    setTimeout(() => {
+      const el = document.querySelector(`[id^="blk-${kind}"]`);
+      if (!el) return;
+      setOpenForm(el.id.slice(4));
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
   const { hash } = useLocation();
   const loaded = !!data;
   useEffect(() => {
-    if (!loaded || !hash.startsWith("#blk-")) return;
-    document.querySelector(`[id^="${hash.slice(1)}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (loaded && hash.startsWith("#blk-")) goToBlock(hash.slice(5));
+    // chỉ chạy khi dữ liệu vừa tải hoặc hash đổi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, hash]);
   const inv = () => qc.invalidateQueries();
   const setTask = useMutation({ mutationFn: ({ t, s, r }: { t: number; s: "DONE" | "SKIPPED"; r?: string }) => staff.setTask(me, t, s, r), onSuccess: () => { inv(); setSkip(undefined); setReason(""); } });
@@ -695,16 +744,13 @@ export function CareLogScreen() {
   const openTask = (t: DailyTask) => {
     if (t.type === "CARE" && t.entryKind) {
       setCareTask(t);
-      const key = t.entryKind === "CARE_CHECK" ? document.querySelector(`[id^="blk-CARE_CHECK"]`) : document.getElementById(`blk-${t.entryKind}`);
-      key?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
+      return goToBlock(t.entryKind);
     }
     if (t.type === "VITALS" || t.type === "GLUCOSE") return setVitals(true);
-    if (t.type === "MEDICATION") return document.getElementById("blk-MEDICATION")?.scrollIntoView({ behavior: "smooth" });
+    if (t.type === "MEDICATION") return goToBlock("MEDICATION");
     const k = taskKind(t);
     if (k) { setTaskFor({ id: t.id, title: t.title, time: t.time }); setKind(k); }
   };
-  const tl = allTl ? data.entries : data.entries.slice(0, 5);
   return (
     <Page title={`${scr.code} · Care log ${scr.tab.toLowerCase()}`} back="/staff/elderly" sub={`${weekday(TODAY)} ${dmy(TODAY)} · ${e.targetGroup ? `màn riêng nhóm ${scr.tab}` : "chưa xếp nhóm, chờ điều dưỡng đánh giá"}`}>
       {/* Đầu trang cố định (mục 5.1) */}
@@ -730,11 +776,17 @@ export function CareLogScreen() {
           <span><b className="text-navy">Ảnh:</b> {data.photos}/{photoLimit ?? "∞"}</span>
           {data.permissions.map((p) => <Badge key={p.serviceId} tone={p.allowed ? "green" : "red"}>{p.allowed ? "✓" : "✗"} {p.service?.name}</Badge>)}
         </div>
+        {/* Ghi nhanh chung: luôn thấy, không phụ thuộc tab */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-line-soft pt-2">
+          <span className="mr-1 text-[11.5px] font-semibold text-subtle">Ghi nhanh</span>
+          {QUICK.map(([k, Icon, l]) => <Button key={l} size="sm" variant="neutral" icon={Icon} disabled={!canWrite || (k === "PHOTO" && photoLimit != null && data.photos >= photoLimit)} onClick={() => { setTaskFor(undefined); setKind(k); }}>{l}</Button>)}
+          <Button size="sm" variant="outline" icon={NotebookPen} disabled={!canWrite} onClick={() => { setTaskFor(undefined); setKind("NOTE"); }}>Lưu ý</Button>
+        </div>
         <ErrorText error={close.error ?? medical.error} />
       </div>
       {!present && !closed && <Note>Cụ {data.a?.status === "LEFT" ? "đã về" : "chưa có mặt"} — các khối ở chế độ chỉ xem (CL-01).</Note>}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+      <div className="grid items-start gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         {/* Cột trái: việc hôm nay */}
         <aside className="rounded-xl bg-surface p-3 shadow-[0_2px_6px_rgba(18,35,89,0.06)] lg:sticky lg:top-44">
           <div className="mb-2 flex items-center justify-between"><h3 className="text-[14px] font-semibold text-navy">Việc hôm nay</h3><span className="text-[11.5px] text-subtle">{done}/{tasks.length}</span></div>
@@ -758,27 +810,32 @@ export function CareLogScreen() {
           <div className="mt-2 text-[10.5px] text-subtle">● = ghi ở khối riêng của nhóm · cam = quá giờ</div>
         </aside>
 
-        {/* Vùng giữa: khối riêng theo nhóm */}
-        <main className="min-w-0"><GroupBlocks ctx={ctx} mode={mode} /></main>
-
-        {/* Cột phải: ghi nhanh chung + module phụ + dòng thời gian */}
-        <aside className="space-y-3 lg:col-span-2 xl:col-span-1">
-          <div className="rounded-xl bg-surface p-3 shadow-[0_2px_6px_rgba(18,35,89,0.06)]">
-            <h3 className="mb-2 text-[14px] font-semibold text-navy">Ghi nhanh chung</h3>
-            <div className="grid grid-cols-3 gap-1.5 xl:grid-cols-2">
-              {QUICK.map(([k, Icon, l]) => <Button key={l} size="sm" variant="neutral" icon={Icon} disabled={!canWrite || (k === "PHOTO" && photoLimit != null && data.photos >= photoLimit)} onClick={() => { setTaskFor(undefined); setKind(k); }}>{l}</Button>)}
-              <Button size="sm" variant="outline" icon={NotebookPen} disabled={!canWrite} onClick={() => { setTaskFor(undefined); setKind("NOTE"); }}>Lưu ý</Button>
-            </div>
-          </div>
-          <div className="rounded-xl bg-surface p-3 shadow-[0_2px_6px_rgba(18,35,89,0.06)]">
-            <h3 className="mb-2 text-[14px] font-semibold text-navy">Module phụ</h3>
-            {data.modules.length ? <div className="space-y-2">{data.modules.map((m) => <ModuleCard key={m} m={m} ctx={ctx} mode={mode} />)}</div> : <div className="text-[12px] text-subtle">Chưa bật module. Điều dưỡng bật khi đánh giá (tối đa 3).</div>}
-          </div>
-          <div className="rounded-xl bg-surface p-3 shadow-[0_2px_6px_rgba(18,35,89,0.06)]">
-            <div className="mb-2 flex items-center justify-between"><h3 className="text-[14px] font-semibold text-navy">Dòng thời gian</h3>{data.entries.length > 5 && <button className="text-[11.5px] font-semibold text-orange" onClick={() => setAllTl(!allTl)}>{allTl ? "Thu gọn" : `Xem tất cả (${data.entries.length})`}</button>}</div>
-            <Timeline entries={tl} showStaff />
-          </div>
-        </aside>
+        {/* Vùng chính: 3 tab */}
+        <main className="min-w-0 space-y-3">
+          <Tabs value={tab} onChange={(v) => { setOpenForm(undefined); setTab(v); }} items={[
+            { value: "vitals", label: "Chỉ số và thuốc" },
+            { value: "care", label: "Chăm sóc riêng" },
+            { value: "timeline", label: `Dòng thời gian (${data.entries.length})` },
+          ]} />
+          <FormCtx.Provider value={{ open: openForm, setOpen: setOpenForm }}>
+            {tab === "vitals" && (e.targetGroup ? <GroupBlocks ctx={ctx} mode={mode} section="vitals" /> : <Note>Cụ chưa được xếp nhóm, chưa có khung chỉ số.</Note>)}
+            {tab === "care" && (
+              <>
+                <GroupBlocks ctx={ctx} mode={mode} section="care" />
+                {data.modules.length > 0 && (
+                  <Block id="MODULES" title="Module phụ">
+                    <div className="grid gap-2 sm:grid-cols-2">{data.modules.map((m) => <ModuleCard key={m} m={m} ctx={ctx} mode={mode} />)}</div>
+                  </Block>
+                )}
+              </>
+            )}
+          </FormCtx.Provider>
+          {tab === "timeline" && (
+            <Block id="TIMELINE" title="Dòng thời gian hôm nay" aside={<span className="text-[11px] text-subtle">Mới nhất ở trên</span>}>
+              <Timeline entries={data.entries} showStaff />
+            </Block>
+          )}
+        </main>
       </div>
 
       <EntryModal key={`${kind}-${taskFor?.id ?? "free"}`} kind={kind} task={taskFor} elderly={e} activities={acts} photoInfo={`${data.photos}/${photoLimit ?? "không giới hạn"} ảnh hôm nay`} onClose={() => { setKind(undefined); setTaskFor(undefined); }} />
