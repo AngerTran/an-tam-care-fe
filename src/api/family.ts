@@ -124,7 +124,7 @@ export const family = {
     const s = currentSub(elderlyId);
     return {
       elderly: e, sub: s, metrics: metricsOf(elderlyId).filter((m) => m.at >= addDays(TODAY, -30)), thresholds: d.centerSettings.thresholds,
-      doses: d.medDoses.filter((m) => m.elderlyId === elderlyId).map((m) => ({ ...m, plan: byId(d.medPlans, m.planId) })),
+      doses: d.medDoses.filter((m) => m.elderlyId === elderlyId).map((m) => ({ ...m, plan: byId(d.medPlans, m.planId), nurse: lookups.user(m.by) })),
       monthlyReport: s ? entitlement(s.tier).monthlyHealthReport : false,
     };
   },

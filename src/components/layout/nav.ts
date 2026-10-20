@@ -73,10 +73,10 @@ export const NAV: Record<Role, NavSection[]> = {
   FAMILY: [
     { title: "Theo dõi cụ", items: [
       { label: "Hôm nay của cụ", to: "/family", icon: House, end: true },
-      { label: "Tổng kết ngày", to: "/family/summary", icon: BookOpen },
-      { label: "Sức khỏe", to: "/family/health", icon: HeartPulse },
       { label: "Cảnh báo & sự cố", to: "/family/alerts", icon: TriangleAlert },
-      { label: "Thuốc gửi kèm", to: "/family/meds", icon: Pill },
+      { label: "Nhật ký các ngày", to: "/family/summary", icon: BookOpen },
+      { label: "Sức khỏe", to: "/family/health", icon: HeartPulse },
+      { label: "Thuốc của cụ", to: "/family/meds", icon: Pill },
       { label: "Lịch & thực đơn", to: "/family/schedule", icon: CalendarRange },
     ] },
     { title: "Gói & thanh toán", items: [
