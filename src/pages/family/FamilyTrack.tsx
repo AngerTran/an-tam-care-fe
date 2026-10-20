@@ -24,15 +24,17 @@ function NoElderly() {
 const pendingLabel = (date: string, time: string) => (date > TODAY || (date === TODAY && time > NOW) ? "Chưa tới giờ" : "Chưa ghi nhận");
 
 // ------------------------------------------------------------------ G1
+type FamilyTab = "overview" | "vitals" | "care" | "timeline";
 export function FamilyHome() {
   const me = useMe();
   const fe = useFamilyElderly();
   const { data, isLoading } = useQuery({ queryKey: ["f-home", fe.id], queryFn: () => family.home(me, fe.id!), enabled: !!fe.id });
   useLiveRefresh(fe.id);
-  // 2 tab: Tổng quan / Dòng thời gian — giữ trên URL để F5 vẫn ở đúng tab
+  // 4 tab giống màn care log của staff, giữ trên URL (?tab=) để F5 vẫn ở đúng tab
   const [params, setParams] = useSearchParams();
-  const tab: "overview" | "timeline" = params.get("tab") === "timeline" ? "timeline" : "overview";
-  const setTab = (v: "overview" | "timeline") => setParams((p) => { if (v === "timeline") p.set("tab", v); else p.delete("tab"); return p; }, { replace: true });
+  const tabParam = params.get("tab");
+  const tab: FamilyTab = tabParam === "vitals" || tabParam === "care" || tabParam === "timeline" ? tabParam : "overview";
+  const setTab = (v: FamilyTab) => setParams((p) => { if (v === "overview") p.delete("tab"); else p.set("tab", v); return p; }, { replace: true });
   const pending = fe.all.filter((r) => ["PENDING"].includes(r.elderly.status));
   if (fe.isLoading) return <Page title="Hôm nay của cụ"><Loading /></Page>;
   return (
@@ -42,45 +44,50 @@ export function FamilyHome() {
           <b>{r.elderly.fullName}</b>: <SubBadge status={r.sub?.status} /> {r.sub?.status === "PENDING_ASSESSMENT" && r.assessment?.status === "SCHEDULED" && <>Lịch đánh giá {dmy(r.assessment.scheduledAt.slice(0, 10))} lúc {hm(r.assessment.scheduledAt)}.</>}{r.sub?.status === "AWAITING_PAYMENT" && <> Đã có kết quả đánh giá. <Link to="/family/packages" className="font-semibold text-orange">Xác nhận giá & thanh toán</Link></>}
         </Note>
       ))}
-      {fe.id && <Tabs value={tab} onChange={setTab} items={[{ value: "overview", label: "Tổng quan" }, { value: "timeline", label: `Dòng thời gian${data ? ` (${data.entries.length})` : ""}` }]} />}
+      {fe.id && <Tabs value={tab} onChange={setTab} items={[
+        { value: "overview", label: "Tổng quan" },
+        { value: "vitals", label: "Chỉ số và thuốc" },
+        { value: "care", label: "Chăm sóc riêng" },
+        { value: "timeline", label: `Dòng thời gian${data ? ` (${data.entries.length})` : ""}` },
+      ]} />}
       {!fe.id ? <NoElderly /> : isLoading || !data ? <Loading /> : tab === "timeline" ? (
         <Card title="Dòng thời gian hôm nay" actions={<span className="text-[11px] text-subtle">Mới nhất ở trên · tự cập nhật khi nhân viên ghi</span>}>
           <Timeline entries={data.entries} />
         </Card>
-      ) : (
-        <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-          <div className="space-y-4">
-            <Card className="bg-gradient-to-br from-navy to-blue text-white">
-              <div className="flex flex-wrap items-center gap-3">
-                <Avatar name={data.elderly.fullName} size={52} tone="orange" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[18px] font-bold">{data.elderly.gender === "Nữ" ? "Bà" : "Ông"} {data.elderly.fullName}</div>
-                  <div className="flex flex-wrap gap-1"><TierBadge tier={data.sub?.tier} /><GroupBadge group={data.elderly.targetGroup} /><AttBadge a={data.a} /></div>
-                </div>
-              </div>
-              <div className="mt-4 rounded-xl bg-white/10 p-3">
-                <div className="text-[11px] tracking-wide text-white/70 uppercase">Cụ đang làm gì</div>
-                <div className="text-[20px] font-bold">{data.doing.label}</div>
-                {data.doing.since && <div className="text-[12px] text-white/80">từ {data.doing.since}</div>}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-4 text-[12px] text-white/85">
-                {data.a?.checkIn && <span className="flex items-center gap-1"><Clock size={13} />Đến {data.a.checkIn}{data.checkedInBy ? ` · ${data.checkedInBy.fullName} tiếp nhận` : ""}</span>}
-                {data.a?.checkOut && <span>Về {data.a.checkOut}{data.pickup ? ` · ${data.pickup.fullName} đón` : ""}</span>}
-                {!data.scheduledToday && <span>Hôm nay không thuộc lịch gói</span>}
-              </div>
-            </Card>
-            {data.elderly.targetGroup && SCREEN[data.elderly.targetGroup] && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-[13px] font-semibold text-navy">Chăm sóc riêng nhóm {SCREEN[data.elderly.targetGroup].tab}<span className="text-[11px] font-normal text-subtle">· bản rút gọn, chỉ xem</span></div>
-                <GroupBlocks ctx={{ ...data, tier: data.sub?.tier }} mode={{ readOnly: true, nurse: false }} />
-              </div>
-            )}
+      ) : tab === "vitals" || tab === "care" ? (
+        !data.elderly.targetGroup ? <Note>Cụ chưa được xếp nhóm, chưa có khối chăm sóc riêng.</Note> : (
+          <div className="space-y-2">
+            {tab === "care" && SCREEN[data.elderly.targetGroup] && <div className="text-[12.5px] text-subtle">Chăm sóc riêng nhóm {SCREEN[data.elderly.targetGroup].tab} · chỉ xem</div>}
+            <GroupBlocks ctx={{ ...data, tier: data.sub?.tier }} mode={{ readOnly: true, nurse: false }} section={tab} />
           </div>
-          <div className="space-y-4">
-            <Card title="Chỉ số mới nhất" actions={<Link to="/family/health" className="text-[11.5px] font-semibold text-orange">Biểu đồ</Link>}>
+        )
+      ) : (
+        <div className="space-y-4">
+          <Card className="bg-gradient-to-br from-navy to-blue text-white">
+            <div className="flex flex-wrap items-center gap-3">
+              <Avatar name={data.elderly.fullName} size={52} tone="orange" />
+              <div className="min-w-0 flex-1">
+                <div className="text-[18px] font-bold">{data.elderly.gender === "Nữ" ? "Bà" : "Ông"} {data.elderly.fullName}</div>
+                <div className="flex flex-wrap gap-1"><TierBadge tier={data.sub?.tier} /><GroupBadge group={data.elderly.targetGroup} /><AttBadge a={data.a} /></div>
+              </div>
+            </div>
+            <div className="mt-4 rounded-xl bg-white/10 p-3">
+              <div className="text-[11px] tracking-wide text-white/70 uppercase">Cụ đang làm gì</div>
+              <div className="text-[20px] font-bold">{data.doing.label}</div>
+              {data.doing.since && <div className="text-[12px] text-white/80">từ {data.doing.since}</div>}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-4 text-[12px] text-white/85">
+              {data.a?.checkIn && <span className="flex items-center gap-1"><Clock size={13} />Đến {data.a.checkIn}{data.checkedInBy ? ` · ${data.checkedInBy.fullName} tiếp nhận` : ""}</span>}
+              {data.a?.checkOut && <span>Về {data.a.checkOut}{data.pickup ? ` · ${data.pickup.fullName} đón` : ""}</span>}
+              {!data.scheduledToday && <span>Hôm nay không thuộc lịch gói</span>}
+            </div>
+          </Card>
+          {data.sub && daysBetween(TODAY, data.sub.endDate) <= 7 && !isDayCycle(data.sub.cycle) && <Note tone="orange">Gói {CYCLE_LABEL[data.sub.cycle]} hết hạn {dmy(data.sub.endDate)}. <Link to="/family/packages" className="font-semibold">Gia hạn</Link></Note>}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Card title="Chỉ số mới nhất" actions={<button className="text-[11.5px] font-semibold text-orange" onClick={() => setTab("vitals")}>Xem chi tiết</button>}>
               {data.latest ? (
                 <div className="grid grid-cols-2 gap-2">
-                  <Stat label="Huyết áp" value={`${data.latest.sys}/${data.latest.dia}`} tone={data.latest.sys! > 150 ? "red" : "navy"} />
+                  <Stat label="Huyết áp" value={`${data.latest.sys}/${data.latest.dia}`} tone={data.latest.sys! > ((data as { thresholds?: { sysMax: number } }).thresholds?.sysMax ?? 150) ? "red" : "navy"} />
                   <Stat label="Mạch" value={data.latest.pulse ?? "—"} />
                   {data.latest.spo2 && <Stat label="SpO₂" value={`${data.latest.spo2}%`} />}
                   {data.latest.temp && <Stat label="Nhiệt độ" value={`${data.latest.temp}°C`} />}
@@ -88,7 +95,9 @@ export function FamilyHome() {
               ) : <div className="text-[12.5px] text-subtle">Chưa đo</div>}
               {data.latest && <div className="mt-1 text-[11px] text-subtle">Lúc {hm(data.latest.at)} {data.latest.at.startsWith(TODAY) ? "hôm nay" : dm(data.latest.at.slice(0, 10))}</div>}
             </Card>
-            {data.alerts.length > 0 && <Card title={<span className="flex items-center gap-2"><HeartPulse size={16} className="text-red-ink" />Cảnh báo</span>}>{data.alerts.map((a) => <div key={a.id} className="py-1 text-[12.5px]"><Badge tone={LEVEL[a.level][0]}>{LEVEL[a.level][1]}</Badge> <b>{a.title}</b><span className="block text-muted">{a.detail}</span></div>)}</Card>}
+            <Card title={<span className="flex items-center gap-2"><HeartPulse size={16} className="text-red-ink" />Cảnh báo</span>}>
+              {data.alerts.length === 0 ? <div className="text-[12.5px] text-subtle">Không có cảnh báo đang mở</div> : data.alerts.map((a) => <div key={a.id} className="py-1 text-[12.5px]"><Badge tone={LEVEL[a.level][0]}>{LEVEL[a.level][1]}</Badge> <b>{a.title}</b><span className="block text-muted">{a.detail}</span></div>)}
+            </Card>
             <Card title="Sắp tới hôm nay">
               {!data.therapy.length && !data.next.length && <div className="text-[12.5px] text-subtle">Không còn việc nào trong hôm nay</div>}
               {data.therapy.map((x) => <div key={x.id} className="flex items-center gap-2 py-1 text-[12.5px]"><Badge tone="teal">{x.startTime}</Badge>{x.service?.name}</div>)}
@@ -98,14 +107,13 @@ export function FamilyHome() {
               <div className="grid grid-cols-2 gap-2">{data.photos.map((p) => <Photo key={p.id} tone={p.tone ?? "blue"} caption={`${p.time} · ${p.detail}`} />)}</div>
               {!data.photos.length && <div className="text-[12.5px] text-subtle">Chưa có ảnh</div>}
             </Card>
-            <Card title="Người phụ trách">
+            <Card title="Người phụ trách" className="md:col-span-2 xl:col-span-2">
               {[data.nurse && ["Điều dưỡng", data.nurse], data.caregiver && ["Hộ lý", data.caregiver]].filter(Boolean).map((x) => {
                 const [l, u] = x as [string, { id: number; fullName: string }];
                 return <div key={u.id} className="flex items-center gap-2 py-1"><Avatar name={u.fullName} size={28} tone="teal" /><span className="flex-1 text-[12.5px]"><b>{u.fullName}</b><span className="block text-[11px] text-subtle">{l}</span></span><Button size="sm" variant="outline" icon={MessageCircle} to={`/family/messages?to=${u.id}`}>Nhắn</Button></div>;
               })}
               <Note className="mt-2">Gia đình không bình luận vào care log; nhắn tin với nhân viên phụ trách.</Note>
             </Card>
-            {data.sub && daysBetween(TODAY, data.sub.endDate) <= 7 && !isDayCycle(data.sub.cycle) && <Note tone="orange">Gói {CYCLE_LABEL[data.sub.cycle]} hết hạn {dmy(data.sub.endDate)}. <Link to="/family/packages" className="font-semibold">Gia hạn</Link></Note>}
           </div>
         </div>
       )}
