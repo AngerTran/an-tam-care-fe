@@ -7,7 +7,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { family, NOW, TODAY, useLiveRefresh } from "../../api";
 import { useMe } from "../../auth/AuthContext";
 import { Page } from "../../components/layout/PortalLayout";
-import { AttBadge, ElderlyPicker, GroupBadge, LineChart, Stat, SubBadge, TierBadge, Timeline, useFamilyElderly } from "../../components/domain";
+import { AttBadge, ElderlyPicker, GroupBadge, Stat, SubBadge, TierBadge, Timeline, useFamilyElderly } from "../../components/domain";
 import { Avatar, Badge, Button, Card, Chip, EmptyState, ErrorText, Field, KV, Loading, Modal, Note, Photo, SelectField, Table, Tabs, TextArea, Toggle, cn } from "../../components/ui";
 import { CYCLE_LABEL, isDayCycle, TIER_LABEL, tierHasBreakfast } from "../../domain/catalog";
 import type { HealthMetric } from "../../types/models";
@@ -21,7 +21,10 @@ function NoElderly() {
 }
 
 /** Liều chưa ghi: còn trước giờ uống thì "Chưa tới giờ", đã qua giờ thì "Chưa ghi nhận". */
-const pendingLabel = (date: string, time: string) => (date > TODAY || (date === TODAY && time > NOW) ? "Chưa tới giờ" : "Chưa ghi nhận");
+const pendingLabel = (date: string, time: string) =>
+  date < TODAY ? "Không có ghi nhận" : date > TODAY || time > NOW ? "Chưa tới giờ" : "Chưa ghi nhận";
+/** Màu nhãn liều: đã uống xanh, còn chờ trong hôm nay xám, ngày đã qua mà không ai ghi / từ chối / thiếu thuốc cam. */
+const doseTone = (d: { status: string; date: string }) => (d.status === "GIVEN" ? "green" : d.status === "PENDING" && d.date >= TODAY ? "gray" : "orange");
 
 // ------------------------------------------------------------------ G1
 type FamilyTab = "overview" | "vitals" | "care" | "timeline";
@@ -129,7 +132,7 @@ export function FamilySummary() {
   const { data, isLoading } = useQuery({ queryKey: ["f-sum", fe.id, date], queryFn: () => family.summary(me, fe.id!, date), enabled: !!fe.id });
   const Row = ({ icon: I, title, children }: { icon: typeof Utensils; title: string; children: React.ReactNode }) => <Card title={<span className="flex items-center gap-2"><I size={16} className="text-orange" />{title}</span>}>{children}</Card>;
   return (
-    <Page title="Tổng kết ngày" sub="Hệ thống tự gom số liệu đã ghi trong ngày, không dùng AI viết tóm tắt." actions={<><ElderlyPicker rows={fe.rows} value={fe.id} onChange={fe.pick} />{data && <SelectField label="Ngày" value={date} onChange={(e) => setDate(e.target.value)} className="w-44">{data.dates.map((d) => <option key={d} value={d}>{weekday(d)} {dmy(d)}</option>)}</SelectField>}</>}>
+    <Page title="Nhật ký các ngày" sub="Chọn ngày để xem lại: ăn uống, hoạt động, chỉ số, thuốc, lưu ý. Hệ thống tự gom số liệu đã ghi, không dùng AI viết tóm tắt." actions={<><ElderlyPicker rows={fe.rows} value={fe.id} onChange={fe.pick} />{data && <SelectField label="Ngày" value={date} onChange={(e) => setDate(e.target.value)} className="w-44">{data.dates.map((d) => <option key={d} value={d}>{weekday(d)} {dmy(d)}</option>)}</SelectField>}</>}>
       {!fe.id ? <NoElderly /> : isLoading || !data ? <Loading /> : (
         <>
           <Card>
@@ -143,7 +146,7 @@ export function FamilySummary() {
             <Row icon={Activity} title={`Hoạt động (${data.activities.length})`}>{data.activities.map((x) => <KV key={x.id} label={x.time} w={50}>{x.title} · {x.detail}</KV>)}</Row>
             <Row icon={Smile} title="Tâm trạng">{data.moods.map((x) => <KV key={x.id} label={x.time} w={50}>{x.detail}</KV>)}{data.naps.map((x) => <KV key={x.id} label={<Moon size={12} />} w={50}>{x.detail}</KV>)}</Row>
             <Row icon={HeartPulse} title="Chỉ số">{data.vitals.map((m) => <KV key={m.id} label={hm(m.at)} w={50}>{[m.sys && `HA ${m.sys}/${m.dia}`, m.pulse && `mạch ${m.pulse}`, m.temp && `${m.temp}°C`, m.spo2 && `SpO₂ ${m.spo2}%`, m.glucose && `ĐH ${m.glucose}`].filter(Boolean).join(" · ")}</KV>)}</Row>
-            <Row icon={Pill} title="Thuốc">{data.meds.length ? data.meds.map((m) => <KV key={m.id} label={m.time} w={50}>{m.plan?.name} · <Badge tone={m.status === "GIVEN" ? "green" : m.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: "Đã uống", REFUSED: "Từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(m.date, m.time) })[m.status]}</Badge>{m.reason ? ` ${m.reason}` : ""}</KV>) : <span className="text-subtle">Không có</span>}</Row>
+            <Row icon={Pill} title="Thuốc">{data.meds.length ? data.meds.map((m) => <KV key={m.id} label={m.time} w={50}>{m.plan?.name} · <Badge tone={doseTone(m)}>{({ GIVEN: "Đã uống", REFUSED: "Từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(m.date, m.time) })[m.status]}</Badge>{m.reason ? ` ${m.reason}` : ""}</KV>) : <span className="text-subtle">Không có</span>}</Row>
             <Row icon={ClipboardList} title="Lưu ý">{data.notes.length ? data.notes.map((x) => <KV key={x.id} label={x.time} w={50}>{x.title}: {x.detail}</KV>) : <span className="text-subtle">Không có gì bất thường</span>}</Row>
           </div>
           {data.photos.length > 0 && <Card title={<span className="flex items-center gap-2"><Camera size={16} />Ảnh</span>}><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{data.photos.map((p) => <Photo key={p.id} tone={p.tone ?? "blue"} caption={`${p.time} · ${p.detail}`} />)}</div></Card>}
@@ -154,40 +157,64 @@ export function FamilySummary() {
 }
 
 // ------------------------------------------------------------------ G3
+type HealthThresholds = { sysMax: number; diaMax: number; spo2Min: number; tempMax: number; glucoseMax: number };
+type VitalKey = "sys" | "pulse" | "spo2" | "temp" | "glucose";
+/** 1 chỉ số của lần đo có vượt ngưỡng không (tô đỏ đúng ô đó). */
+const overField = (k: VitalKey, m: HealthMetric, t: HealthThresholds) =>
+  k === "sys" ? m.sys != null && (m.sys > t.sysMax || (m.dia ?? 0) > t.diaMax)
+  : k === "spo2" ? m.spo2 != null && m.spo2 < t.spo2Min
+  : k === "temp" ? m.temp != null && m.temp > t.tempMax
+  : k === "glucose" ? m.glucose != null && m.glucose > t.glucoseMax
+  : false;
+/** Lần đo có ít nhất 1 chỉ số vượt ngưỡng (để đếm). */
+const overVitals = (m: HealthMetric, t: HealthThresholds) => (["sys", "spo2", "temp", "glucose"] as const).some((k) => overField(k, m, t));
+
+/** G3: chỉ số dạng bảng số theo ngày (không biểu đồ) + 3 số tóm tắt + báo cáo tháng. */
 export function FamilyHealth() {
   const me = useMe();
   const fe = useFamilyElderly();
   const [range, setRange] = useState<7 | 30>(7);
   const { data, isLoading } = useQuery({ queryKey: ["f-health", fe.id], queryFn: () => family.health(me, fe.id!), enabled: !!fe.id });
   const from = addDays(TODAY, -range);
-  // mỗi ngày 1 điểm: lần đo huyết áp đầu tiên trong ngày (thường là buổi sáng)
-  const bp = (data?.metrics ?? []).filter((m, i, all) => m.sys && m.at >= from && all.findIndex((x) => x.sys && x.at.slice(0, 10) === m.at.slice(0, 10)) === i);
-  const gl = (data?.metrics ?? []).filter((m) => m.glucose && m.at >= from);
+  const t = data?.thresholds as HealthThresholds | undefined;
+  const metrics = (data?.metrics ?? []).filter((m) => m.at >= from);
+  // mỗi ngày 1 dòng: lần đo đầu tiên trong ngày của từng chỉ số (thường là buổi sáng), số lần đo trong ngày
+  const days = [...new Set(metrics.map((m) => m.at.slice(0, 10)))].sort().reverse().map((d) => {
+    const ofDay = metrics.filter((m) => m.at.startsWith(d));
+    const first = <K extends keyof HealthMetric>(k: K) => ofDay.find((m) => m[k] != null);
+    return { d, count: ofDay.length, bp: first("sys"), pulse: first("pulse"), spo2: first("spo2"), temp: first("temp"), glucose: first("glucose") };
+  });
+  const bps = metrics.filter((m) => m.sys);
+  const avgOf = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : undefined);
+  const over = t ? metrics.filter((m) => overVitals(m, t)).length : 0;
+  const due = (data?.doses ?? []).filter((x) => x.date >= from && (x.date < TODAY || x.time <= NOW));
+  const givenPct = due.length ? Math.round((100 * due.filter((x) => x.status === "GIVEN").length) / due.length) : undefined;
+  const hasGlucose = days.some((x) => x.glucose);
+  const cell = (k: VitalKey, m: HealthMetric | undefined, text: (m: HealthMetric) => string) =>
+    !m ? <span className="text-faint">—</span> : <span className={cn(t && overField(k, m, t) && "font-semibold text-red-ink")}>{text(m)}</span>;
   return (
-    <Page title="Sức khỏe" actions={<ElderlyPicker rows={fe.rows} value={fe.id} onChange={fe.pick} />}>
+    <Page title="Sức khỏe" sub="Số đo theo ngày, ô đỏ = vượt ngưỡng của cụ." actions={<ElderlyPicker rows={fe.rows} value={fe.id} onChange={fe.pick} />}>
       {!fe.id ? <NoElderly /> : isLoading || !data ? <Loading /> : (
         <>
           <div className="flex gap-1.5"><Chip active={range === 7} onClick={() => setRange(7)}>7 ngày</Chip><Chip active={range === 30} onClick={() => setRange(30)}>30 ngày</Chip></div>
-          <Card title="Huyết áp (lần đo đầu mỗi ngày)">
-            {!bp.length ? <div className="text-[12.5px] text-subtle">Chưa có số đo trong {range} ngày</div> : <LineChart labels={bp.map((m) => dm(m.at.slice(0, 10)))} series={[{ name: "Tâm thu", color: "#e05a5a", values: bp.map((m) => m.sys) }, { name: "Tâm trương", color: "var(--color-blue)", values: bp.map((m) => m.dia) }]} bands={[{ from: data.thresholds.sysMax, to: 220, label: `Trên ngưỡng ${data.thresholds.sysMax}` }]} />}
-          </Card>
-          {gl.length > 0 && (
-            <Card title="Đường huyết trước ăn sáng (mmol/L)">
-              <LineChart labels={gl.map((m) => dm(m.at.slice(0, 10)))} series={[{ name: "Đường huyết", color: "#f68d54", values: gl.map((m) => m.glucose) }]} min={5} max={11} bands={[{ from: data.thresholds.glucoseMax, to: 11, label: `Trên ${data.thresholds.glucoseMax}` }]} />
-            </Card>
-          )}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card title="Lịch sử uống thuốc">
-              <Table rows={data.doses} rowKey={(d) => d.id} empty="Chưa có" columns={[
-                { key: "d", header: "Ngày", render: (d) => `${dm(d.date)} ${d.time}` },
-                { key: "n", header: "Thuốc", render: (d) => d.plan?.name },
-                { key: "s", header: "", render: (d) => <Badge tone={d.status === "GIVEN" ? "green" : d.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: "Đã uống", REFUSED: "Từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(d.date, d.time) })[d.status]}</Badge> },
-              ]} />
-            </Card>
-            <Card title="Báo cáo sức khỏe tháng">
-              {data.monthlyReport ? <MonthlyReport metrics={data.metrics.filter((m) => m.at >= addDays(TODAY, -30))} /> :<div className="flex items-start gap-2 text-[12.5px] text-subtle"><Lock size={14} className="mt-0.5" />Báo cáo sức khỏe tháng có ở hạng Cao cấp. <Link to="/family/packages" className="font-semibold text-orange">Nâng hạng</Link></div>}
-            </Card>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Stat label={`Huyết áp trung bình ${range} ngày`} value={bps.length ? `${avgOf(bps.map((m) => m.sys!))}/${avgOf(bps.map((m) => m.dia ?? 0))}` : "—"} />
+            <Stat label="Số lần vượt ngưỡng" value={over} tone={over > 0 ? "red" : "green"} />
+            <Stat label="Uống thuốc đủ" value={givenPct !== undefined ? `${givenPct}%` : "—"} tone={givenPct === undefined ? "navy" : givenPct >= 90 ? "green" : "orange"} />
           </div>
+          <Card title={`Chỉ số ${range} ngày`} actions={t && <span className="text-[11px] text-subtle">Ngưỡng: HA ≤ {t.sysMax}/{t.diaMax} · SpO₂ ≥ {t.spo2Min}% · ĐH ≤ {t.glucoseMax}</span>}>
+            <Table rows={days} rowKey={(x) => x.d} empty={`Chưa có số đo trong ${range} ngày`} columns={[
+              { key: "d", header: "Ngày", render: (x) => <span>{weekday(x.d)} {dm(x.d)}<span className="block text-[11px] text-subtle">{x.count} lần đo</span></span> },
+              { key: "bp", header: "Huyết áp", render: (x) => cell("sys", x.bp, (m) => `${m.sys}/${m.dia}`) },
+              { key: "p", header: "Mạch", render: (x) => cell("pulse", x.pulse, (m) => `${m.pulse}`) },
+              { key: "s", header: "SpO₂", render: (x) => cell("spo2", x.spo2, (m) => `${m.spo2}%`) },
+              { key: "t", header: "Nhiệt độ", render: (x) => cell("temp", x.temp, (m) => `${m.temp}°C`) },
+              ...(hasGlucose ? [{ key: "g", header: "Đường huyết", render: (x: (typeof days)[number]) => cell("glucose", x.glucose, (m) => `${m.glucose} mmol/L`) }] : []),
+            ]} />
+          </Card>
+          <Card title="Báo cáo sức khỏe tháng">
+            {data.monthlyReport ? <MonthlyReport metrics={data.metrics.filter((m) => m.at >= addDays(TODAY, -30))} /> : <div className="flex items-start gap-2 text-[12.5px] text-subtle"><Lock size={14} className="mt-0.5" />Báo cáo sức khỏe tháng có ở hạng Cao cấp. <Link to="/family/packages" className="font-semibold text-orange">Nâng hạng</Link></div>}
+          </Card>
         </>
       )}
     </Page>
@@ -254,13 +281,15 @@ export function FamilyMeds() {
   const { data, isLoading } = useQuery({ queryKey: ["f-meds", fe.id], queryFn: () => family.meds(me, fe.id!), enabled: !!fe.id });
   const save = useMutation({ mutationFn: () => family.saveMed(me, { elderlyId: fe.id!, name: form!.name, dose: form!.dose, times: form!.times.split(",").map((x) => x.trim()).filter(Boolean), startDate: form!.startDate, endDate: form!.endDate || undefined, note: form!.note, replaceId: form!.replaceId }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["f-meds"] }); setForm(null); } });
   const stop = useMutation({ mutationFn: (id: number) => family.stopMed(me, id), onSuccess: () => qc.invalidateQueries({ queryKey: ["f-meds"] }) });
+  // lịch sử 30 ngày (trước hôm nay) lấy từ dữ liệu sức khỏe, mới nhất trước
+  const history = useQuery({ queryKey: ["f-health", fe.id], queryFn: () => family.health(me, fe.id!), enabled: !!fe.id });
+  const past = (history.data?.doses ?? []).filter((d) => d.date < TODAY).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
   return (
-    <Page title="Thuốc gửi kèm" sub="Gia đình khai tên thuốc, liều, giờ uống, ảnh vỉ thuốc. Đổi đơn có lưu lịch sử. Điều dưỡng cho uống và ghi lại." actions={<><ElderlyPicker rows={fe.rows} value={fe.id} onChange={fe.pick} /><Button size="sm" icon={Plus} disabled={!fe.id} onClick={() => setForm({ name: "", dose: "1 viên", times: "08:00", startDate: TODAY, endDate: "", note: "" })}>Thêm thuốc</Button></>}>
+    <Page title="Thuốc của cụ" sub="Gia đình khai tên thuốc, liều, giờ uống. Đổi đơn có lưu lịch sử. Điều dưỡng cho uống và ghi lại." actions={<><ElderlyPicker rows={fe.rows} value={fe.id} onChange={fe.pick} /><Button size="sm" icon={Plus} disabled={!fe.id} onClick={() => setForm({ name: "", dose: "1 viên", times: "08:00", startDate: TODAY, endDate: "", note: "" })}>Thêm thuốc</Button></>}>
       {!fe.id ? <NoElderly /> : isLoading || !data ? <Loading /> : (
         <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
           <Card title="Danh sách thuốc">
             <Table rows={data.plans} rowKey={(p) => p.id} columns={[
-              { key: "p", header: "", render: () => <span className="block h-8 w-12 rounded bg-gradient-to-br from-[#e6dcf5] to-[#c7b5ea]" /> },
               { key: "n", header: "Thuốc", render: (p) => <span className={cn(!p.active && "text-faint line-through")}><b className="text-navy">{p.name}</b> · {p.dose}<span className="block text-[11px] text-subtle">{p.note}</span></span> },
               { key: "t", header: "Giờ uống", render: (p) => p.times.join(", ") },
               { key: "d", header: "Thời gian", render: (p) => `${dm(p.startDate)} → ${p.endDate ? dm(p.endDate) : "…"}` },
@@ -268,7 +297,16 @@ export function FamilyMeds() {
             ]} />
           </Card>
           <Card title="Hôm nay">
-            {data.today.length === 0 ? <div className="text-[12.5px] text-subtle">Không có liều</div> : data.today.map((d) => <KV key={d.id} label={d.time} w={50}>{d.plan?.name} · <Badge tone={d.status === "GIVEN" ? "green" : d.status === "PENDING" ? "gray" : "orange"}>{({ GIVEN: `Đã uống ${d.at}`, REFUSED: "Cụ từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(d.date, d.time) })[d.status]}</Badge>{d.reason && <span className="block text-[11px] text-subtle">{d.reason}</span>}</KV>)}
+            {data.today.length === 0 ? <div className="text-[12.5px] text-subtle">Không có liều</div> : data.today.map((d) => <KV key={d.id} label={d.time} w={50}>{d.plan?.name} · <Badge tone={doseTone(d)}>{({ GIVEN: `Đã uống ${d.at}`, REFUSED: "Cụ từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(d.date, d.time) })[d.status]}</Badge>{d.reason && <span className="block text-[11px] text-subtle">{d.reason}</span>}</KV>)}
+          </Card>
+          <Card title="Lịch sử uống thuốc 30 ngày" className="lg:col-span-2" actions={past.length > 0 && <span className="text-[11px] text-subtle">Đã uống {past.filter((d) => d.status === "GIVEN").length}/{past.length} liều</span>}>
+            <Table rows={past} rowKey={(d) => d.id} empty="Chưa có liều nào trước hôm nay" columns={[
+              { key: "d", header: "Ngày", render: (d) => `${weekday(d.date)} ${dm(d.date)}` },
+              { key: "t", header: "Giờ", render: (d) => d.time },
+              { key: "n", header: "Thuốc", render: (d) => <span><b className="text-navy">{d.plan?.name}</b> · {d.plan?.dose}</span> },
+              { key: "s", header: "Kết quả", render: (d) => <span><Badge tone={doseTone(d)}>{({ GIVEN: `Đã uống${d.at ? ` ${d.at}` : ""}`, REFUSED: "Cụ từ chối", MISSING: "Chưa có thuốc", PENDING: pendingLabel(d.date, d.time) })[d.status]}</Badge>{d.reason && <span className="block text-[11px] text-subtle">{d.reason}</span>}</span> },
+              { key: "b", header: "Điều dưỡng", render: (d) => d.nurse?.fullName ?? <span className="text-faint">—</span> },
+            ]} />
           </Card>
         </div>
       )}
